@@ -3,8 +3,8 @@ Created on Apr 16, 2018
 
 @author: hwase0ng
 
-Note: This version is modified from a source found in Internet which I could no longer traced to
-      provide its due credit.
+Note: This version is adapted from a source found in Internet which I could no longer traced to
+      provide its due credit. Please do inform me if you are the original author of this code.
 '''
 
 import settings as S
@@ -200,20 +200,22 @@ if __name__ == '__main__':
 
     idmap = loadIdMap()
 
-    S.DBG_ALL = False
-    counter = "YSPSAH"
+    counter = "PBBANK"
     OUTPUT_FILE = counter + ".csv"
     START_DATE = "2018-01-01"
     END_DATE = "2018-02-26"
+    WRITE_CSV = False
 
-    # s0 = Quote(counter, START_DATE, END_DATE, idmap)
     s0 = InvestingQuote(idmap, counter, START_DATE, END_DATE)
     if isinstance(s0.response, unicode):
         s1 = s0.to_df()
         if isinstance(s1, pd.DataFrame):
-            s1.index.name = 'index'
-            s1.to_csv(OUTPUT_FILE, index=False, header=False)
+            if S.DBG_ICOM:
+                print s1[:5]
+            if WRITE_CSV:
+                s1.index.name = 'index'
+                s1.to_csv(OUTPUT_FILE, index=False, header=False)
         else:
-            print s1 + ": " + counter + "," + START_DATE + "," + END_DATE
+            print "ERR:" + s1 + ": " + counter + "," + START_DATE + "," + END_DATE
     else:
         print "ERR:" + s0.response + "," + START_DATE + "," + END_DATE
