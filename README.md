@@ -15,7 +15,7 @@ Alternative sites to scrap for KLSE EOD after both google and yahoo finance stop
 	   print df[:5]
 	   df.to_csv(counter+".csv", index=False, header=False)
        
-    # Sample output
+ 	# Sample output
 	Commodity    Date   Open   High   Low   Close    Volume
 	PBBANK 2018-01-02  20.76  20.80  20.62  20.76  1870000.0
 	PBBANK 2018-01-03  20.80  20.86  20.74  20.76  3910000.0
