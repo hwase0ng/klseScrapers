@@ -22,7 +22,7 @@ def connectRecentPrices(stkcode):
         html = page.content
         soup = BeautifulSoup(html)
     except Exception as e:
-        print e
+        print(e
         soup = ''
     return soup
 
@@ -62,5 +62,6 @@ def scrapeEOD(soup):
 
 
 if __name__ == '__main__':
+    S.DBG_ALL = True
     scrapeEOD(connectRecentPrices("5010"))
     pass

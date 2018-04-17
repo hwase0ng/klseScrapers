@@ -4,3 +4,4 @@ openpyxl==2.4.8
 pandas==0.22.0
 matplotlib==2.2.0
 requests==2.18.4
+beautifulsoup==3.2.1
