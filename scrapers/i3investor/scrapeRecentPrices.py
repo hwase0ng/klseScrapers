@@ -9,13 +9,16 @@ import datetime
 import requests
 from BeautifulSoup import BeautifulSoup
 
+I3PRICEURL = 'https://klse.i3investor.com/servlets/stk/rec/'
+
 
 def connectRecentPrices(stkcode):
     if len(stkcode) != 4 or not stkcode.isdigit():
+        print "ERR:Invalid stock code = ", stkcode
         return
 
     global soup
-    recentPricesUrl = S.I3PRICEURL + stkcode + ".jsp"
+    recentPricesUrl = I3PRICEURL + stkcode + ".jsp"
     try:
         page = requests.get(recentPricesUrl, headers=S.HEADERS)
         assert(page.status_code == 200)
@@ -45,7 +48,8 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
 
 
 def scrapeEOD(soup, start):
-    if len(soup) <= 0:
+    if soup is None or len(soup) <= 0:
+        print 'ERR: no result'
         return
     i3eod = {}
     table = soup.find('table', {'class': 'nc'})
@@ -58,17 +62,24 @@ def scrapeEOD(soup, start):
             if dt > start:
                 i3eod[dt] = [price_open, price_high, price_low, price_close, volume]
             else:
-                return i3eod
+                break
             # print type(dt), type(price_open), type(price_high), type(price_low), type(price_close), type(volume)
             if S.DBG_ALL:
                 print dt, price_open, price_high, price_low, price_close, volume
         elif len(eod) > 0:
             print "ERR:", eod
+    return i3eod
+
+
+def unpackEOD(popen, phigh, plow, pclose, pvol):
+    return "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), "{:.4f}".format(float(plow)), \
+        "{:.4f}".format(float(pclose)), int(pvol.replace(',', ''))
 
 
 if __name__ == '__main__':
     S.DBG_ALL = False
-    START_DATE = "2018-03-23"
-    i3 = scrapeEOD(connectRecentPrices("5010"), START_DATE)
-    print i3.items()
+    START_DATE = "2018-03-30"
+    i3 = scrapeEOD(connectRecentPrices("5238"), START_DATE)
+    for key in sorted(i3.iterkeys()):
+        print key + ',' + ','.join(map(str, unpackEOD(*(i3[key]))))
     pass
