@@ -87,6 +87,6 @@ if __name__ == '__main__':
     for key in sorted(stocksListing.iterkeys()):
         stock = key + ',' + ','.join(map(str, unpackListing(*(stocksListing[key]))))
         print stock
-        fh.write(stock + '\n')
+        fh.write(stock + ',nl\n')
     fh.close()
     pass
