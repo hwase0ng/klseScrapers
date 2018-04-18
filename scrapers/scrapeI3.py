@@ -22,7 +22,7 @@ def connectRecentPrices(stkcode):
         html = page.content
         soup = BeautifulSoup(html)
     except Exception as e:
-        print(e
+        print(e)
         soup = ''
     return soup
 
@@ -44,9 +44,10 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
     return dt, price_open, prange[1], prange[0], price_close, volume
 
 
-def scrapeEOD(soup):
+def scrapeEOD(soup, start):
     if len(soup) <= 0:
         return
+    i3eod = {}
     table = soup.find('table', {'class': 'nc'})
     # for each row, there are many rows including no table
     for tr in table.findAll('tr'):
@@ -54,6 +55,10 @@ def scrapeEOD(soup):
         eod = [x.text.strip() for x in td]
         if len(eod) == 6:
             dt, price_open, price_high, price_low, price_close, volume = unpackTD(*eod)
+            if dt > start:
+                i3eod[dt] = [price_open, price_high, price_low, price_close, volume]
+            else:
+                return i3eod
             # print type(dt), type(price_open), type(price_high), type(price_low), type(price_close), type(volume)
             if S.DBG_ALL:
                 print dt, price_open, price_high, price_low, price_close, volume
@@ -62,6 +67,8 @@ def scrapeEOD(soup):
 
 
 if __name__ == '__main__':
-    S.DBG_ALL = True
-    scrapeEOD(connectRecentPrices("5010"))
+    S.DBG_ALL = False
+    START_DATE = "2018-03-23"
+    i3 = scrapeEOD(connectRecentPrices("5010"), START_DATE)
+    print i3.items()
     pass
