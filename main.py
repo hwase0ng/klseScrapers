@@ -8,13 +8,6 @@ from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEO
 import settings as S
 
 
-def getStockDetails(stock):
-    sdata = stock.split(".")
-    stock_name = sdata[0]
-    stock_code = sdata[1] + "." + sdata[2]
-    return stock_name, stock_code
-
-
 def scrapeI3(sname, scode, lastdt):
     eodStock = scrapeEOD(connectRecentPrices(scode), lastdt)
     if eodStock is None:

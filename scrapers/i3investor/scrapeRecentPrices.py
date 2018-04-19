@@ -72,8 +72,9 @@ def scrapeEOD(soup, start):
 
 
 def unpackEOD(popen, phigh, plow, pclose, pvol):
-    return "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), "{:.4f}".format(float(plow)), \
-        "{:.4f}".format(float(pclose)), int(pvol.replace(',', ''))
+    return "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), \
+        "{:.4f}".format(float(plow)), "{:.4f}".format(float(pclose)), \
+        int(pvol.replace(',', ''))
 
 
 if __name__ == '__main__':

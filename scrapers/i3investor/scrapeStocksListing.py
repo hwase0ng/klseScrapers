@@ -30,23 +30,6 @@ def connectStocksListing(initial):
     return soup
 
 
-def unpackTD(dt, price_open, price_range, price_close, change, volume):
-    '''
-    Sample table:
-    <tr>
-        <td class="left">13/04/2018</td>
-        <td class="right">2.92</td>
-        <td class="right">2.92 - 2.98</td>
-        <td class="right">2.98</td>
-        <td class="right" nowrap="nowrap"><span class="up">0.00 (0.00%)</span></td>
-        <td class="right">10,500</td>
-    </tr>
-    '''
-    dt = datetime.datetime.strptime(dt, "%d/%m/%Y").strftime('%Y-%m-%d')
-    prange = [x.strip() for x in price_range.split('-')]
-    return dt, price_open, prange[1], prange[0], price_close, volume
-
-
 def scrapeStocksListing(soup):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
