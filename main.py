@@ -20,7 +20,7 @@ def scrapeI3(sname, scode, lastdt):
 
 def find(substr, infile):
     lines = filter(lambda x: substr in x, open(infile))
-    return lines
+    return lines[0].rstrip()
 
 
 if __name__ == '__main__':
@@ -42,7 +42,7 @@ if __name__ == '__main__':
         for stock_name in stocklist:
             listing = find(stock_name, "scrapers/i3investor/klse.txt")
             if len(listing) > 0:
-                stock = listing[0].split(',')
+                stock = listing.split(',')
                 stock_code = stock[1]
                 print stock_name, stock_code
                 scrapeI3(stock_name, stock_code, START_DATE)
