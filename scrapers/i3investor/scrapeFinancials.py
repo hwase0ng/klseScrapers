@@ -8,17 +8,23 @@ import settings as S
 import datetime
 import requests
 from BeautifulSoup import BeautifulSoup
+from datetime import date
+from dateutil.relativedelta import relativedelta
 
 I3FINURL = 'https://klse.i3investor.com/servlets/stk/fin/'
+I3LATESTFINURL = 'http://klse.i3investor.com/financial/quarter/latest.jsp'
 
 
 def connectStkFin(stkcode):
-    if len(stkcode) != 4:
+    if len(stkcode) == 0:
+        stkFinUrl = I3LATESTFINURL
+    elif len(stkcode) != 4:
         print "ERR:Invalid stkcode = ", stkcode
         return
+    else:
+        stkFinUrl = I3FINURL + stkcode + ".jsp"
 
     global soup
-    stkFinUrl = I3FINURL + stkcode + ".jsp"
     if S.DBG_ALL:
         print stkFinUrl
     try:
@@ -30,6 +36,30 @@ def connectStkFin(stkcode):
         print(e)
         soup = ''
     return soup
+
+
+def scrapeLatestFin(soup, lastscan):
+    if soup is None or len(soup) <= 0:
+        print 'ERR: no result'
+        return
+
+    stkList = []
+    table = soup.find('table', {'class': 'nc'})
+    # for each row, there are many rows including no table
+    for tr in table.findAll('tr'):
+        leftTag = tr.findAll('td', {'class': 'left'})
+        if leftTag is not None and len(leftTag) > 0:
+            anndate = datetime.datetime.strptime(leftTag[1].text,
+                                                 "%d-%b-%Y").strftime('%Y-%m-%d')
+            if anndate > lastscan:
+                stockShortName = leftTag[0].text
+                stockLink = tr.find('a').get('href')
+                # Sample stockLink: /servlets/stk/fin/1234.jsp
+                stockCode = stockLink[18:-4]
+                stkList.append(stockShortName + '.' + stockCode)
+            else:
+                break
+    return stkList
 
 
 def unpackTD(td):
@@ -61,14 +91,25 @@ def unpackTD(td):
     eps = td[16]
     adjeps = td[17]
     dps = td[18]
-    fy = datetime.datetime.strptime(fy, "%d-%b-%Y").strftime('%Y-%m-%d')
-    anndate = datetime.datetime.strptime(anndate, "%d-%b-%Y").strftime('%Y-%m-%d')
-    quarter = datetime.datetime.strptime(quarter, "%d-%b-%Y").strftime('%Y-%m-%d')
+    try:
+        fy = datetime.datetime.strptime(fy, "%d-%b-%Y").strftime('%Y-%m-%d')
+        quarter = datetime.datetime.strptime(quarter, "%d-%b-%Y").strftime('%Y-%m-%d')
+        if len(anndate) == 0:
+            year = int(quarter[0:4])
+            month = int(quarter[5:7])
+            day = int(quarter[8:10])
+            anndate = date(year, month, day) + relativedelta(months=+2)
+            anndate = anndate.strftime('%Y-%m-%d')
+        else:
+            anndate = datetime.datetime.strptime(anndate, "%d-%b-%Y").strftime('%Y-%m-%d')
+    except Exception as e:
+        print e
+        print "ERR:", fy + ',' + anndate + ',' + quarter
     return fy, anndate, quarter, qnum, revenue, pbt, np, dividend, npmargin, \
         roe, eps, adjeps, dps
 
 
-def scrapeStkFin(soup):
+def scrapeStkFin(soup, lastscan):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
         return
@@ -83,10 +124,11 @@ def scrapeStkFin(soup):
             fy, anndate, quarter, qnum, revenue, pbt, np, dividend, npmargin, \
                 roe, eps, adjeps, dps = unpackTD(td)
             if S.DBG_ALL:
-                print fy, anndate, quarter, qnum, revenue, pbt, np, dividend, npmargin, \
-                    roe, eps, adjeps, dps
-            fin[anndate] = [fy, quarter, qnum, revenue, pbt, np, dividend, npmargin,
-                            roe, eps, adjeps, dps]
+                print fy, anndate, quarter, qnum, revenue, pbt, np, dividend, \
+                    npmargin, roe, eps, adjeps, dps
+            if len(lastscan) == 0 or anndate > lastscan:
+                fin[anndate] = [fy, quarter, qnum, revenue, pbt, np, dividend,
+                                npmargin, roe, eps, adjeps, dps]
         else:
             if S.DBG_ALL and len(td) > 0:
                 print "TD:", td
@@ -104,13 +146,25 @@ def unpackFIN(anndate, fy, quarter, qnum, revenue, pbt, np, dividend, npmargin, 
 
 if __name__ == '__main__':
     S.DBG_ALL = False
-    stkcode = '7106'
-    stkfin = scrapeStkFin(connectStkFin(stkcode))
-    if stkfin is not None:
-        fh = open(stkcode + ".fin", "w")
-        for key in sorted(stkfin.iterkeys()):
-            fin = ','.join(map(str, unpackFIN(key, *(stkfin[key]))))
-            print fin
-            fh.write(fin + '\n')
-        fh.close()
+    lastFinDate = '2018-04-01'
+
+    stklist = []
+    if len(lastFinDate) > 0:
+        stklist = scrapeLatestFin(connectStkFin(''), lastFinDate)
+    else:
+        stklist = ['BSLCORP.7221']
+
+    for stk in stklist:
+        stkdet = stk.split('.')
+        stkname = stkdet[0]
+        stkcode = stkdet[1]
+        print stkname, stkcode
+        stkfin = scrapeStkFin(connectStkFin(stkcode), lastFinDate)
+        if stkfin is not None:
+            fh = open(stk + ".fin", "w")
+            for key in sorted(stkfin.iterkeys()):
+                fin = ','.join(map(str, unpackFIN(key, *(stkfin[key]))))
+                print fin
+                fh.write(fin + '\n')
+            fh.close()
     pass
