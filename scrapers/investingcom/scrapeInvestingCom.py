@@ -155,8 +155,12 @@ class InvestingQuote(Quote):
                 # only download today's EOD if it is after 6pm local time
                 end_date = du.getYesterday("%Y-%m-%d")
 
+        '''
         last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").strftime('%m/%d/%Y')
         end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").strftime('%m/%d/%Y')
+        '''
+        last_date = du.change2IcomDateFmt(last_date)
+        end_date = du.change2IcomDateFmt(end_date)
         super(InvestingQuote, self).__init__(sname, last_date, end_date, idmap)
         self.response = self.scrape()
         # s0 = Quote(sname, last_date, end_date, idmap)
@@ -180,7 +184,7 @@ class InvestingQuote(Quote):
 def loadIdMap():
     ID_MAPPING = {}
     try:
-        with open("idmap.ini") as idmap:
+        with open("klse.idmap") as idmap:
             for line in idmap:
                 name, var = line.partition("=")[::2]
                 ID_MAPPING[name.strip()] = int(var)
