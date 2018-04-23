@@ -6,21 +6,18 @@ Created on Apr 16, 2018
 
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
 import settings as S
+from Utils.fileutils import getStockCode
 
 
-def scrapeI3(sname, scode, lastdt):
+def scrapeI3eod(sname, scode, lastdt):
     eodStock = scrapeEOD(connectRecentPrices(scode), lastdt)
     if eodStock is None:
-        print "ERR:No Result"
+        print "ERR:No Result for ", sname, scode
         return
+    i3eod = []
     for key in sorted(eodStock.iterkeys()):
-        print sname + ',' + key + ',' + ','.join(map(str, unpackEOD(*(eodStock[key]))))
-    return eodStock
-
-
-def find(substr, infile):
-    lines = filter(lambda x: substr in x, open(infile))
-    return lines[0].rstrip()
+        i3eod += [sname + ',' + key + ',' + ','.join(map(str, unpackEOD(*(eodStock[key]))))]
+    return i3eod
 
 
 if __name__ == '__main__':
@@ -39,13 +36,13 @@ if __name__ == '__main__':
             stocklist = stocks.split(",")
         else:
             stocklist = [stocks]
-        for stock_name in stocklist:
-            listing = find(stock_name, "scrapers/i3investor/klse.txt")
-            if len(listing) > 0:
-                stock = listing.split(',')
-                stock_code = stock[1]
-                print stock_name, stock_code
-                scrapeI3(stock_name, stock_code, START_DATE)
+        for shortname in stocklist:
+            stock_code = getStockCode(shortname, "scrapers/i3investor/klse.txt")
+            if len(stock_code) > 0:
+                print shortname, stock_code
+                i3eod = scrapeI3eod(shortname, stock_code, START_DATE)
+                for eod in i3eod:
+                    print eod
             else:
-                print "ERR: Not found: ", stock_name
+                print "ERR: Not found: ", shortname
     pass

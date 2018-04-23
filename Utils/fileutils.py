@@ -12,6 +12,7 @@ import os
 import socket
 import subprocess
 import xlrd
+from types import NoneType
 
 
 def mapcount(filename):
@@ -160,6 +161,41 @@ class cd:
         os.chdir(self.savedPath)
 
 
+def findAny(substr, infile):
+    lines = filter(lambda x: substr in x, open(infile))
+    try:
+        result = lines[0].rstrip().split(',')
+    except Exception:
+        result = []
+    return result
+
+
+def findBegins(substr, infile):
+    with open(infile) as f:
+        for line in f:
+            if line.startswith(substr + ','):
+                result = line.rstrip().split(',')
+                code = result[1]
+                return code
+    return ''
+
+
+def getStockCode(shortname, klse_file="scrapers/i3investor/klse.txt"):
+    stock_code = findBegins(shortname, klse_file)
+    return stock_code
+
+
+def getStockShortNameById(stock_id, idmap="klse.idmap"):
+    if stock_id is None or len(stock_id) <= 0:
+        return ''
+
+    found = findAny(stock_id, idmap)
+    if len(found) > 0:
+        idmap = found[0].split('=')
+        return idmap[0]
+    return ''
+
+
 '''
 def loadDashOptions():
     try:
@@ -178,4 +214,7 @@ def loadDashOptions():
 
 
 if __name__ == '__main__':
+    print findAny('AIRASIA', '../scrapers/i3investor/klse.txt')
+    print getStockCode('AIRASIA', '../scrapers/i3investor/klse.txt')
+    print getStockShortNameById('41661', '../scrapers/investingcom/klse.idmap')
     pass

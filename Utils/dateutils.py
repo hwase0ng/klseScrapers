@@ -103,5 +103,15 @@ def getYesterday(fm="%Y%m%d"):
     return yesterday.strftime(fm)
 
 
+def change2KlseDateFmt(dt, fmt):
+    newdt = datetime.strptime(dt, fmt).strftime('%Y-%m-%d')
+    return newdt
+
+
+def change2IcomDateFmt(dt, fmt="%Y-%m-%d"):
+    newdt = datetime.strptime(dt, fmt).strftime('%m/%d/%Y')
+    return newdt
+
+
 if __name__ == '__main__':
     pass
