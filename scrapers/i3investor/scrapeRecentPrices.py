@@ -7,6 +7,7 @@ Created on Apr 13, 2018
 import settings as S
 import datetime
 import requests
+from Utils.dateutils import change2KlseDateFmt
 from BeautifulSoup import BeautifulSoup
 
 I3PRICEURL = 'https://klse.i3investor.com/servlets/stk/rec/'
@@ -42,7 +43,8 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
         <td class="right">10,500</td>
     </tr>
     '''
-    dt = datetime.datetime.strptime(dt, "%d/%m/%Y").strftime('%Y-%m-%d')
+    # dt = datetime.datetime.strptime(dt, "%d/%m/%Y").strftime('%Y-%m-%d')
+    dt = change2KlseDateFmt(dt, "%d/%m/%Y")
     prange = [x.strip() for x in price_range.split('-')]
     return dt, price_open, prange[1], prange[0], price_close, volume
 
