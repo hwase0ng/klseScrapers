@@ -20,6 +20,20 @@ def scrapeI3eod(sname, scode, lastdt):
     return i3eod
 
 
+def i3LoadKlse():
+    stocklist = []
+    with open('scrapers/i3investor/klse.txt') as f:
+        reader = csv.reader(f)
+        slist = list(reader)
+        if S.DBG_ALL:
+            print slist[:3]
+        for counter in slist[:]:
+            if S.DBG_ALL:
+                print "\t", counter
+            stocklist += counter[0]
+    return stocklist
+
+
 if __name__ == '__main__':
     stocks = 'AAX,PETRONM'
 
@@ -36,13 +50,17 @@ if __name__ == '__main__':
             stocklist = stocks.split(",")
         else:
             stocklist = [stocks]
-        for shortname in stocklist:
-            stock_code = getStockCode(shortname, "scrapers/i3investor/klse.txt")
-            if len(stock_code) > 0:
-                print shortname, stock_code
-                i3eod = scrapeI3eod(shortname, stock_code, START_DATE)
-                for eod in i3eod:
-                    print eod
-            else:
-                print "ERR: Not found: ", shortname
+    else:
+        # Full download using klse.txt
+        stocklist = i3LoadKlse()
+
+    for shortname in stocklist:
+        stock_code = getStockCode(shortname, "scrapers/i3investor/klse.txt")
+        if len(stock_code) > 0:
+            print shortname, stock_code
+            i3eod = scrapeI3eod(shortname, stock_code, START_DATE)
+            for eod in i3eod:
+                print eod
+        else:
+            print "ERR: Not found: ", shortname
     pass
