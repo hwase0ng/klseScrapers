@@ -189,7 +189,15 @@ def loadIdMap():
                 name, var = line.partition("=")[::2]
                 ID_MAPPING[name.strip()] = int(var)
             if S.DBG_ALL:
-                print dict(ID_MAPPING.items()[0:2])
+                print dict(ID_MAPPING.items()[0:3])
+        with open("klse.txt") as f:
+            for line in f:
+                idmap = line.split(',')
+                name = idmap[0]
+                var = idmap[3]
+                ID_MAPPING[name.strip()] = int(var)
+            if S.DBG_ALL:
+                print dict(ID_MAPPING.items()[0:10])
     except EnvironmentError:
         print "Missing idmap.ini file"
         sys.exit(1)
@@ -202,6 +210,7 @@ def loadIdMap():
 if __name__ == '__main__':
     # OUTPUT_FILE = sys.argv[1]
 
+    S.DBG_ALL = True
     idmap = loadIdMap()
 
     counter = "PBBANK"
