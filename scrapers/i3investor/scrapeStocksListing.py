@@ -58,17 +58,22 @@ def unpackListing(scode, sname, mktcap):
     return scode, sname, mktcap
 
 
-if __name__ == '__main__':
-    S.DBG_ALL = False
+def writeStocksListing(outfile='klse.txt'):
     initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     stocksListing = {}
     for initial in list(initials):
         listing = scrapeStocksListing(connectStocksListing(initial))
         stocksListing.update(listing)
-    fh = open("klse.txt", "w")
+
+    fh = open(outfile, "w")
     for key in sorted(stocksListing.iterkeys()):
         stock = key + ',' + ','.join(map(str, unpackListing(*(stocksListing[key]))))
         print stock
         fh.write(stock + '\n')
     fh.close()
+
+
+if __name__ == '__main__':
+    S.DBG_ALL = False
+    writeStocksListing()
     pass
