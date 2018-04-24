@@ -22,7 +22,7 @@ def connectStocksListing():
         html = page.content
         soup = BeautifulSoup(html)
     except Exception as e:
-        print e
+        print(e)
         soup = ''
     return soup
 
