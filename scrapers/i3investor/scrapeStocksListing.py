@@ -40,8 +40,8 @@ def scrapeStocksListing(soup):
     for tr in table.findAll('tr'):
         leftTag = tr.findAll('td', {'class': 'left'})
         if leftTag is not None and len(leftTag) > 0:
-            stockShortName = leftTag[0].text
-            stockName = leftTag[1].text
+            stockShortName = leftTag[0].text.replace(';', '')
+            stockName = leftTag[1].text.replace(';', '')
             stockLink = tr.find('a').get('href')
             # Sample stockLink: /servlets/stk/1234.jsp
             stockCode = stockLink[14:-4]
@@ -68,7 +68,8 @@ def writeStocksListing(outfile='klse.txt'):
     fh = open(outfile, "w")
     for key in sorted(stocksListing.iterkeys()):
         stock = key + ',' + ','.join(map(str, unpackListing(*(stocksListing[key]))))
-        print stock
+        if S.DBG_ALL:
+            print stock
         fh.write(stock + '\n')
     fh.close()
 
