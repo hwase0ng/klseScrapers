@@ -52,19 +52,22 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
 def scrapeEOD(soup, start):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
-        return
+        return None
     i3eod = {}
     table = soup.find('table', {'class': 'nc'})
+    if table is None:
+        print 'INFO: No recent price is available for this stock.'
+        return None
     # for each row, there are many rows including no table
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
         eod = [x.text.strip() for x in td]
         if len(eod) == 6:
             dt, price_open, price_high, price_low, price_close, volume = unpackTD(*eod)
-            if dt > start:
+            if dt > start and int(volume.replace(',', '')) > 0:
                 i3eod[dt] = [price_open, price_high, price_low, price_close, volume]
             else:
-                break
+                continue
             # print type(dt), type(price_open), type(price_high), type(price_low), type(price_close), type(volume)
             if S.DBG_ALL:
                 print dt, price_open, price_high, price_low, price_close, volume
@@ -81,8 +84,9 @@ def unpackEOD(popen, phigh, plow, pclose, pvol):
 
 if __name__ == '__main__':
     S.DBG_ALL = False
-    START_DATE = "2018-03-30"
-    i3 = scrapeEOD(connectRecentPrices("5238"), START_DATE)
-    for key in sorted(i3.iterkeys()):
-        print key + ',' + ','.join(map(str, unpackEOD(*(i3[key]))))
-    pass
+    START_DATE = "2018-03-28"
+    i3 = scrapeEOD(connectRecentPrices("6998"), START_DATE)
+    if i3 is not None:
+        for key in sorted(i3.iterkeys()):
+            print key + ',' + ','.join(map(str, unpackEOD(*(i3[key]))))
+        pass
