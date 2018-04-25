@@ -7,6 +7,7 @@ Note: This version is adapted from a source found in Internet which I could no l
       provide its due credit. Please do inform me if you are the original author of this code.
 '''
 
+from main import formStocklist, loadKlseCounters
 import settings as S
 import Utils.dateutils as du
 import requests
@@ -15,6 +16,9 @@ import pandas as pd
 import numpy as np
 import datetime
 import math
+from scrapers.investingcom.scrapeStocksListing import writeStocksListing
+from Utils.dateutils import getLastDate
+from scrapers.yahoo.yahoo import getYahooCookie, YahooQuote
 
 
 class Quote(object):
@@ -104,8 +108,10 @@ class Quote(object):
                 # print type(vol), vol
                 df['Vol.'] = df['Vol.'].replace('-', '0.1K')
                 df['Vol.'] = df['Vol.'].replace(0, '0.1K')   # replace all 0 vol with 100 shares
-                # Convert k to 1000 and m to 1000000
-                # Can only support max 5 months of EOD to convert
+                '''
+                Convert k to 1000 and m to 1000000
+                Important: Can only support max 5 months of EOD to convert
+                '''
                 df["Volume"] = pd.eval(df["Vol."].replace(mp.keys(), mp.values(), regex=True).str.replace(r'[^\d\.\*]+', ''))
 
             df.drop('Price', axis=1, inplace=True)
@@ -123,6 +129,8 @@ class Quote(object):
                     f.write(self.name + "\n")
                     f.write(self.response)
         except Exception as e:
+            # This happens when records being processed are larger than 3 months data,
+            # try reducing the period
             if S.DBG_ICOM:
                 with open(S.WORK_DIR + "value.err", 'ab') as f:
                     f.write('\n=============================\n')
@@ -190,6 +198,7 @@ def loadIdMap():
                 ID_MAPPING[name.strip()] = int(var)
             if S.DBG_ALL:
                 print dict(ID_MAPPING.items()[0:3])
+        '''
         with open("klse.txt") as f:
             for line in f:
                 idmap = line.split(',')
@@ -198,6 +207,7 @@ def loadIdMap():
                 ID_MAPPING[name.strip()] = int(var)
             if S.DBG_ALL:
                 print dict(ID_MAPPING.items()[0:10])
+        '''
     except EnvironmentError:
         print "Missing idmap.ini file"
         sys.exit(1)
@@ -209,26 +219,86 @@ def loadIdMap():
 
 if __name__ == '__main__':
     # OUTPUT_FILE = sys.argv[1]
-
-    S.DBG_ALL = True
     idmap = loadIdMap()
 
-    counter = "PBBANK"
-    OUTPUT_FILE = counter + ".csv"
-    START_DATE = "2018-01-01"
-    END_DATE = "2018-02-26"
-    WRITE_CSV = False
+    S.DBG_ALL = False
+    S.DBG_ICOM = False
+    WRITE_CSV = True
+    S.RESUME_FILE = True
 
-    s0 = InvestingQuote(idmap, counter, START_DATE, END_DATE)
-    if isinstance(s0.response, unicode):
-        s1 = s0.to_df()
-        if isinstance(s1, pd.DataFrame):
-            if S.DBG_ICOM:
-                print s1[:5]
-            if WRITE_CSV:
-                s1.index.name = 'index'
-                s1.to_csv(OUTPUT_FILE, index=False, header=False)
-        else:
-            print "ERR:" + s1 + ": " + counter + "," + START_DATE + "," + END_DATE
+    '''
+    stocks = 'ALAQAR,AMFIRST,ARREIT,ATRIUM,AXREIT,CAP,CLIQ,CLOUD,CSL,FOCUSP,GDB,GFM,GNB,HLCAP,ICAP,JMEDU,KINSTEL,MSPORTS,NPS,PARLO,PERDANA,PETONE,PINEAPP,QES,RALCO,SONA,TIMWELL,TWRREIT,WEGMANS,WINTONI,XINQUAN'
+    '''
+    stocks = 'ALAQAR,AMFIRST,ARREIT,ATRIUM,AXREIT,CAP,CLIQ,CLOUD,CSL,FOCUSP,GDB,GFM,GNB,HLCAP,ICAP,JMEDU,KINSTEL,MSPORTS,NPS,PARLO,PERDANA,PETONE,PINEAPP,QES,RALCO,SONA,TIMWELL,TWRREIT,WEGMANS,WINTONI,XINQUAN'
+    klse = "../i3investor/klse.txt"
+
+    if len(stocks) > 0:
+        #  download only selected counters
+        stocklist = formStocklist(stocks, klse)
     else:
-        print "ERR:" + s0.response + "," + START_DATE + "," + END_DATE
+        # Full download using klse.txt
+        writeStocksListing = False
+        if writeStocksListing:
+            writeStocksListing()
+        stocklist = loadKlseCounters(klse)
+
+    for shortname in sorted(stocklist.iterkeys()):
+        if shortname in S.EXCLUDE_LIST:
+            print "Skip: ", shortname
+            continue
+        stock_code = stocklist[shortname]
+        if len(stock_code) > 0:
+            rtn_code = 0
+            OUTPUT_FILE = '../../data/investingcom/' + shortname + "." + stock_code + ".csv"
+            TMP_FILE = OUTPUT_FILE + 'tmp'
+            if S.RESUME_FILE:
+                lastdt = getLastDate(OUTPUT_FILE)
+                if len(lastdt) == 0:
+                    # File is likely to be empty, hence scrape from beginning
+                    lastdt = S.ABS_START
+            else:
+                lastdt = S.ABS_START
+            enddt = '2018-03-28'
+            print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
+                shortname, stock_code, lastdt, enddt)
+            eod = InvestingQuote(idmap, shortname, lastdt, enddt)
+            if S.DBG_ALL:
+                for item in eod:
+                    print item
+            if len(eod.getCsvErr()) > 0:
+                print eod.getCsvErr()
+                # If KeyError, counter not available in investing.com, try yahoo finance
+                print "Scraping from yahoo: ", shortname
+                cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
+                q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
+                if len(q.getCsvErr()) > 0:
+                    st_code, st_reason = q.getCsvErr().split(":")
+                    rtn_code = int(st_code)
+                else:
+                    if WRITE_CSV:
+                        q.write_csv(TMP_FILE)
+                    else:
+                        print q
+            elif isinstance(eod.response, unicode):
+                dfEod = eod.to_df()
+                if isinstance(dfEod, pd.DataFrame):
+                    if S.DBG_ICOM:
+                        print dfEod[:5]
+                    if WRITE_CSV:
+                        dfEod.index.name = 'index'
+                        dfEod.to_csv(TMP_FILE, index=False, header=False)
+                else:
+                    print "ERR:" + dfEod + ": " + shortname + "," + lastdt
+                    rtn_code = -2
+            else:
+                print "ERR:" + eod.response + "," + lastdt
+                rtn_code = -1
+
+            if rtn_code == 0:
+                f = open(OUTPUT_FILE, "ab")
+                ftmp = open(TMP_FILE, "r")
+                f.write(ftmp.read())
+                f.close()
+                ftmp.close()
+        else:
+            print "ERR: Not found: ", shortname

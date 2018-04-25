@@ -59,14 +59,19 @@ def unpackListing(sname, scode, lname, currid):
     return sname, scode, lname, currid
 
 
-if __name__ == '__main__':
-    S.DBG_ALL = False
+def writeStocksListing(outfile='klse.txt'):
     listing = scrapeStocksListing(connectStocksListing())
     if listing is not None:
-        fh = open("klse.txt", "w")
+        fh = open(outfile, "w")
         for data in sorted(listing):
             stock = ','.join(map(str, unpackListing(*(data))))
-            print stock
+            if S.DBG_ALL:
+                print "writeStocksListing:", stock
             fh.write(stock + '\n')
         fh.close()
+
+
+if __name__ == '__main__':
+    S.DBG_ALL = False
+    writeStocksListing()
     pass
