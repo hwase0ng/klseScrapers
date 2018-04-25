@@ -25,10 +25,12 @@ import calendar
 from datetime import datetime, date
 import requests
 import re
-from Utils.dateutils import getToday, getTomorrow, getYesterday, getNextDay
+from Utils.dateutils import getToday, getTomorrow, getYesterday, getNextDay,\
+    getLastDate
 from Utils.fileutils import getStockCode
 import csv
 from requests.exceptions import ConnectionError
+from main import formStocklist, loadKlseCounters
 
 
 def getYahooCookie(url):
@@ -291,27 +293,42 @@ class YahooQuote(Quote):
 
 
 if __name__ == '__main__':
-    stock_name = '3A'
-    stock_code = getStockCode(stock_name, "../i3investor/klse.txt")
-    if len(stock_code) == 0:
-        print "ERR:Invalid stock", stock_name
+    S.RESUME_FILE = False
+    if not S.RESUME_FILE:
+        lastdt = S.ABS_START
+
+    klse = "../i3investor/klse.txt"
+    stocks = 'LCTITAN'
+    if len(stocks) > 0:
+        #  download only selected counters
+        stocklist = formStocklist(stocks, klse)
     else:
-        print "Scraping", stock_name, stock_code
-        cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
-        q = YahooQuote(cookie, crumb, stock_name, stock_code + ".KL",
-                       S.ABS_START, "2018-02-01")
-        #              "2018-03-01", getTomorrow("%Y-%m-%d"))
-        #    getToday("%Y-%m-%d"), getTomorrow("%Y-%m-%d"))
-        writeCsv = False
-        if writeCsv:
-            sfile = (S.WORK_DIR + 'yahoo' + '/' + stock_name + '.' +
-                     stock_code + '.csv')
-            q.write_csv(sfile)
-        print q                                          # print it out
-#   q = YahooQuote('aapl','2011-01-01')              # download year to date Apple data
-#   print q                                          # print it out
-#   q = YahooQuote('orcl','2011-02-01','2011-02-28') # download Oracle data for February 2011
-#   q.write_csv('orcl.csv')                          # save it to disk
-#   q = Quote()                                      # create a generic quote object
-#   q.read_csv('orcl.csv')                           # populate it with our previously saved data
-#   print q                                          # print it out
+        # Full download using klse.txt
+        stocklist = loadKlseCounters(klse)
+
+    cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
+
+    for shortname in sorted(stocklist.iterkeys()):
+        stock_code = stocklist[shortname]
+        if len(stock_code) > 0:
+            OUTPUT_FILE = '../../data/yahoo/' + shortname + "." + stock_code + ".csv"
+            if S.RESUME_FILE:
+                lastdt = getLastDate(OUTPUT_FILE)
+                if len(lastdt) == 0:
+                    # File is likely to be empty, hence scrape from beginning
+                    lastdt = S.ABS_START
+            print shortname, stock_code
+            print "Scraping", shortname, stock_code, lastdt, '$'
+            q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL",
+                           lastdt, "2017-10-01")
+            if len(q.getCsvErr()) > 0:
+                st_code, st_reason = q.getCsvErr().split(":")
+                rtn_code = int(st_code)
+            else:
+                writeCsv = True
+                if writeCsv:
+                    q.write_csv(OUTPUT_FILE)
+                else:
+                    print q
+        else:
+            print "ERR: Not found: ", shortname, stock_code
