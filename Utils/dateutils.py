@@ -104,11 +104,17 @@ def getYesterday(fm="%Y%m%d"):
 
 
 def change2KlseDateFmt(dt, fmt):
+    if len(dt) == 0:
+        print 'change2KlseDateFmt: Empty date'
+        return ''
     newdt = datetime.strptime(dt, fmt).strftime('%Y-%m-%d')
     return newdt
 
 
 def change2IcomDateFmt(dt, fmt="%Y-%m-%d"):
+    if len(dt) == 0:
+        print 'change2IcomDateFmt: Empty date'
+        return ''
     newdt = datetime.strptime(dt, fmt).strftime('%m/%d/%Y')
     return newdt
 

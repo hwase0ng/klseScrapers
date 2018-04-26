@@ -8,7 +8,8 @@ import csv
 import settings as S
 from Utils.fileutils import getStockCode
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
-from scrapers.i3investor.scrapeStocksListing import writeStocksListing
+from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
+    writeLatestPrice
 from Utils.dateutils import getLastDate
 
 
@@ -22,7 +23,8 @@ def scrapeI3eod(sname, scode, lastdt):
         if key <= lastdt:
             print "Skip downloaded: ", key, lastdt
             continue
-        i3eod += [sname + ',' + key + ',' + ','.join(map(str, unpackEOD(*(eodStock[key]))))]
+        i3eod += [sname + ',' + key + ',' +
+                  ','.join(map(str, unpackEOD(*(eodStock[key]))))]
     return i3eod
 
 
@@ -65,32 +67,12 @@ def getStartDate(OUTPUT_FILE):
     return startdt
 
 
-if __name__ == '__main__':
-    '''
-    stocks = 'AAX,PETRONM'
-    '''
-    stocks = ''
-
-    S.DBG_ALL = False
-    S.RESUME_FILE = True
-
-    klse = "scrapers/i3investor/klse.txt"
-    if len(stocks) > 0:
-        #  download only selected counters
-        stocklist = formStocklist(stocks, klse)
-    else:
-        # Full download using klse.txt
-        writeStocksListing = False
-        if writeStocksListing:
-            print "Scraping i3 stocks listing ..."
-            writeStocksListing(klse)
-        stocklist = loadKlseCounters(klse)
-
+def scrapeI3(stocklist):
     for shortname in sorted(stocklist.iterkeys()):
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
             rtn_code = -1
-            OUTPUT_FILE = 'data/i3/' + shortname + "." + stock_code + ".csv"
+            OUTPUT_FILE = 'data/' + shortname + "." + stock_code + ".csv"
             TMP_FILE = OUTPUT_FILE + 'tmp'
             startdt = getStartDate(OUTPUT_FILE)
             print 'Scraping {0},{1}: lastdt={2}'.format(
@@ -115,4 +97,30 @@ if __name__ == '__main__':
             f.write(ftmp.read())
             f.close()
             ftmp.close()
+
+
+if __name__ == '__main__':
+    '''
+    stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
+    '''
+    stocks = ''
+
+    S.DBG_ALL = False
+    S.RESUME_FILE = True
+
+    klse = "scrapers/i3investor/klse.txt"
+    if len(stocks) > 0:
+        #  download only selected counters
+        stocklist = formStocklist(stocks, klse)
+    else:
+        if S.I3LATEST:
+            writeLatestPrice(True, './data/')
+        else:
+            # Full download using klse.txt
+            writeStocksListing = False
+            if writeStocksListing:
+                print "Scraping i3 stocks listing ..."
+                writeStocksListing(klse)
+            scrapeI3(loadKlseCounters(klse))
+
     pass
