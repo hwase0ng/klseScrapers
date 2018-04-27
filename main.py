@@ -4,13 +4,14 @@ Created on Apr 16, 2018
 @author: hwase0ng
 '''
 
-import csv
 import settings as S
-from Utils.fileutils import getStockCode
+import pandas as pd
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice
-from Utils.dateutils import getLastDate
+from Utils.dateutils import getLastDate, getToday, getDayBefore
+from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote
+from common import formStocklist, loadKlseCounters
 
 
 def scrapeI3eod(sname, scode, lastdt):
@@ -26,34 +27,6 @@ def scrapeI3eod(sname, scode, lastdt):
         i3eod += [sname + ',' + key + ',' +
                   ','.join(map(str, unpackEOD(*(eodStock[key]))))]
     return i3eod
-
-
-def loadKlseCounters(infile):
-    stocklist = {}
-    with open(infile) as f:
-        reader = csv.reader(f)
-        slist = list(reader)
-        if S.DBG_ALL:
-            print slist[:3]
-        for counter in slist[:]:
-            if S.DBG_ALL:
-                print "\t", counter[0]
-            stocklist[counter[0]] = counter[1]
-    return stocklist
-
-
-def formStocklist(stocks, infile):
-    stocklist = {}
-    if "," in stocks:
-        stocks = stocks.split(",")
-    else:
-        stocks = [stocks]
-
-    for shortname in stocks:
-        stock_code = getStockCode(shortname, infile)
-        stocklist[shortname] = stock_code
-
-    return stocklist
 
 
 def getStartDate(OUTPUT_FILE):
@@ -102,6 +75,20 @@ def scrapeI3(stocklist):
             ftmp.close()
 
 
+def checkLastTradingDay(lastdt):
+    idmap = loadIdMap('scrapers/investingcom/klse.idmap')
+    eod = InvestingQuote(idmap, 'PBBANK', getDayBefore(lastdt))
+    if isinstance(eod.response, unicode):
+        dfEod = eod.to_df()
+        if isinstance(dfEod, pd.DataFrame):
+            dates = pd.to_datetime(dfEod["Date"], format='%Y%m%d')
+            dates = dates.dt.strftime('%Y-%m-%d').tolist()
+            print dates
+            if dates[1] > lastdt and dates[0] == lastdt:
+                return True
+    return False
+
+
 if __name__ == '__main__':
     '''
     stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
@@ -117,15 +104,17 @@ if __name__ == '__main__':
         scrapeI3(formStocklist(stocks, klse))
     else:
         '''
-        determine if can use latest price found in i3 stocks page
-        conditions:
+        Determine if can use latest price found in i3 stocks page
+        Conditions:
           1. latest eod record in csv file is not today
           2. latest eod record in csv file is 1 trading day behind
              that of investing.com latest eod
         '''
-        lastdt = getLastDate('data/i3/PBBANK.1295.csv')
+        lastdt = getLastDate('data/PBBANK.1295.csv')
         if getToday('%Y-%m-%d') > lastdt:
-            useI3latest = True
+            useI3latest = False
+            if checkLastTradingDay(lastdt):
+                useI3latest = True
             if useI3latest:
                 writeLatestPrice(True, './data/')
             else:
