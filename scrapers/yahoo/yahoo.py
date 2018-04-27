@@ -20,20 +20,18 @@
 # Note: Yahoo for KLCI has been broken since Feb 2018
 
 import sys
-sys.path.append('../../')
-
 import settings as S
 import Utils.dateutils as du
 import calendar
 from datetime import datetime, date
 import requests
 import re
-from Utils.dateutils import getToday, getTomorrow, getYesterday, getNextDay,\
-    getLastDate
-from Utils.fileutils import getStockCode
+from Utils.dateutils import getToday, getNextDay, getLastDate
 import csv
 from requests.exceptions import ConnectionError
-from main import formStocklist, loadKlseCounters
+from common import formStocklist, loadKlseCounters
+
+sys.path.append('../../')
 
 
 def getYahooCookie(url):

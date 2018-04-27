@@ -8,8 +8,7 @@ Note: This version is adapted from a source found in Internet which I could no l
 '''
 
 import sys
-sys.path.append('../../')
-from main import formStocklist, loadKlseCounters
+from common import formStocklist, loadKlseCounters
 import settings as S
 import Utils.dateutils as du
 import requests
@@ -18,8 +17,10 @@ import numpy as np
 import datetime
 import math
 from scrapers.investingcom.scrapeStocksListing import writeStocksListing
-from Utils.dateutils import getLastDate
+from Utils.dateutils import getLastDate, getToday
 from scrapers.yahoo.yahoo import getYahooCookie, YahooQuote
+
+sys.path.append('../../')
 
 
 class Quote(object):
@@ -145,7 +146,7 @@ class Quote(object):
 
 
 class InvestingQuote(Quote):
-    def __init__(self, idmap, sname, last_date, end_date=du.getToday("%Y-%m-%d")):
+    def __init__(self, idmap, sname, last_date, end_date=getToday("%Y-%m-%d")):
         if last_date == end_date:
             self.csverr = sname + ": Skipped downloaded (" + last_date + ")"
             return None
@@ -154,7 +155,7 @@ class InvestingQuote(Quote):
             self.csverr = sname + ": Invalid dates (" + last_date + "," + end_date + ")"
             return None
         # Do not download today's EOD if market is still open
-        if end_date == du.getToday("%Y-%m-%d"):
+        if end_date == getToday("%Y-%m-%d"):
             now = datetime.datetime.now()
             if sname.startswith('USD'):
                 if now.hour > 22:
@@ -190,10 +191,10 @@ class InvestingQuote(Quote):
             self.csverr = sname + ":" + self.response
 
 
-def loadIdMap():
+def loadIdMap(klsemap='klse.idmap'):
     ID_MAPPING = {}
     try:
-        with open("klse.idmap") as idmap:
+        with open(klsemap) as idmap:
             for line in idmap:
                 name, var = line.partition("=")[::2]
                 ID_MAPPING[name.strip()] = int(var)
@@ -230,7 +231,7 @@ if __name__ == '__main__':
     '''
     stocks = 'ALAQAR,AMFIRST,ARREIT,ATRIUM,AXREIT,CAP,CLIQ,CLOUD,CSL,FOCUSP,GDB,GFM,GNB,HLCAP,ICAP,JMEDU,KINSTEL,MSPORTS,NPS,PARLO,PERDANA,PETONE,PINEAPP,QES,RALCO,SONA,TIMWELL,TWRREIT,WEGMANS,WINTONI,XINQUAN'
     '''
-    stocks = 'ALAQAR,AMFIRST,ARREIT,ATRIUM,AXREIT,CAP,CLIQ,CLOUD,CSL,FOCUSP,GDB,GFM,GNB,HLCAP,ICAP,JMEDU,KINSTEL,MSPORTS,NPS,PARLO,PERDANA,PETONE,PINEAPP,QES,RALCO,SONA,TIMWELL,TWRREIT,WEGMANS,WINTONI,XINQUAN'
+    stocks = ''
     klse = "../i3investor/klse.txt"
 
     if len(stocks) > 0:
@@ -259,9 +260,10 @@ if __name__ == '__main__':
                     lastdt = S.ABS_START
             else:
                 lastdt = S.ABS_START
+            enddt = getToday('%Y-%m-%d')
             print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
                 shortname, stock_code, lastdt, enddt)
-            eod = InvestingQuote(idmap, shortname, lastdt)
+            eod = InvestingQuote(idmap, shortname, lastdt, enddt)
             if S.DBG_ALL:
                 for item in eod:
                     print item
