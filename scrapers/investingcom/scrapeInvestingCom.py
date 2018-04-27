@@ -7,11 +7,12 @@ Note: This version is adapted from a source found in Internet which I could no l
       provide its due credit. Please do inform me if you are the original author of this code.
 '''
 
+import sys
+sys.path.append('../../')
 from main import formStocklist, loadKlseCounters
 import settings as S
 import Utils.dateutils as du
 import requests
-import sys
 import pandas as pd
 import numpy as np
 import datetime
