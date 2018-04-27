@@ -9,9 +9,11 @@ import pandas as pd
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice
-from Utils.dateutils import getLastDate, getToday, getDayBefore
+from Utils.dateutils import getLastDate, getDayBefore
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote
 from common import formStocklist, loadKlseCounters
+from Utils.fileutils import cd, getSystemIP
+import os
 
 
 def scrapeI3eod(sname, scode, lastdt):
@@ -83,10 +85,23 @@ def checkLastTradingDay(lastdt):
         if isinstance(dfEod, pd.DataFrame):
             dates = pd.to_datetime(dfEod["Date"], format='%Y%m%d')
             dates = dates.dt.strftime('%Y-%m-%d').tolist()
-            print dates
-            if dates[1] > lastdt and dates[0] == lastdt:
-                return True
-    return False
+            if S.DBG_ALL:
+                print dates
+            return dates
+    return None
+
+
+def callPostUpdate(datadir):
+    with cd(datadir):
+        mt4dir = '/c/Users/hwase/AppData/Roaming/MetaQuotes/Terminal/DFF6411A75BCA6204637971EAA184B85/history/klse'
+        os.system('pwd')
+        ip = getSystemIP()
+        if S.DBG_ALL:
+            print ip
+        if ip.endswith(".2"):
+            os.system('mt4.sh ' + mt4dir)
+        if ip.endswith(".2") or ip.endswith(".10"):
+            os.system('cp *.csv /z/data/')
 
 
 if __name__ == '__main__':
@@ -110,13 +125,20 @@ if __name__ == '__main__':
           2. latest eod record in csv file is 1 trading day behind
              that of investing.com latest eod
         '''
-        lastdt = getLastDate('data/PBBANK.1295.csv')
-        if getToday('%Y-%m-%d') > lastdt:
-            useI3latest = False
-            if checkLastTradingDay(lastdt):
+        datadir = './data/'
+        lastdt = getLastDate(datadir + 'PBBANK.1295.csv')
+        dates = checkLastTradingDay(lastdt)
+        if len(dates) == 1 and dates[0] == lastdt:
+            print "Already latest. Nothing to update."
+            callPostUpdate(datadir)
+        else:
+            if len(dates) == 2 and dates[1] > lastdt and dates[0] == lastdt:
                 useI3latest = True
+            else:
+                useI3latest = False
+
             if useI3latest:
-                writeLatestPrice(True, './data/')
+                writeLatestPrice(True, datadir)
             else:
                 # Full download using klse.txt
                 # To do: a fix schedule to refresh klse.txt
@@ -125,7 +147,5 @@ if __name__ == '__main__':
                     print "Scraping i3 stocks listing ..."
                     writeStocksListing(klse)
                 scrapeI3(loadKlseCounters(klse))
-        else:
-            print "Already latest. Nothing to update."
 
     pass
