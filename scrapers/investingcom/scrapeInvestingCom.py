@@ -258,10 +258,9 @@ if __name__ == '__main__':
                     lastdt = S.ABS_START
             else:
                 lastdt = S.ABS_START
-            enddt = '2018-03-28'
             print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
                 shortname, stock_code, lastdt, enddt)
-            eod = InvestingQuote(idmap, shortname, lastdt, enddt)
+            eod = InvestingQuote(idmap, shortname, lastdt)
             if S.DBG_ALL:
                 for item in eod:
                     print item
