@@ -1,7 +1,7 @@
 '''
 Created on Dec 20, 2016
 
-@author: t.roy
+@author: hwase0ng
 '''
 import settings as S
 from datetime import datetime
