@@ -8,7 +8,6 @@ from matplotlib.dates import date2num
 from datetime import date, datetime, timedelta
 from Utils.fileutils import tail
 from time import time
-from pandas.compat import FileNotFoundError
 
 
 def get_now_epoch():
@@ -50,6 +49,14 @@ def getDayOfWeek(pdate):
 
 
 def getNextDay(pdate):
+    return getDayOffset(pdate, 1)
+
+
+def getDayBefore(pdate):
+    return getDayOffset(pdate, -1)
+
+
+def getDayOffset(pdate, offset):
     # Expecting input: YYYY-MM-DD
     if S.DBG_ALL:
         print pdate, len(pdate)
@@ -59,14 +66,14 @@ def getNextDay(pdate):
     pmm = int(pdate[5:7])
     pdd = int(pdate[8:10])
     try:
-        nextday = date(pyyyy, pmm, pdd) + timedelta(days=1)
+        result = date(pyyyy, pmm, pdd) + timedelta(days=offset)
     except Exception, e:
         return str(e)
     if S.DBG_ALL:
-        print nextday
-    nextday = str(nextday)
-#   nextday = nextday.replace("-","")
-    return nextday
+        print result
+    result = str(result)
+#   result = result.replace("-","")
+    return result
 
 
 def getLastDate(fn):
@@ -80,7 +87,12 @@ def getLastDate(fn):
     if len(t[0]) == 0:
         return ''
     else:
-        t2 = t[0].split(",")
+        if isinstance(t, basestring):
+            # using tail
+            t2 = t.split(',')
+        else:
+            # using tail2
+            t2 = t[0].split(",")
         lastdt = t2[1]
         return lastdt
         '''
@@ -120,4 +132,6 @@ def change2IcomDateFmt(dt, fmt="%Y-%m-%d"):
 
 
 if __name__ == '__main__':
+    print getDayBefore('2018-01-01')
+    print getNextDay('2017-12-31')
     pass
