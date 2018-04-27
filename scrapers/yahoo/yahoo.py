@@ -19,6 +19,9 @@
 
 # Note: Yahoo for KLCI has been broken since Feb 2018
 
+import sys
+sys.path.append('../../')
+
 import settings as S
 import Utils.dateutils as du
 import calendar
@@ -182,7 +185,7 @@ class YahooQuote(Quote):
             print "DBG:YahooQuote:1:", symbol, self.symbol, last_date, start_date
         # Do not download today's EOD if market is still open
         if end_date == du.getToday("%Y-%m-%d"):
-            now = datetime.datetime.now()
+            now = datetime.now()
             if now.hour < 18:  # only download today's EOD if it is after 6pm local time
                 end_date = du.getYesterday("%Y-%m-%d")
 #       self.url = self.formUrl_old(symbol,last_date,end_date)
@@ -298,7 +301,7 @@ if __name__ == '__main__':
         lastdt = S.ABS_START
 
     klse = "../i3investor/klse.txt"
-    stocks = 'LCTITAN'
+    stocks = ''
     if len(stocks) > 0:
         #  download only selected counters
         stocklist = formStocklist(stocks, klse)
@@ -320,7 +323,7 @@ if __name__ == '__main__':
             print shortname, stock_code
             print "Scraping", shortname, stock_code, lastdt, '$'
             q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL",
-                           lastdt, "2017-10-01")
+                           lastdt, "2018-02-01")
             if len(q.getCsvErr()) > 0:
                 st_code, st_reason = q.getCsvErr().split(":")
                 rtn_code = int(st_code)
