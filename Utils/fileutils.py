@@ -33,7 +33,12 @@ def wc_line_count(filename):
     return int(out.partition(b' ')[0])
 
 
-def tail(fl, n=1, bs=1024):
+def tail(fl):
+    line = subprocess.check_output(['tail', '-1', fl])
+    return line
+
+
+def tail2(fl, n=1, bs=1024):
     try:
         f = open(fl)
         f.seek(-1, 2)
