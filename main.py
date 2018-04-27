@@ -69,6 +69,9 @@ def getStartDate(OUTPUT_FILE):
 
 def scrapeI3(stocklist):
     for shortname in sorted(stocklist.iterkeys()):
+        if shortname in S.EXCLUDE_LIST:
+            print "INF:Skip: ", shortname
+            continue
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
             rtn_code = -1
@@ -111,16 +114,29 @@ if __name__ == '__main__':
     klse = "scrapers/i3investor/klse.txt"
     if len(stocks) > 0:
         #  download only selected counters
-        stocklist = formStocklist(stocks, klse)
+        scrapeI3(formStocklist(stocks, klse))
     else:
-        if S.I3LATEST:
-            writeLatestPrice(True, './data/')
+        '''
+        determine if can use latest price found in i3 stocks page
+        conditions:
+          1. latest eod record in csv file is not today
+          2. latest eod record in csv file is 1 trading day behind
+             that of investing.com latest eod
+        '''
+        lastdt = getLastDate('data/i3/PBBANK.1295.csv')
+        if getToday('%Y-%m-%d') > lastdt:
+            useI3latest = True
+            if useI3latest:
+                writeLatestPrice(True, './data/')
+            else:
+                # Full download using klse.txt
+                # To do: a fix schedule to refresh klse.txt
+                writeStocksListing = False
+                if writeStocksListing:
+                    print "Scraping i3 stocks listing ..."
+                    writeStocksListing(klse)
+                scrapeI3(loadKlseCounters(klse))
         else:
-            # Full download using klse.txt
-            writeStocksListing = False
-            if writeStocksListing:
-                print "Scraping i3 stocks listing ..."
-                writeStocksListing(klse)
-            scrapeI3(loadKlseCounters(klse))
+            print "Already latest. Nothing to update."
 
     pass
