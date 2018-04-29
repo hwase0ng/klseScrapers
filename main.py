@@ -91,7 +91,13 @@ def checkLastTradingDay(lastdt):
     return None
 
 
-def callPostUpdate(datadir):
+def preUpdateProcessing():
+    ip = getSystemIP()
+    if ip.endswith(".2") or ip.endswith(".10"):
+        os.system('cp *.csv /z/data/')
+
+
+def postUpdateProcessing(datadir):
     with cd(datadir):
         mt4dir = '/c/Users/hwase/AppData/Roaming/MetaQuotes/Terminal/DFF6411A75BCA6204637971EAA184B85/history/klse'
         os.system('pwd')
@@ -100,8 +106,6 @@ def callPostUpdate(datadir):
             print ip
         if ip.endswith(".2"):
             os.system('mt4.sh ' + mt4dir)
-        if ip.endswith(".2") or ip.endswith(".10"):
-            os.system('cp *.csv /z/data/')
 
 
 if __name__ == '__main__':
@@ -130,7 +134,8 @@ if __name__ == '__main__':
         dates = checkLastTradingDay(lastdt)
         if len(dates) == 1 and dates[0] == lastdt:
             print "Already latest. Nothing to update."
-            callPostUpdate(datadir)
+            print "Start post update processing"
+            postUpdateProcessing(datadir)
         else:
             if len(dates) == 2 and dates[1] > lastdt and dates[0] == lastdt:
                 useI3latest = True
@@ -138,6 +143,7 @@ if __name__ == '__main__':
                 useI3latest = False
 
             if useI3latest:
+                preUpdateProcessing()
                 writeLatestPrice(True, datadir)
             else:
                 # Full download using klse.txt
@@ -146,6 +152,10 @@ if __name__ == '__main__':
                 if writeStocksListing:
                     print "Scraping i3 stocks listing ..."
                     writeStocksListing(klse)
+
+                # TODO:
+                # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
+                # May need to do additional checking to determine if need to use either
                 scrapeI3(loadKlseCounters(klse))
 
     pass
