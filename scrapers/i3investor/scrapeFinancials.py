@@ -4,12 +4,15 @@ Created on Apr 13, 2018
 @author: hwase0ng
 '''
 
+import sys
+sys.path.append('../../')
 import settings as S
 import datetime
 import requests
 from BeautifulSoup import BeautifulSoup
 from datetime import date
 from dateutil.relativedelta import relativedelta
+from common import formStocklist, loadKlseCounters
 
 I3FINURL = 'https://klse.i3investor.com/servlets/stk/fin/'
 I3LATESTFINURL = 'http://klse.i3investor.com/financial/quarter/latest.jsp'
@@ -43,7 +46,7 @@ def scrapeLatestFin(soup, lastscan):
         print 'ERR: no result'
         return
 
-    stkList = []
+    stkList = {}
     table = soup.find('table', {'class': 'nc'})
     # for each row, there are many rows including no table
     for tr in table.findAll('tr'):
@@ -56,7 +59,7 @@ def scrapeLatestFin(soup, lastscan):
                 stockLink = tr.find('a').get('href')
                 # Sample stockLink: /servlets/stk/fin/1234.jsp
                 stockCode = stockLink[18:-4]
-                stkList.append(stockShortName + '.' + stockCode)
+                stkList[stockShortName] = stockCode
             else:
                 break
     return stkList
@@ -127,8 +130,9 @@ def scrapeStkFin(soup, lastscan):
                 print fy, anndate, quarter, qnum, revenue, pbt, np, dividend, \
                     npmargin, roe, eps, adjeps, dps
             if len(lastscan) == 0 or anndate > lastscan:
-                fin[anndate] = [fy, quarter, qnum, revenue, pbt, np, dividend,
-                                npmargin, roe, eps, adjeps, dps]
+                if int(revenue.replace(',', '')) > 0:
+                    fin[anndate] = [fy, quarter, qnum, revenue, pbt, np, dividend,
+                                    npmargin, roe, eps, adjeps, dps]
         else:
             if S.DBG_ALL and len(td) > 0:
                 print "TD:", td
@@ -146,25 +150,31 @@ def unpackFIN(anndate, fy, quarter, qnum, revenue, pbt, np, dividend, npmargin, 
 
 if __name__ == '__main__':
     S.DBG_ALL = False
-    lastFinDate = '2018-04-01'
+    datadir = '../../data/'
+    lastFinDate = ''
+    stocks = 'AEMULUS'
 
     stklist = []
     if len(lastFinDate) > 0:
         stklist = scrapeLatestFin(connectStkFin(''), lastFinDate)
     else:
-        stklist = ['BSLCORP.7221']
+        klse = "./klse.txt"
+        if len(stocks) > 0:
+            #  download only selected counters
+            stklist = formStocklist(stocks, klse)
 
-    for stk in stklist:
-        stkdet = stk.split('.')
-        stkname = stkdet[0]
-        stkcode = stkdet[1]
-        print stkname, stkcode
+    for stkname in stklist:
+        stkcode = stklist[stkname]
+        print 'Downloading financials for', stkname, stkcode
         stkfin = scrapeStkFin(connectStkFin(stkcode), lastFinDate)
         if stkfin is not None:
-            fh = open(stk + ".fin", "w")
+            fh = open(datadir + stkname + '.' + stkcode + ".fin", "w")
             for key in sorted(stkfin.iterkeys()):
                 fin = ','.join(map(str, unpackFIN(key, *(stkfin[key]))))
                 print fin
                 fh.write(fin + '\n')
             fh.close()
+        else:
+            print 'Skipped:', stkname, stkcode
+
     pass
