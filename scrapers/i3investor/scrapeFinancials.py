@@ -4,8 +4,6 @@ Created on Apr 13, 2018
 @author: hwase0ng
 '''
 
-import sys
-sys.path.append('../../')
 import settings as S
 import datetime
 import requests
@@ -130,7 +128,10 @@ def scrapeStkFin(soup, lastscan):
                 print fy, anndate, quarter, qnum, revenue, pbt, np, dividend, \
                     npmargin, roe, eps, adjeps, dps
             if len(lastscan) == 0 or anndate > lastscan:
-                if int(revenue.replace(',', '')) > 0:
+                revenue = revenue.replace(',', '')
+                pbt = pbt.replace(',', '')
+                np = np.replace(',', '')
+                if revenue.isdigit() and int(revenue.replace(',', '')) > 0:
                     fin[anndate] = [fy, quarter, qnum, revenue, pbt, np, dividend,
                                     npmargin, roe, eps, adjeps, dps]
         else:
@@ -152,7 +153,7 @@ if __name__ == '__main__':
     S.DBG_ALL = False
     datadir = '../../data/'
     lastFinDate = ''
-    stocks = 'AEMULUS'
+    stocks = ''
 
     stklist = []
     if len(lastFinDate) > 0:
@@ -162,19 +163,22 @@ if __name__ == '__main__':
         if len(stocks) > 0:
             #  download only selected counters
             stklist = formStocklist(stocks, klse)
+        else:
+            stklist = loadKlseCounters(klse)
 
     for stkname in stklist:
         stkcode = stklist[stkname]
-        print 'Downloading financials for', stkname, stkcode
-        stkfin = scrapeStkFin(connectStkFin(stkcode), lastFinDate)
-        if stkfin is not None:
-            fh = open(datadir + stkname + '.' + stkcode + ".fin", "w")
-            for key in sorted(stkfin.iterkeys()):
-                fin = ','.join(map(str, unpackFIN(key, *(stkfin[key]))))
-                print fin
-                fh.write(fin + '\n')
-            fh.close()
-        else:
-            print 'Skipped:', stkname, stkcode
+        print 'Downloading financial for', stkname, stkcode
+        if len(stkcode) == 4:
+            stkfin = scrapeStkFin(connectStkFin(stkcode), lastFinDate)
+            if stkfin is not None:
+                fh = open(datadir + stkname + '.' + stkcode + ".fin", "w")
+                for key in sorted(stkfin.iterkeys()):
+                    fin = ','.join(map(str, unpackFIN(key, *(stkfin[key]))))
+                    print fin
+                    fh.write(fin + '\n')
+                fh.close()
+            else:
+                print 'Skipped:', stkname, stkcode
 
     pass
