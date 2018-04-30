@@ -191,6 +191,52 @@ class InvestingQuote(Quote):
             self.csverr = sname + ":" + self.response
 
 
+def scrapeKlseRelated(klsemap, datadir):
+    WRITE_CSV = True
+    idmap = loadIdMap(klsemap)
+    counters = 'USDMYR.2168,FTFBM100.0200,FTFBMKLCI.0201,FTFBMMES.0202,FTFBMSCAP.0203,FTFBM70.0204,FTFBMEMAS.0205'
+    counterlist = counters.split(',')
+    for i in counterlist:
+        counter = i.split('.')
+        shortname = counter[0]
+        stock_code = counter[1]
+        rtn_code = 0
+        OUTPUT_FILE = datadir + shortname + "." + stock_code + ".csv"
+        TMP_FILE = OUTPUT_FILE + 'tmp'
+        if S.RESUME_FILE:
+            lastdt = getLastDate(OUTPUT_FILE)
+            if len(lastdt) == 0:
+                # File is likely to be empty, hence scrape from beginning
+                lastdt = S.ABS_START
+        else:
+            lastdt = S.ABS_START
+        enddt = getToday('%Y-%m-%d')
+        print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
+            shortname, stock_code, lastdt, enddt)
+        eod = InvestingQuote(idmap, shortname, lastdt, enddt)
+        if S.DBG_ALL:
+            for item in eod:
+                print item
+        if isinstance(eod.response, unicode):
+            dfEod = eod.to_df()
+            if isinstance(dfEod, pd.DataFrame):
+                if S.DBG_ICOM:
+                    print dfEod[:5]
+                if WRITE_CSV:
+                    dfEod.index.name = 'index'
+                    dfEod.to_csv(TMP_FILE, index=False, header=False)
+            else:
+                print "ERR:" + dfEod + ": " + shortname + "," + lastdt
+                rtn_code = -2
+
+        if rtn_code == 0:
+            f = open(OUTPUT_FILE, "ab")
+            ftmp = open(TMP_FILE, "r")
+            f.write(ftmp.read())
+            f.close()
+            ftmp.close()
+
+
 def loadIdMap(klsemap='klse.idmap'):
     ID_MAPPING = {}
     try:

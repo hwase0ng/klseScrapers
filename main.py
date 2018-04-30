@@ -10,7 +10,8 @@ from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEO
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice
 from Utils.dateutils import getLastDate, getDayBefore, getToday
-from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote
+from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
+    scrapeKlseRelated
 from common import formStocklist, loadKlseCounters
 from Utils.fileutils import cd, getSystemIP, purgeOldFiles
 import os
@@ -147,6 +148,7 @@ def loadCfg():
 
 
 if __name__ == '__main__':
+    scrapeKlseRelated('scrapers/investingcom/klse.idmap', './data/')
     cfg = loadCfg()
     '''
     stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
@@ -195,5 +197,7 @@ if __name__ == '__main__':
                 # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
                 # May need to do additional checking to determine if need to use either
                 scrapeI3(loadKlseCounters(klse))
+
+            scrapeKlseRelated('scrapers/investingcom/klse.idmap', datadir)
 
     pass
