@@ -5,7 +5,6 @@ Created on Apr 13, 2018
 '''
 
 import settings as S
-import datetime
 import requests
 from Utils.dateutils import change2KlseDateFmt
 from BeautifulSoup import BeautifulSoup
@@ -89,4 +88,4 @@ if __name__ == '__main__':
     if i3 is not None:
         for key in sorted(i3.iterkeys()):
             print key + ',' + ','.join(map(str, unpackEOD(*(i3[key]))))
-        pass
+    pass
