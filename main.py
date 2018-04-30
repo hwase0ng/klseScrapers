@@ -9,10 +9,10 @@ import pandas as pd
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice
-from Utils.dateutils import getLastDate, getDayBefore
+from Utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote
 from common import formStocklist, loadKlseCounters
-from Utils.fileutils import cd, getSystemIP
+from Utils.fileutils import cd, getSystemIP, purgeOldFiles
 import os
 
 
@@ -91,10 +91,16 @@ def checkLastTradingDay(lastdt):
     return None
 
 
-def preUpdateProcessing():
-    ip = getSystemIP()
-    if ip.endswith(".2") or ip.endswith(".10"):
-        os.system('cp *.csv /z/data/')
+def preUpdateProcessing(datadir, backupdir):
+    try:
+        with cd(backupdir):
+            purgeOldFiles('*.tgz', 1)
+        with cd(datadir):
+            today = getToday()
+            cmd = 'tar czvf ' + backupdir + 'klse' + today + '.tgz *.csv *.fin'
+            os.system(cmd)
+    except Exception:
+        pass
 
 
 def postUpdateProcessing(datadir):
@@ -143,7 +149,7 @@ if __name__ == '__main__':
                 useI3latest = False
 
             if useI3latest:
-                preUpdateProcessing()
+                preUpdateProcessing('data/', '//rt-n18u/Documents/data/')
                 writeLatestPrice(True, datadir)
             else:
                 # Full download using klse.txt

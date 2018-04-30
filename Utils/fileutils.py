@@ -12,7 +12,9 @@ import os
 import socket
 import subprocess
 import xlrd
+import time
 from types import NoneType
+import fnmatch
 
 
 def mapcount(filename):
@@ -199,6 +201,16 @@ def getStockShortNameById(stock_id, idmap="klse.idmap"):
         idmap = found[0].split('=')
         return idmap[0]
     return ''
+
+
+def purgeOldFiles(fltype='*.tgz', days=7):
+    current_time = time.time()
+
+    for f in fnmatch.filter(os.listdir('.'), fltype):
+        creation_time = os.path.getctime(f)
+        if (current_time - creation_time) // (24 * 3600) >= days:
+            os.unlink(f)
+            print('{} removed'.format(f))
 
 
 '''
