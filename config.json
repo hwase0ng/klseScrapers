@@ -1,0 +1,13 @@
+{
+	"main":{
+		"BKUP_DIR":"",
+		"MT4_DIR":""
+	},
+	"toggle":{
+		"RESUME_FILE":true,
+		"PRICE_WITHOUT_SPLIT":true,
+		"INF_YAHOO":false,
+		"DBG_YAHOO":false,
+		"DBG_ALL":false
+	}
+}

@@ -14,6 +14,8 @@ from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote
 from common import formStocklist, loadKlseCounters
 from Utils.fileutils import cd, getSystemIP, purgeOldFiles
 import os
+import json
+import sys
 
 
 def scrapeI3eod(sname, scode, lastdt):
@@ -91,30 +93,57 @@ def checkLastTradingDay(lastdt):
     return None
 
 
-def preUpdateProcessing(datadir, backupdir):
+def preUpdateProcessing(datadir):
+    if len(BKUP_DIR) == 0:
+        return
+
     try:
-        with cd(backupdir):
-            purgeOldFiles('*.tgz', 1)
+        with cd(BKUP_DIR):
+            os.system('pwd')
+            purgeOldFiles('*.tgz', 10)
         with cd(datadir):
+            os.system('pwd')
             today = getToday()
-            cmd = 'tar czvf ' + backupdir + 'klse' + today + '.tgz *.csv *.fin'
+            cmd = 'tar czvf ' + BKUP_DIR + 'klse' + today + '.tgz *.csv *.fin'
             os.system(cmd)
     except Exception:
         pass
 
 
 def postUpdateProcessing(datadir):
+    if len(MT4_DIR) == 0:
+        return
+
     with cd(datadir):
-        mt4dir = '/c/Users/hwase/AppData/Roaming/MetaQuotes/Terminal/DFF6411A75BCA6204637971EAA184B85/history/klse'
         os.system('pwd')
         ip = getSystemIP()
         if S.DBG_ALL:
             print ip
         if ip.endswith(".2"):
-            os.system('mt4.sh ' + mt4dir)
+            os.system('mt4.sh ' + MT4_DIR)
+
+
+def loadSetting(c):
+    global BKUP_DIR
+    global MT4_DIR
+    BKUP_DIR = c["main"]["BKUP_DIR"]
+    MT4_DIR = c["main"]["MT4_DIR"]
+
+
+def loadCfg():
+    try:
+        with open('data/config.json') as json_data_file:
+            cfg = json.load(json_data_file)
+            loadSetting(cfg)
+            return cfg
+    except EnvironmentError:
+        print "Missing config.json file"
+        sys.exit(1)
 
 
 if __name__ == '__main__':
+    cfg = loadCfg()
+    preUpdateProcessing('data/')
     '''
     stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
     '''
@@ -149,7 +178,7 @@ if __name__ == '__main__':
                 useI3latest = False
 
             if useI3latest:
-                preUpdateProcessing('data/', '//rt-n18u/Documents/data/')
+                preUpdateProcessing(datadir)
                 writeLatestPrice(True, datadir)
             else:
                 # Full download using klse.txt
