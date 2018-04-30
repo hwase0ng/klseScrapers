@@ -98,14 +98,17 @@ def preUpdateProcessing(datadir):
         return
 
     try:
+        print "Pre-update Processing ..."
         with cd(BKUP_DIR):
             os.system('pwd')
             purgeOldFiles('*.tgz', 10)
         with cd(datadir):
             os.system('pwd')
             today = getToday()
-            cmd = 'tar czvf ' + BKUP_DIR + 'klse' + today + '.tgz *.csv *.fin'
+            cmd = 'tar czvf ' + BKUP_DIR + 'klse' + today + '.tgz *.csv *.fin > /dev/null'
+            print cmd
             os.system(cmd)
+        print "Pre-update Processing ... Done"
     except Exception:
         pass
 
@@ -115,12 +118,14 @@ def postUpdateProcessing(datadir):
         return
 
     with cd(datadir):
+        print "Post-update Processing ..."
         os.system('pwd')
         ip = getSystemIP()
         if S.DBG_ALL:
             print ip
-        if ip.endswith(".2"):
+        if ip.endswith(".2") or ip.endswith(".10"):
             os.system('mt4.sh ' + MT4_DIR)
+        print "Post-update Processing ... Done"
 
 
 def loadSetting(c):
@@ -168,7 +173,6 @@ if __name__ == '__main__':
         dates = checkLastTradingDay(lastdt)
         if len(dates) == 1 and dates[0] == lastdt:
             print "Already latest. Nothing to update."
-            print "Start post update processing"
             postUpdateProcessing(datadir)
         else:
             if len(dates) == 2 and dates[1] > lastdt and dates[0] == lastdt:
