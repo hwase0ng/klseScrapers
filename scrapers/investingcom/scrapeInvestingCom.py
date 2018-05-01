@@ -8,7 +8,7 @@ Note: This version is adapted from a source found in Internet which I could no l
 '''
 
 import sys
-from common import formStocklist, loadKlseCounters
+from common import formStocklist, loadKlseCounters, appendCsv
 import settings as S
 import Utils.dateutils as du
 import requests
@@ -229,12 +229,7 @@ def scrapeKlseRelated(klsemap, datadir):
                 print "ERR:" + dfEod + ": " + shortname + "," + lastdt
                 rtn_code = -2
 
-        if rtn_code == 0:
-            f = open(OUTPUT_FILE, "ab")
-            ftmp = open(TMP_FILE, "r")
-            f.write(ftmp.read())
-            f.close()
-            ftmp.close()
+        appendCsv(rtn_code, OUTPUT_FILE)
 
 
 def loadIdMap(klsemap='klse.idmap'):
@@ -323,10 +318,9 @@ if __name__ == '__main__':
                     st_code, st_reason = q.getCsvErr().split(":")
                     rtn_code = int(st_code)
                 else:
+                    print q
                     if WRITE_CSV:
                         q.write_csv(TMP_FILE)
-                    else:
-                        print q
             elif isinstance(eod.response, unicode):
                 dfEod = eod.to_df()
                 if isinstance(dfEod, pd.DataFrame):
@@ -342,11 +336,6 @@ if __name__ == '__main__':
                 print "ERR:" + eod.response + "," + lastdt
                 rtn_code = -1
 
-            if rtn_code == 0:
-                f = open(OUTPUT_FILE, "ab")
-                ftmp = open(TMP_FILE, "r")
-                f.write(ftmp.read())
-                f.close()
-                ftmp.close()
+            appendCsv(rtn_code, OUTPUT_FILE)
         else:
             print "ERR: Not found: ", shortname

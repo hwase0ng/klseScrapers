@@ -29,7 +29,7 @@ import re
 from Utils.dateutils import getToday, getNextDay, getLastDate
 import csv
 from requests.exceptions import ConnectionError
-from common import formStocklist, loadKlseCounters
+from common import formStocklist, loadKlseCounters, appendCsv
 
 sys.path.append('../../')
 
@@ -325,11 +325,16 @@ if __name__ == '__main__':
             if len(q.getCsvErr()) > 0:
                 st_code, st_reason = q.getCsvErr().split(":")
                 rtn_code = int(st_code)
+                print rtn_code, st_reason
             else:
+                print q
                 writeCsv = True
                 if writeCsv:
-                    q.write_csv(OUTPUT_FILE)
-                else:
-                    print q
+                    if S.RESUME_FILE:
+                        TMP_FILE = OUTPUT_FILE + 'tmp'
+                        q.write_csv(TMP_FILE)
+                        appendCsv(0, OUTPUT_FILE)
+                    else:
+                        q.write_csv(OUTPUT_FILE)
         else:
             print "ERR: Not found: ", shortname, stock_code

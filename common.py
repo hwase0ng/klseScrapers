@@ -36,5 +36,18 @@ def formStocklist(stocks, infile):
     return stocklist
 
 
+def appendCsv(rtn_code, OUTPUT_FILE):
+    if rtn_code != 0:
+        return
+
+    TMP_FILE = OUTPUT_FILE + 'tmp'
+
+    f = open(OUTPUT_FILE, "ab")
+    ftmp = open(TMP_FILE, "r")
+    f.write(ftmp.read())
+    f.close()
+    ftmp.close()
+
+
 if __name__ == '__main__':
     pass
