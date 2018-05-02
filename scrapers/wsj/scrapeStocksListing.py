@@ -40,9 +40,8 @@ def scrapeStocksListing(soup):
         # Sample stockLink: <a href="https://quotes.wsj.com/MY/XKLS/SEM">
         stockLink = tr.find('a').get('href')
         stockShortName = stockLink[31:]
+        stockName = td.findAll('span', {'class': 'cl-name'}).upper()
         stockCode = getStockCode(stockShortName, '../i3investor/klse.txt')
-        td = tr.findAll('td')
-        stockName = td[0].contents[1]['class'].text.upper
         if len(stockCode) == 0:
             print "ERR:Unmatched stock:", stockShortName, stockName
         tds = [x.text.strip() for x in td]
@@ -63,10 +62,10 @@ def writeStocksListing(outfile='klse.txt'):
 
     fh = open(outfile, "w")
     for key in sorted(stocksListing.iterkeys()):
-        stock = key + ',' + ','.join(map(str, unpackListing(*(stocksListing[key]))))
+        listing = key + ',' + ','.join(map(str, unpackListing(*(stocksListing[key]))))
         if S.DBG_ALL:
-            print stock
-        fh.write(stock + '\n')
+            print listing
+        fh.write(listing + '\n')
     fh.close()
 
 
