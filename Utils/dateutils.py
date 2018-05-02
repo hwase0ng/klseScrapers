@@ -131,7 +131,19 @@ def change2IcomDateFmt(dt, fmt="%Y-%m-%d"):
     return newdt
 
 
+def getDaysBtwnDates(d1, d2):
+    if len(d1) != 10 or len(d2) != 10:
+        return ''
+    year, month, day = (int(x) for x in d1.split('-'))
+    f_date = date(year, month, day)
+    year, month, day = (int(x) for x in d2.split('-'))
+    l_date = date(year, month, day)
+    delta = l_date - f_date
+    return delta.days
+
+
 if __name__ == '__main__':
     print getDayBefore('2018-01-01')
     print getNextDay('2017-12-31')
+    print getDaysBtwnDates('2016-02-01', '2016-03-01')
     pass
