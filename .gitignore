@@ -101,6 +101,9 @@ ENV/
 .mypy_cache/
 /.project
 /.pydevproject
-/data/
-*.swp
-/quotes.csv
+/data/i3investor
+/data/investingcom
+/data/yahoo
+/data/wsj
+*.csv
+*.fin
