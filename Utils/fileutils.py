@@ -177,18 +177,22 @@ def findAny(substr, infile):
     return result
 
 
-def findBegins(substr, infile):
+def findBegins(substr, infile, sep=','):
     with open(infile) as f:
         for line in f:
-            if line.startswith(substr + ','):
-                result = line.rstrip().split(',')
+            if line.startswith(substr + sep):
+                result = line.rstrip().split(sep)
                 code = result[1]
                 return code
     return ''
 
 
-def getStockCode(shortname, klse_file="scrapers/i3investor/klse.txt"):
+def getStockCode(shortname, klse_file="scrapers/i3investor/klse.txt", altfile=''):
     stock_code = findBegins(shortname, klse_file)
+    if len(stock_code) == 0 and len(altfile) > 0:
+        shortname = findBegins(shortname, altfile, "=")
+        if len(shortname) > 0:
+            stock_code = findBegins(shortname, klse_file)
     return stock_code
 
 
