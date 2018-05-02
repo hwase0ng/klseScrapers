@@ -107,3 +107,4 @@ ENV/
 /data/wsj
 *.csv
 *.fin
+*.tgz
