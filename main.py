@@ -77,7 +77,7 @@ def scrapeI3(stocklist):
 
 def checkLastTradingDay(lastdt):
     idmap = loadIdMap('scrapers/investingcom/klse.idmap')
-    eod = InvestingQuote(idmap, 'PBBANK', getDayBefore(lastdt))
+    eod = InvestingQuote(idmap, 'ZHULIAN', getDayBefore(lastdt))
     if isinstance(eod.response, unicode):
         dfEod = eod.to_df()
         if isinstance(dfEod, pd.DataFrame):
@@ -165,7 +165,7 @@ if __name__ == '__main__':
              that of investing.com latest eod
         '''
         datadir = './data/'
-        lastdt = getLastDate(datadir + 'PBBANK.1295.csv')
+        lastdt = getLastDate(datadir + 'ZHULIAN.5131.csv')
         dates = checkLastTradingDay(lastdt)
         if dates is None or (len(dates) == 1 and dates[0] == lastdt):
             print "Already latest. Nothing to update."
