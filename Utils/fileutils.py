@@ -187,10 +187,11 @@ def findBegins(substr, infile, sep=','):
     return ''
 
 
-def getStockCode(shortname, klse_file="scrapers/i3investor/klse.txt", altfile=''):
+def getStockCode(shortname, klse_file="scrapers/i3investor/klse.txt", klsemap=''):
     stock_code = findBegins(shortname, klse_file)
-    if len(stock_code) == 0 and len(altfile) > 0:
-        shortname = findBegins(shortname, altfile, "=")
+    if len(stock_code) == 0 and len(klsemap) > 0:
+        # shortname = findBegins(shortname, klsemap, "=")
+        shortname = klsemap[shortname]
         if len(shortname) > 0:
             stock_code = findBegins(shortname, klse_file)
     return stock_code
