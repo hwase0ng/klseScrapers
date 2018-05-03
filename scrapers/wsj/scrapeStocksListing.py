@@ -8,6 +8,7 @@ import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
 from Utils.fileutils import getStockCode
+from common import loadMap
 
 WSJSTOCKSURL = 'https://quotes.wsj.com/company-list/country/malaysia'
 
@@ -41,10 +42,28 @@ def scrapeStocksListing(soup):
         # Sample stockLink: <a href="https://quotes.wsj.com/MY/XKLS/SEM">
         stockLink = tr.find('a').get('href')
         stockShortName = stockLink[31:]
+        # if any(stockShortName in s for s in klsefilter):
+        if stockShortName in klsefilter:
+            print "INFO:Ignored counter:", stockShortName
+            continue
         stockName = tr.find('span', {'class': 'cl-name'}).text.upper().replace('AMP;', '')
-        stockCode = getStockCode(stockShortName, '../i3investor/klse.txt', './klse.wsj')
+        try:
+            newname = wsjmap[stockShortName]
+            if S.DBG_ALL:
+                print "new name:", stockShortName, newname
+            stockShortName = newname
+        except KeyError:
+            pass
+        try:
+            stockCode = i3map[stockShortName]
+        except KeyError:
+            print "INFO:Unmatched stock:", stockShortName + ',', stockName
+            continue
+        '''
+        stockCode = getStockCode(stockShortName, '../i3investor/klse.txt', wsjmap)
         if len(stockCode) == 0:
-            print "ERR:Unmatched stock:", stockShortName, ',', stockName
+            print "INFO:Skipped unmatched stock:", stockShortName + ',', stockName
+        '''
         tds = [x.text.strip() for x in td]
         xchange = tds[1]
         sector = tds[2]
@@ -72,6 +91,13 @@ def getNextPage(soup):
 
 
 def writeStocksListing(outfile='klse.txt'):
+    global wsjmap, i3map, klsefilter
+    wsjmap = loadMap("klse.wsj", "=")
+    i3map = loadMap("../i3investor/klse.txt", ",")
+    with open('../klse.filter') as f:
+        klsefilter = f.read().splitlines()
+        if S.DBG_ALL:
+            print "Filter=", klsefilter
     stocksListing = {}
     nextpg = WSJSTOCKSURL
     while(nextpg is not None):
