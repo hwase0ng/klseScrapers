@@ -14,11 +14,15 @@ def loadMap(klsemap, sep=","):
         with open(klsemap) as idmap:
             for line in idmap:
                 name, var = line.partition(sep)[::2]
+                if sep in var:
+                    # input: "3A,0012,THREE-A RESOURCES BHD,507"
+                    # drops ",THREE-A RESOURCES BHD,507"
+                    var, dummy = var.partition(sep)[::2]
                 ID_MAPPING[name.strip()] = var.strip()
             if S.DBG_ALL:
                 print dict(ID_MAPPING.items()[0:3])
     except EnvironmentError:
-        print "Missing idmap.ini file"
+        print "Invalid map file:", klsemap
     except KeyError:
         print "loadIdMap KeyError:", name
     return ID_MAPPING
@@ -66,4 +70,10 @@ def appendCsv(rtn_code, OUTPUT_FILE):
 
 
 if __name__ == '__main__':
+    line = "3A,0012,THREE-A RESOURCES BHD,507"
+    name, var = line.partition(',')[::2]
+    if ',' in var:
+        var, dummy = var.partition(',')[::2]
+    print name
+    print var
     pass
