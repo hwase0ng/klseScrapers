@@ -106,5 +106,6 @@ ENV/
 /data/yahoo
 /data/wsj
 *.csv
+*.csvtmp
 *.fin
 *.tgz
