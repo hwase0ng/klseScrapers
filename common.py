@@ -8,6 +8,22 @@ import csv
 import settings as S
 
 
+def loadMap(klsemap, sep=","):
+    ID_MAPPING = {}
+    try:
+        with open(klsemap) as idmap:
+            for line in idmap:
+                name, var = line.partition(sep)[::2]
+                ID_MAPPING[name.strip()] = var.strip()
+            if S.DBG_ALL:
+                print dict(ID_MAPPING.items()[0:3])
+    except EnvironmentError:
+        print "Missing idmap.ini file"
+    except KeyError:
+        print "loadIdMap KeyError:", name
+    return ID_MAPPING
+
+
 def loadKlseCounters(infile):
     stocklist = {}
     with open(infile) as f:
