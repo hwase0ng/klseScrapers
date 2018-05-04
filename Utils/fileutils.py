@@ -213,7 +213,9 @@ def purgeOldFiles(fltype='*.tgz', days=7):
 
     for f in fnmatch.filter(os.listdir('.'), fltype):
         creation_time = os.path.getctime(f)
-        if (current_time - creation_time) // (24 * 3600) >= days:
+        count = (current_time - creation_time) // (24 * 3600)
+        # print f + ': ' + str(int(count))
+        if count >= days:
             os.unlink(f)
             print('{} removed'.format(f))
 

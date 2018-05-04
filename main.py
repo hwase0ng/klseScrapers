@@ -91,21 +91,22 @@ def checkLastTradingDay(lastdt):
 
 def preUpdateProcessing(datadir):
     if len(BKUP_DIR) == 0:
+        print 'Nothing to do.'
         return
 
     try:
-        print "Pre-update Processing ..."
+        print "Pre-update Processing ...", BKUP_DIR
         with cd(BKUP_DIR):
-            os.system('pwd')
             purgeOldFiles('*.tgz', 10)
         with cd(datadir):
             os.system('pwd')
-            today = getToday()
-            cmd = 'tar czvf ' + BKUP_DIR + 'klse' + today + '.tgz *.csv *.fin > /dev/null'
+            bkfl = BKUP_DIR + 'klse' + getToday() + '.tgz'
+            cmd = 'tar czvf ' + bkfl + ' *.csv *.fin > pre.log'
             print cmd
             os.system(cmd)
         print "Pre-update Processing ... Done"
-    except Exception:
+    except Exception, e:
+        print e
         pass
 
 
@@ -142,8 +143,7 @@ def loadCfg():
         sys.exit(1)
 
 
-if __name__ == '__main__':
-    cfg = loadCfg()
+def scrapeKlse():
     '''
     stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
     '''
@@ -194,4 +194,13 @@ if __name__ == '__main__':
 
             scrapeKlseRelated('scrapers/investingcom/klse.idmap', datadir)
 
+    print "\nDone."
+
+
+if __name__ == '__main__':
+    cfg = loadCfg()
+    '''
+    preUpdateProcessing('./data/')
+    '''
+    scrapeKlse()
     pass
