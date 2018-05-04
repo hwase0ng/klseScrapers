@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import math
-from Utils.dateutils import getLastDate, getToday
+from Utils.dateutils import getLastDate, getToday, getDaysBtwnDates
 
 
 class Quote(object):
@@ -47,16 +47,19 @@ class Quote(object):
                 "country": "MY",
                 "exchange": "XKLS",
                 "instrumentType": "STOCK",
-                "num_rows": days,
-                "range_days": days,
+                "num_rows": self.days,
+                "range_days": self.days,
                 "startDate": self.start,
                 "endDate": self.end,
-                "_": "1525409228799"
+                "_": "1525415904500"
             }
 
             EOD_URL = self.BASE_URL + self.name
+            print self.BASE_URL
+            print data
 
-            r = requests.post(self.EOD_URL, data=data, headers=S.HEADERS)
+            r = requests.post(self.BASE_URL, data=data, headers=S.HEADERS)
+            print r.status_code
             assert(r.status_code == 200)
             return r.text
         except KeyError:
@@ -210,12 +213,13 @@ if __name__ == '__main__':
         OUTPUT_FILE = '../../data/wsj/' + shortname + "." + stock_code + ".csv"
         TMP_FILE = OUTPUT_FILE + 'tmp'
         if S.RESUME_FILE:
-:            lastdt = getLastDate(OUTPUT_FILE)
+            lastdt = getLastDate(OUTPUT_FILE)
             if len(lastdt) == 0:
                 # File is likely to be empty, hence scrape from beginning
                 lastdt = S.ABS_START
         else:
             lastdt = S.ABS_START
+            lastdt = '2018-05-01'
         enddt = getToday('%Y-%m-%d')
         print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
             shortname, stock_code, lastdt, enddt)
