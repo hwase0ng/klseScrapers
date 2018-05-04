@@ -13,34 +13,31 @@ import pandas as pd
 import numpy as np
 import datetime
 import math
-from scrapers.investingcom.scrapeStocksListing import writeStocksListing
 from Utils.dateutils import getLastDate, getToday
 
 
 class Quote(object):
     """An object that holds price data for a particular commodity, across a given date range. """
     BASE_URL = "https://quotes.wsj.com/ajax/historicalprices/4/"
-    STOCK_URL = "?MOD_VIEW=page&ticker="
-    COUNTRY_URL = "&country=MY&exchange=XKLS&instrumentType=STOCK&num_rows="
-    DAYS_URL = "&range_days="
-    DATES_URL = "&startDate=02%2F01%2F2007&endDate=05%2F02%2F2008&_=1525237357167"
 
-
-    def __init__(self, name, start, end, days):
+    def __init__(self, name, start, end):
         self.csverr = ''
-        self.days = days
-        self.start = start
-        self.end = end
         self.name = name
+        days = getDaysBtwnDates(start, end)
+        self.days = days
+        last_date = du.change2IcomDateFmt(start)
+        end_date = du.change2IcomDateFmt(end)
+        self.start = last_date
+        self.end = end_date
         self.response = ''
-        self.s1 = ''
+        self.df = ''
         # self.response = self.scrape()
 
     def getCsvErr(self):
         return self.csverr
 
     def write_csv(self, filename):
-        self.s1.to_csv(filename, index=False, header=False)
+        self.df.to_csv(filename, index=False, header=False)
 
     def scrape(self):
         try:
@@ -50,23 +47,21 @@ class Quote(object):
                 "country": "MY",
                 "exchange": "XKLS",
                 "instrumentType": "STOCK",
-                "num_rows": days
-                "range_days": days
+                "num_rows": days,
+                "range_days": days,
                 "startDate": self.start,
                 "endDate": self.end,
-                "_": hextime
+                "_": "1525409228799"
             }
 
-            EOD_URL = self.BASE_URL + self.name + self.STOCK_URL + self.name + \
-                self.COUNTRY_URL + self.days + self.DAYS_RUL + self.days + \
-                self.DATES_URL
+            EOD_URL = self.BASE_URL + self.name
 
-            r = requests.post(self.BASE_URL, data=data, headers=S.HEADERS)
+            r = requests.post(self.EOD_URL, data=data, headers=S.HEADERS)
             assert(r.status_code == 200)
             return r.text
         except KeyError:
             if S.DBG_ALL:
-                print "KeyError: " + self.name
+                print "KeyError: ", self.name
             return "KeyError: No ID mapping for " + self.name
         except Exception as e:
             print "Exception:", e
@@ -139,8 +134,8 @@ class Quote(object):
         return df
 
 
-class InvestingQuote(Quote):
-    def __init__(self, idmap, sname, last_date, end_date=getToday("%Y-%m-%d")):
+class scrapeHistoricalPrice(Quote):
+    def __init__(self, sname, last_date, end_date=getToday("%Y-%m-%d")):
         if last_date == end_date:
             self.csverr = sname + ": Skipped downloaded (" + last_date + ")"
             return None
@@ -159,24 +154,22 @@ class InvestingQuote(Quote):
                 # only download today's EOD if it is after 6pm local time
                 end_date = du.getYesterday("%Y-%m-%d")
 
+        super(scrapeHistoricalPrice, self).__init__(sname, last_date, end_date)
         '''
         last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").strftime('%m/%d/%Y')
         end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").strftime('%m/%d/%Y')
         '''
-        last_date = du.change2IcomDateFmt(last_date)
-        end_date = du.change2IcomDateFmt(end_date)
-        super(InvestingQuote, self).__init__(sname, last_date, end_date, idmap)
         self.response = self.scrape()
-        # s0 = Quote(sname, last_date, end_date, idmap)
+        # s0 = Quote(sname, last_date, end_date
         if isinstance(self.response, unicode):
-            s1 = self.to_df()
-            if isinstance(s1, pd.DataFrame):
-                s1.index.name = 'index'
-                self.s1 = s1
+            df = self.to_df()
+            if isinstance(df, pd.DataFrame):
+                df.index.name = 'index'
+                self.df = df
                 self.csverr = ''
-                # s1.to_csv(OUTPUT_FILE, index=False, header=False)
+                # df.to_csv(OUTPUT_FILE, index=False, header=False)
                 print self.name + ":", last_date
-            elif s1 is None:
+            elif df is None:
                 self.csverr = self.name + ':Skipped no result'
             else:
                 # Use csverr from to_df()
@@ -185,20 +178,39 @@ class InvestingQuote(Quote):
             self.csverr = sname + ":" + self.response
 
 
-def scrapeKlseRelated(klsemap, datadir):
+if __name__ == '__main__':
+    # OUTPUT_FILE = sys.argv[1]
+    S.DBG_ALL = False
     WRITE_CSV = True
-    idmap = loadIdMap(klsemap)
-    counters = 'USDMYR.2168,FTFBM100.0200,FTFBMKLCI.0201,FTFBMMES.0202,FTFBMSCAP.0203,FTFBM70.0204,FTFBMEMAS.0205'
-    counterlist = counters.split(',')
-    for i in counterlist:
-        counter = i.split('.')
-        shortname = counter[0]
-        stock_code = counter[1]
+    S.RESUME_FILE = False
+
+    '''
+    stocks = 'ALAQAR,AMFIRST,ARREIT,ATRIUM,AXREIT,CAP,CLIQ,CLOUD,CSL,FOCUSP,GDB,GFM,GNB,HLCAP,ICAP,JMEDU,KINSTEL,MSPORTS,NPS,PARLO,PERDANA,PETONE,PINEAPP,QES,RALCO,SONA,TIMWELL,TWRREIT,WEGMANS,WINTONI,XINQUAN'
+    '''
+    stocks = '3A'
+    klse = "klse.txt"
+
+    if len(stocks) > 0:
+        #  download only selected counters
+        stocklist = formStocklist(stocks, klse)
+    else:
+        # Full download using klse.txt
+        writeKlseTxt = False
+        if writeKlseTxt:
+            writeStocksListing()
+        stocklist = loadKlseCounters(klse)
+
+    for shortname in sorted(stocklist.iterkeys()):
+        stock_code = stocklist[shortname]
+        if len(stock_code) == 0:
+            print "ERR: Not found: ", shortname
+            continue
+
         rtn_code = 0
-        OUTPUT_FILE = datadir + shortname + "." + stock_code + ".csv"
+        OUTPUT_FILE = '../../data/wsj/' + shortname + "." + stock_code + ".csv"
         TMP_FILE = OUTPUT_FILE + 'tmp'
         if S.RESUME_FILE:
-            lastdt = getLastDate(OUTPUT_FILE)
+:            lastdt = getLastDate(OUTPUT_FILE)
             if len(lastdt) == 0:
                 # File is likely to be empty, hence scrape from beginning
                 lastdt = S.ABS_START
@@ -207,129 +219,23 @@ def scrapeKlseRelated(klsemap, datadir):
         enddt = getToday('%Y-%m-%d')
         print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
             shortname, stock_code, lastdt, enddt)
-        eod = InvestingQuote(idmap, shortname, lastdt, enddt)
-        if S.DBG_ALL:
-            for item in eod:
-                print item
-        if isinstance(eod.response, unicode):
+
+        eod = scrapeHistoricalPrice(shortname, lastdt, enddt)
+
+        if len(eod.getCsvErr()) > 0:
+            print eod.getCsvErr()
+        elif isinstance(eod.response, unicode):
             dfEod = eod.to_df()
             if isinstance(dfEod, pd.DataFrame):
-                if S.DBG_ICOM:
-                    print dfEod[:5]
                 if WRITE_CSV:
                     dfEod.index.name = 'index'
                     dfEod.to_csv(TMP_FILE, index=False, header=False)
             else:
                 print "ERR:" + dfEod + ": " + shortname + "," + lastdt
                 rtn_code = -2
+        else:
+            print "ERR:" + eod.response + "," + lastdt
+            rtn_code = -1
 
         appendCsv(rtn_code, OUTPUT_FILE)
-
-
-def loadIdMap(klsemap='klse.idmap'):
-    ID_MAPPING = {}
-    try:
-        with open(klsemap) as idmap:
-            for line in idmap:
-                name, var = line.partition("=")[::2]
-                ID_MAPPING[name.strip()] = int(var)
-            if S.DBG_ALL:
-                print dict(ID_MAPPING.items()[0:3])
-        '''
-        with open("klse.txt") as f:
-            for line in f:
-                idmap = line.split(',')
-                name = idmap[0]
-                var = idmap[3]
-                ID_MAPPING[name.strip()] = int(var)
-            if S.DBG_ALL:
-                print dict(ID_MAPPING.items()[0:10])
-        '''
-    except EnvironmentError:
-        print "Missing idmap.ini file"
-        sys.exit(1)
-    except KeyError:
-        print "loadIdMap KeyError:", name
-        sys.exit(2)
-    return ID_MAPPING
-
-
-if __name__ == '__main__':
-    # OUTPUT_FILE = sys.argv[1]
-    idmap = loadIdMap()
-
-    S.DBG_ALL = False
-    S.DBG_ICOM = False
-    WRITE_CSV = True
-    S.RESUME_FILE = True
-
-    '''
-    stocks = 'ALAQAR,AMFIRST,ARREIT,ATRIUM,AXREIT,CAP,CLIQ,CLOUD,CSL,FOCUSP,GDB,GFM,GNB,HLCAP,ICAP,JMEDU,KINSTEL,MSPORTS,NPS,PARLO,PERDANA,PETONE,PINEAPP,QES,RALCO,SONA,TIMWELL,TWRREIT,WEGMANS,WINTONI,XINQUAN'
-    '''
-    stocks = ''
-    klse = "../i3investor/klse.txt"
-
-    if len(stocks) > 0:
-        #  download only selected counters
-        stocklist = formStocklist(stocks, klse)
-    else:
-        # Full download using klse.txt
-        writeStocksListing = False
-        if writeStocksListing:
-            writeStocksListing()
-        stocklist = loadKlseCounters(klse)
-
-    for shortname in sorted(stocklist.iterkeys()):
-        if shortname in S.EXCLUDE_LIST:
-            print "Skip: ", shortname
-            continue
-        stock_code = stocklist[shortname]
-        if len(stock_code) > 0:
-            rtn_code = 0
-            OUTPUT_FILE = '../../data/investingcom/' + shortname + "." + stock_code + ".csv"
-            TMP_FILE = OUTPUT_FILE + 'tmp'
-            if S.RESUME_FILE:
-                lastdt = getLastDate(OUTPUT_FILE)
-                if len(lastdt) == 0:
-                    # File is likely to be empty, hence scrape from beginning
-                    lastdt = S.ABS_START
-            else:
-                lastdt = S.ABS_START
-            enddt = getToday('%Y-%m-%d')
-            print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
-                shortname, stock_code, lastdt, enddt)
-            eod = InvestingQuote(idmap, shortname, lastdt, enddt)
-            if S.DBG_ALL:
-                for item in eod:
-                    print item
-            if len(eod.getCsvErr()) > 0:
-                print eod.getCsvErr()
-                # If KeyError, counter not available in investing.com, try yahoo finance
-                print "Scraping from yahoo: ", shortname
-                cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
-                q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
-                if len(q.getCsvErr()) > 0:
-                    st_code, st_reason = q.getCsvErr().split(":")
-                    rtn_code = int(st_code)
-                else:
-                    print q
-                    if WRITE_CSV:
-                        q.write_csv(TMP_FILE)
-            elif isinstance(eod.response, unicode):
-                dfEod = eod.to_df()
-                if isinstance(dfEod, pd.DataFrame):
-                    if S.DBG_ICOM:
-                        print dfEod[:5]
-                    if WRITE_CSV:
-                        dfEod.index.name = 'index'
-                        dfEod.to_csv(TMP_FILE, index=False, header=False)
-                else:
-                    print "ERR:" + dfEod + ": " + shortname + "," + lastdt
-                    rtn_code = -2
-            else:
-                print "ERR:" + eod.response + "," + lastdt
-                rtn_code = -1
-
-            appendCsv(rtn_code, OUTPUT_FILE)
-        else:
-            print "ERR: Not found: ", shortname
+        print "ERR: Not found: ", shortname
