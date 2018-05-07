@@ -217,7 +217,9 @@ def scrapeKlseRelated(klsemap, datadir):
         if S.DBG_ALL:
             for item in eod:
                 print item
-        if isinstance(eod.response, unicode):
+        if len(eod.getCsvErr()) > 0:
+            print eod.getCsvErr()
+        elif isinstance(eod.response, unicode):
             dfEod = eod.to_df()
             if isinstance(dfEod, pd.DataFrame):
                 if S.DBG_ICOM:
