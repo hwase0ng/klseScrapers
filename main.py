@@ -89,6 +89,14 @@ def checkLastTradingDay(lastdt):
     return None
 
 
+def backupKLse(prefix):
+    os.system('pwd')
+    bkfl = BKUP_DIR + prefix + 'klse' + getToday() + '.tgz'
+    cmd = 'tar czvf ' + bkfl + ' *.csv *.fin > pre.log'
+    print cmd
+    os.system(cmd)
+
+
 def preUpdateProcessing(datadir):
     if len(BKUP_DIR) == 0:
         print 'Nothing to do.'
@@ -99,11 +107,7 @@ def preUpdateProcessing(datadir):
         with cd(BKUP_DIR):
             purgeOldFiles('*.tgz', 10)
         with cd(datadir):
-            os.system('pwd')
-            bkfl = BKUP_DIR + 'klse' + getToday() + '.tgz'
-            cmd = 'tar czvf ' + bkfl + ' *.csv *.fin > pre.log'
-            print cmd
-            os.system(cmd)
+            backupKLse("pre")
         print "Pre-update Processing ... Done"
     except Exception, e:
         print e
@@ -121,6 +125,7 @@ def postUpdateProcessing(datadir):
         if S.DBG_ALL:
             print ip
         if ip.endswith(".2") or ip.endswith(".10"):
+            backupKLse("pst")
             os.system('mt4.sh ' + MT4_DIR)
         print "Post-update Processing ... Done"
 
