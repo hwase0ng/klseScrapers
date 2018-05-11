@@ -183,7 +183,7 @@ def scrapeKlse():
 
             if useI3latest:
                 preUpdateProcessing(datadir)
-                writeLatestPrice(True, datadir)
+                writeLatestPrice(True, datadir, dates[1])
             else:
                 # Full download using klse.txt
                 # To do: a fix schedule to refresh klse.txt
