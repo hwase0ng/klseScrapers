@@ -97,10 +97,12 @@ def backupKLse(prefix):
     with cd(BKUP_DIR):
         os.system('pwd')
         bkfl = prefix + 'klse' + getToday() + '.tgz'
+        os.system('backup.sh ' + bkfl + ' ' + S.DATA_DIR)
+        '''
         cmd = 'tar czvf ' + bkfl + ' -C ' + S.DATA_DIR + ' *.csv'
         print cmd
-        # os.system(cmd)
-        os.system('backup.sh ' + bkfl + ' ' + S.DATA_DIR)
+        os.system(cmd)
+        '''
 
 
 def preUpdateProcessing():
