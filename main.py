@@ -141,6 +141,13 @@ def loadSetting(c):
     global MT4_DIR
     BKUP_DIR = c["main"]["BKUP_DIR"]
     MT4_DIR = c["main"]["MT4_DIR"]
+    # Allows DATA_DIR to be overwritten here
+    try:
+        datadir = c["main"]["DATA_DIR"]
+        if len(datadir) > 0 and datadir.endswith('/'):
+            S.DATA_DIR = datadir
+    except Exception:
+        pass
 
 
 def loadCfg():
