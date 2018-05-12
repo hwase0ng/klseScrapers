@@ -75,7 +75,7 @@ def concat2quotes(directory, target):
             print os.getcwd()
 #       os.system("type *.csv >> quotes.txt")
         try:
-            with open(S.WORK_DIR + S.SHORTLISTED_FILE, 'r') as f:
+            with open(S.DATA_DIR + S.SHORTLISTED_FILE, 'r') as f:
                 # do a shorter list to reduce the processing time
                 reader = csv.reader(f)
                 slist = list(reader)

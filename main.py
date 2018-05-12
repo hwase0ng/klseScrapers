@@ -13,7 +13,7 @@ from Utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv
-from Utils.fileutils import cd, getSystemIP, purgeOldFiles
+from Utils.fileutils import cd, purgeOldFiles
 import os
 import json
 import sys
@@ -90,15 +90,17 @@ def checkLastTradingDay(lastdt):
 
 
 def backupKLse(prefix):
-    if len(BKUP_DIR) == 0 or not BKUP_DIR.endswith('/'):
+    if len(BKUP_DIR) == 0 or not BKUP_DIR.endswith('\\'):
         print "Skipped backing up data", BKUP_DIR
         return
 
-    os.system('pwd')
-    bkfl = BKUP_DIR + prefix + 'klse' + getToday() + '.tgz'
-    cmd = 'tar czvf ' + bkfl + ' *.csv *.fin > pre.log'
-    print cmd
-    os.system(cmd)
+    with cd(BKUP_DIR):
+        os.system('pwd')
+        bkfl = prefix + 'klse' + getToday() + '.tgz'
+        cmd = 'tar czvf ' + bkfl + ' -C ' + S.DATA_DIR + ' *.csv'
+        print cmd
+        # os.system(cmd)
+        os.system('backup.sh ' + bkfl + ' ' + S.DATA_DIR)
 
 
 def preUpdateProcessing():
@@ -110,8 +112,10 @@ def preUpdateProcessing():
         print "Pre-update Processing ...", BKUP_DIR
         with cd(BKUP_DIR):
             purgeOldFiles('*.tgz', 10)
+        '''
         with cd(S.DATA_DIR):
             backupKLse("pre")
+        '''
         print "Pre-update Processing ... Done"
     except Exception, e:
         print e
@@ -119,19 +123,12 @@ def preUpdateProcessing():
 
 
 def postUpdateProcessing():
+    backupKLse("pst")
+
     if len(MT4_DIR) == 0:
         return
 
-    with cd(S.DATA_DIR):
-        print "Post-update Processing ..."
-        os.system('pwd')
-        '''
-        ip = getSystemIP()
-        if S.DBG_ALL:
-            print ip
-        if ip.endswith(".2") or ip.endswith(".10"):
-        '''
-        backupKLse("pst")
+    with cd(BKUP_DIR):
         os.system('mt4.sh ' + MT4_DIR)
         print "Post-update Processing ... Done"
 
@@ -152,7 +149,8 @@ def loadSetting(c):
 
 def loadCfg():
     try:
-        with open('data/config.json') as json_data_file:
+        # Refers backup drive instead of DATA_DIR which is in network share
+        with open(S.DATA_DIR + 'config.json') as json_data_file:
             cfg = json.load(json_data_file)
             loadSetting(cfg)
             return cfg
