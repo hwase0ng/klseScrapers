@@ -151,7 +151,6 @@ def unpackFIN(anndate, fy, quarter, qnum, revenue, pbt, np, dividend, npmargin, 
 
 if __name__ == '__main__':
     S.DBG_ALL = False
-    datadir = '../../data/'
     lastFinDate = ''
     stocks = ''
 
@@ -172,7 +171,7 @@ if __name__ == '__main__':
         if len(stkcode) == 4:
             stkfin = scrapeStkFin(connectStkFin(stkcode), lastFinDate)
             if stkfin is not None:
-                fh = open(datadir + stkname + '.' + stkcode + ".fin", "w")
+                fh = open(S.DATA_DIR + stkname + '.' + stkcode + ".fin", "w")
                 for key in sorted(stkfin.iterkeys()):
                     fin = ','.join(map(str, unpackFIN(key, *(stkfin[key]))))
                     print fin

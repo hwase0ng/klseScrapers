@@ -53,7 +53,7 @@ def scrapeI3(stocklist):
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
             rtn_code = -1
-            OUTPUT_FILE = 'data/' + shortname + "." + stock_code + ".csv"
+            OUTPUT_FILE = S.DATA_DIR + shortname + "." + stock_code + ".csv"
             TMP_FILE = OUTPUT_FILE + 'tmp'
             startdt = getStartDate(OUTPUT_FILE)
             print 'Scraping {0},{1}: lastdt={2}'.format(
@@ -90,6 +90,10 @@ def checkLastTradingDay(lastdt):
 
 
 def backupKLse(prefix):
+    if len(BKUP_DIR) == 0 or not BKUP_DIR.endswith('/'):
+        print "Skipped backing up data", BKUP_DIR
+        return
+
     os.system('pwd')
     bkfl = BKUP_DIR + prefix + 'klse' + getToday() + '.tgz'
     cmd = 'tar czvf ' + bkfl + ' *.csv *.fin > pre.log'
@@ -97,7 +101,7 @@ def backupKLse(prefix):
     os.system(cmd)
 
 
-def preUpdateProcessing(datadir):
+def preUpdateProcessing():
     if len(BKUP_DIR) == 0:
         print 'Nothing to do.'
         return
@@ -106,7 +110,7 @@ def preUpdateProcessing(datadir):
         print "Pre-update Processing ...", BKUP_DIR
         with cd(BKUP_DIR):
             purgeOldFiles('*.tgz', 10)
-        with cd(datadir):
+        with cd(S.DATA_DIR):
             backupKLse("pre")
         print "Pre-update Processing ... Done"
     except Exception, e:
@@ -114,19 +118,21 @@ def preUpdateProcessing(datadir):
         pass
 
 
-def postUpdateProcessing(datadir):
+def postUpdateProcessing():
     if len(MT4_DIR) == 0:
         return
 
-    with cd(datadir):
+    with cd(S.DATA_DIR):
         print "Post-update Processing ..."
         os.system('pwd')
+        '''
         ip = getSystemIP()
         if S.DBG_ALL:
             print ip
         if ip.endswith(".2") or ip.endswith(".10"):
-            backupKLse("pst")
-            os.system('mt4.sh ' + MT4_DIR)
+        '''
+        backupKLse("pst")
+        os.system('mt4.sh ' + MT4_DIR)
         print "Post-update Processing ... Done"
 
 
@@ -169,12 +175,11 @@ def scrapeKlse():
           2. latest eod record in csv file is 1 trading day behind
              that of investing.com latest eod
         '''
-        datadir = './data/'
-        lastdt = getLastDate(datadir + 'ZHULIAN.5131.csv')
+        lastdt = getLastDate(S.DATA_DIR + 'ZHULIAN.5131.csv')
         dates = checkLastTradingDay(lastdt)
         if dates is None or (len(dates) == 1 and dates[0] == lastdt):
             print "Already latest. Nothing to update."
-            postUpdateProcessing(datadir)
+            postUpdateProcessing()
         else:
             if len(dates) == 2 and dates[1] > lastdt and dates[0] == lastdt:
                 useI3latest = True
@@ -182,8 +187,8 @@ def scrapeKlse():
                 useI3latest = False
 
             if useI3latest:
-                preUpdateProcessing(datadir)
-                writeLatestPrice(True, datadir, dates[1])
+                preUpdateProcessing()
+                writeLatestPrice(True, dates[1])
             else:
                 # Full download using klse.txt
                 # To do: a fix schedule to refresh klse.txt
@@ -197,7 +202,7 @@ def scrapeKlse():
                 # May need to do additional checking to determine if need to use either
                 scrapeI3(loadKlseCounters(klse))
 
-            scrapeKlseRelated('scrapers/investingcom/klse.idmap', datadir)
+            scrapeKlseRelated('scrapers/investingcom/klse.idmap', S.DATA_DIR)
 
     print "\nDone."
 
@@ -205,7 +210,7 @@ def scrapeKlse():
 if __name__ == '__main__':
     cfg = loadCfg()
     '''
-    preUpdateProcessing('./data/')
+    preUpdateProcessing()
     '''
     scrapeKlse()
     pass

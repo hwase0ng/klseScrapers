@@ -128,7 +128,7 @@ def unpackEOD(popen, phigh, plow, pclose, pvol):
         int(pvol.replace(',', ''))
 
 
-def writeLatestPrice(writeEOD=False, workdir='.', lastTradingDate=getToday('%Y-%m-%d')):
+def writeLatestPrice(writeEOD=False, lastTradingDate=getToday('%Y-%m-%d')):
     initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     stocksListing = {}
     for initial in list(initials):
@@ -139,7 +139,7 @@ def writeLatestPrice(writeEOD=False, workdir='.', lastTradingDate=getToday('%Y-%
         stk = key.split('.')
         shortname = stk[0]
         stockCode = stk[1]
-        outfile = workdir + shortname + '.' + stockCode + '.csv'
+        outfile = S.DATA_DIR + shortname + '.' + stockCode + '.csv'
         eod = shortname + ',' + lastTradingDate + ',' + ','.join(
             map(str, unpackEOD(*(stocksListing[key]))))
         if writeEOD:
@@ -153,5 +153,5 @@ def writeLatestPrice(writeEOD=False, workdir='.', lastTradingDate=getToday('%Y-%
 if __name__ == '__main__':
     S.DBG_ALL = False
     writeStocksListing()
-    writeLatestPrice(False, '../../data/i3/')
+    writeLatestPrice(False, S.DATA_DIR + 'i3/')
     pass

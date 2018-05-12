@@ -312,7 +312,8 @@ if __name__ == '__main__':
     for shortname in sorted(stocklist.iterkeys()):
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
-            OUTPUT_FILE = '../../data/yahoo/' + shortname + "." + stock_code + ".csv"
+            # OUTPUT_FILE = '../../data/yahoo/' + shortname + "." + stock_code + ".csv"
+            OUTPUT_FILE = S.DATA_DIR + 'yahoo/' + shortname + "." + stock_code + ".csv"
             if S.RESUME_FILE:
                 lastdt = getLastDate(OUTPUT_FILE)
                 if len(lastdt) == 0:
