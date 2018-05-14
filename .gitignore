@@ -109,3 +109,4 @@ ENV/
 *.csvtmp
 *.fin
 *.tgz
+/data/

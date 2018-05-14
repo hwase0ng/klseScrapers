@@ -209,7 +209,7 @@ def scrapeKlse():
                 # May need to do additional checking to determine if need to use either
                 scrapeI3(loadKlseCounters(klse))
 
-            scrapeKlseRelated('scrapers/investingcom/klse.idmap', S.DATA_DIR)
+            scrapeKlseRelated('scrapers/investingcom/klse.idmap')
 
     print "\nDone."
 
@@ -218,6 +218,7 @@ if __name__ == '__main__':
     cfg = loadCfg()
     '''
     preUpdateProcessing()
+    scrapeKlseRelated('scrapers/investingcom/klse.idmap')
     '''
     scrapeKlse()
     pass
