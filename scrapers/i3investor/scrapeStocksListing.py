@@ -137,7 +137,7 @@ def writeLatestPrice(writeEOD=False, lastTradingDate=getToday('%Y-%m-%d')):
 
     for key in sorted(stocksListing.iterkeys()):
         stk = key.split('.')
-        shortname = stk[0]
+        shortname = stk[0].replace(';', '')
         stockCode = stk[1]
         outfile = S.DATA_DIR + shortname + '.' + stockCode + '.csv'
         eod = shortname + ',' + lastTradingDate + ',' + ','.join(
