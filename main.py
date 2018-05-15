@@ -17,6 +17,10 @@ from Utils.fileutils import cd, purgeOldFiles
 import os
 import json
 import sys
+import subprocess
+import tarfile
+import glob
+import fileinput
 
 
 def scrapeI3eod(sname, scode, lastdt):
@@ -94,11 +98,15 @@ def backupKLse(prefix):
         print "Skipped backing up data", BKUP_DIR
         return
 
-    with cd(BKUP_DIR):
-        os.system('pwd')
-        bkfl = prefix + 'klse' + getToday() + '.tgz'
-        os.system('backup.sh ' + bkfl + ' ' + S.DATA_DIR)
+    with cd(S.DATA_DIR):
+        subprocess.call('pwd')
+        bkfl = BKUP_DIR + prefix + 'klse' + getToday() + '.tgz'
+        print "Backing up", bkfl
+        with tarfile.open(bkfl, "w:gz") as tar:
+            for csvfile in glob.glob("*.csv"):
+                tar.add(csvfile)
         '''
+        os.system('backup.sh ' + bkfl + ' ' + S.DATA_DIR)
         cmd = 'tar czvf ' + bkfl + ' -C ' + S.DATA_DIR + ' *.csv'
         print cmd
         os.system(cmd)
@@ -130,8 +138,14 @@ def postUpdateProcessing():
     if len(MT4_DIR) == 0:
         return
 
-    with cd(BKUP_DIR):
-        os.system('mt4.sh ' + MT4_DIR)
+    with cd(S.DATA_DIR):
+        csvfiles = glob.glob("*.csv")
+        with open(MT4_DIR + 'quotes.csv', 'w') as qcsv:
+            input_lines = fileinput.input(csvfiles)
+            qcsv.writelines(input_lines)
+
+    with cd(MT4_DIR):
+        os.system('mt4.sh')
         print "Post-update Processing ... Done"
 
 

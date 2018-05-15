@@ -1,6 +1,7 @@
 {
 	"main":{
 		"BKUP_DIR":"",
+		"DATA_DIR":"",
 		"MT4_DIR":""
 	},
 	"toggle":{
