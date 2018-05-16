@@ -14,6 +14,8 @@ from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv
 from Utils.fileutils import cd, purgeOldFiles
+from Utils.dbutils import importCsv
+from pymongo.mongo_client import MongoClient
 import os
 import json
 import sys
@@ -21,6 +23,17 @@ import subprocess
 import tarfile
 import glob
 import fileinput
+
+
+def dbUpdateLatest(eodlist):
+    eodfile = S.DATA_DIR + 'latest.eod'
+    with open(eodfile, 'wb') as eodf:
+        for eod in eodlist:
+            eodf.write(str(eod) + '\n')
+
+    mongo_client = MongoClient()
+    db = mongo_client.klsedb
+    importCsv(eodfile, db)
 
 
 def scrapeI3eod(sname, scode, lastdt):
@@ -50,6 +63,7 @@ def getStartDate(OUTPUT_FILE):
 
 
 def scrapeI3(stocklist):
+    eodlist = []
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
@@ -69,6 +83,7 @@ def scrapeI3(stocklist):
             f = open(TMP_FILE, "wb")
             for eod in i3eod:
                 f.write(eod + '\n')
+                eodlist.append(eod)
                 if S.DBG_ALL:
                     print eod
             f.close()
@@ -77,6 +92,8 @@ def scrapeI3(stocklist):
             rtn_code = -1
 
         appendCsv(rtn_code, OUTPUT_FILE)
+
+    return eodlist
 
 
 def checkLastTradingDay(lastdt):
@@ -210,7 +227,7 @@ def scrapeKlse():
 
             if useI3latest:
                 preUpdateProcessing()
-                writeLatestPrice(True, dates[1])
+                list1 = writeLatestPrice(dates[1], True)
             else:
                 # Full download using klse.txt
                 # To do: a fix schedule to refresh klse.txt
@@ -222,9 +239,11 @@ def scrapeKlse():
                 # TODO:
                 # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
                 # May need to do additional checking to determine if need to use either
-                scrapeI3(loadKlseCounters(klse))
+                list1 = scrapeI3(loadKlseCounters(klse))
 
-            scrapeKlseRelated('scrapers/investingcom/klse.idmap')
+            list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
+            eodlist = list2 + list1
+            dbUpdateLatest(eodlist)
 
     print "\nDone."
 
@@ -233,7 +252,7 @@ if __name__ == '__main__':
     cfg = loadCfg()
     '''
     preUpdateProcessing()
-    scrapeKlseRelated('scrapers/investingcom/klse.idmap')
+    print scrapeKlseRelated('scrapers/investingcom/klse.idmap', False)
     '''
     scrapeKlse()
     pass

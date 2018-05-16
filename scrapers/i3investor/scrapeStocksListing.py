@@ -128,13 +128,17 @@ def unpackEOD(popen, phigh, plow, pclose, pvol):
         int(pvol.replace(',', ''))
 
 
-def writeLatestPrice(writeEOD=False, lastTradingDate=getToday('%Y-%m-%d')):
+def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
+    print 'Scraping latest price from i3 ...'
     initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     stocksListing = {}
     for initial in list(initials):
         eod = scrapeLatestPrice(connectStocksListing(initial))
         stocksListing.update(eod)
 
+    eodlist = []
+
+    print ' Writing latest price from i3 ...'
     for key in sorted(stocksListing.iterkeys()):
         stk = key.split('.')
         shortname = stk[0].replace(';', '')
@@ -142,16 +146,18 @@ def writeLatestPrice(writeEOD=False, lastTradingDate=getToday('%Y-%m-%d')):
         outfile = S.DATA_DIR + shortname + '.' + stockCode + '.csv'
         eod = shortname + ',' + lastTradingDate + ',' + ','.join(
             map(str, unpackEOD(*(stocksListing[key]))))
+        eodlist.append(eod)
         if writeEOD:
-            fh = open(outfile, "ab")
-            fh.write(eod + '\n')
-            fh.close()
+            with open(outfile, "ab") as fh:
+                fh.write(eod + '\n')
         else:
             print eod
+
+    return eodlist
 
 
 if __name__ == '__main__':
     S.DBG_ALL = False
     writeStocksListing()
-    writeLatestPrice(False, S.DATA_DIR + 'i3/')
+    writeLatestPrice(S.DATA_DIR + 'i3/', False)
     pass

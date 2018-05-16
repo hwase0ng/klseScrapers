@@ -191,11 +191,18 @@ class InvestingQuote(Quote):
             self.csverr = sname + ":" + self.response
 
 
-def scrapeKlseRelated(klsemap):
-    WRITE_CSV = True
+def unpackEOD(sname, sdate, popen, phigh, plow, pclose, pvol):
+    return sname, sdate, \
+        "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), \
+        "{:.4f}".format(float(plow)), "{:.4f}".format(float(pclose)), \
+        int(str(pvol).replace('-', '0'))
+
+
+def scrapeKlseRelated(klsemap, WRITE_CSV=True):
     idmap = loadIdMap(klsemap)
     counters = 'USDMYR.2168,FTFBM100.0200,FTFBMKLCI.0201,FTFBMMES.0202,FTFBMSCAP.0203,FTFBM70.0204,FTFBMEMAS.0205'
     counterlist = counters.split(',')
+    eodlist = []
     for i in counterlist:
         counter = i.split('.')
         shortname = counter[0]
@@ -227,11 +234,18 @@ def scrapeKlseRelated(klsemap):
                 if WRITE_CSV:
                     dfEod.index.name = 'index'
                     dfEod.to_csv(TMP_FILE, index=False, header=False)
+                dates = pd.to_datetime(dfEod["Date"], format='%Y%m%d')
+                dfEod["Date"] = dates.dt.strftime('%Y-%m-%d').tolist()
+                elist = dfEod.values.tolist()[0]
+                eodlist.append(','.join(map(str, unpackEOD(*elist))))
             else:
                 print "ERR:" + dfEod + ": " + shortname + "," + lastdt
                 rtn_code = -2
 
-        appendCsv(rtn_code, OUTPUT_FILE)
+        if WRITE_CSV:
+            appendCsv(rtn_code, OUTPUT_FILE)
+
+    return eodlist
 
 
 def loadIdMap(klsemap='klse.idmap'):
