@@ -5,7 +5,35 @@ Created on Apr 27, 2018
 '''
 from Utils.fileutils import getStockCode
 import csv
+import json
+import sys
 import settings as S
+
+
+def loadSetting(c):
+    global BKUP_DIR
+    global MT4_DIR
+    BKUP_DIR = c["main"]["BKUP_DIR"]
+    MT4_DIR = c["main"]["MT4_DIR"]
+    # Allows DATA_DIR to be overwritten here
+    try:
+        datadir = c["main"]["DATA_DIR"]
+        if len(datadir) > 0 and datadir.endswith('/'):
+            S.DATA_DIR = datadir
+    except Exception:
+        pass
+
+
+def loadCfg(datadir):
+    try:
+        # Refers backup drive instead of DATA_DIR which is in network share
+        with open(datadir + 'config.json') as json_data_file:
+            cfg = json.load(json_data_file)
+            loadSetting(cfg)
+            return cfg
+    except EnvironmentError:
+        print "Missing config.json file:", datadir
+        sys.exit(1)
 
 
 def loadMap(klsemap, sep=","):
@@ -69,11 +97,14 @@ def appendCsv(rtn_code, OUTPUT_FILE):
     ftmp.close()
 
 
-def getDataDir(datadir):
+def getDataDir(datadir, lvl=2):
     if datadir.startswith('/') or datadir.startswith('\\'):
         # Using absolute path; e.g. /d/klse/data
         return datadir
     # Using relative path such as ./data
+    if lvl == 1:
+        return "../" + datadir
+
     return "../../" + datadir
 
 

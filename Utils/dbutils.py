@@ -6,7 +6,8 @@ Created on May 14, 2018
 
 from pymongo import MongoClient
 from Utils.fileutils import cd
-from pandas._libs.parsers import EmptyDataError
+from common import getDataDir, loadCfg
+from pandas.errors import EmptyDataError
 import pandas as pd
 import settings as S
 import os
@@ -18,15 +19,15 @@ import socket
 header = ["0-Code", "1-Date", "2-Open", "3-High", "4-Low", "5-Close", "6-Volume"]
 
 
-def isOpen(ip,port):
-   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-   s.settimeout(5)
-   try:
-      s.connect((ip, port))
-      s.shutdown(2)
-      return True
-   except:
-      return False
+def isOpen(ip, port):
+    s = socket.socket(socket. AF_INET, socket.SOCK_STREAM)
+    s.settimeout(5)
+    try:
+        s.connect((ip, port))
+        s.shutdown(2)
+        return True
+    except Exception:
+        return False
 
 
 def importCsv(filenm, db):
@@ -44,14 +45,14 @@ def importCsv(filenm, db):
         if data_json is not None and len(data_json) > 0:
             if S.DBG_ALL:
                 print data_json[:3]
-            # db.klsedb.remove()
-            db.klsedb.insert(data_json)
+            # db.klseeod.remove()
+            db.klseeod.insert(data_json)
     except EmptyDataError:
         pass
 
 
 def processCsv():
-    with cd(S.DATA_DIR):
+    with cd(getDataDir(S.DATA_DIR, 1)):
         print os.getcwd()
         csvfiles = glob.glob("*.csv")
         for csvf in csvfiles:
@@ -59,21 +60,22 @@ def processCsv():
 
 
 if __name__ == '__main__':
+    loadCfg(getDataDir(S.DATA_DIR, 1))
     mongo_client = MongoClient()
-    db = mongo_client.klsedb
-    csvfile = '3A.0012.csv'
+    db = mongo_client.klseeod
+    csvfile = ''
     if len(csvfile) > 0:
-        pprint.pprint(db.klsedb.find_one({'0': 'FTFBMKLCI', '1': '2018-05-07'}))
-        pprint.pprint(db.klsedb.find_one({'0': 'ZHULIAN', '1': '2018-05-02'}))
-        pprint.pprint(db.klsedb.find_one({'0': 'USDMYR'}))
-        pprint.pprint(db.klsedb.find_one())
-        with cd(S.DATA_DIR):
+        pprint.pprint(db.klseeod.find_one({'0': 'FTFBMKLCI', '1': '2018-05-07'}))
+        pprint.pprint(db.klseeod.find_one({'0': 'ZHULIAN', '1': '2018-05-02'}))
+        pprint.pprint(db.klseeod.find_one({'0': 'USDMYR'}))
+        pprint.pprint(db.klseeod.find_one())
+        with cd(getDataDir(S.DATA_DIR, 1)):
             importCsv(csvfile)
-        pprint.pprint(db.klsedb.find_one())
-        pprint.pprint(db.klsedb.find_one({'0': '3A', '1-Date': '2018-05-08'}))
+        pprint.pprint(db.klseeod.find_one())
+        pprint.pprint(db.klseeod.find_one({'0': '3A', '1-Date': '2018-05-08'}))
     else:
-        db.klsedb.drop()
+        db.klseeod.drop()
         processCsv()
-        pprint.pprint(db.klsedb.find_one())
-        pprint.pprint(db.klsedb.find_one({'0': '3A', '1': '2018-01-08'}))
+        pprint.pprint(db.klseeod.find_one())
+        pprint.pprint(db.klseeod.find_one({'0': '3A', '1': '2018-01-08'}))
     pass

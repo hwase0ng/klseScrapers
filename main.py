@@ -12,13 +12,11 @@ from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
 from Utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
-from common import formStocklist, loadKlseCounters, appendCsv
+from common import formStocklist, loadKlseCounters, appendCsv, loadCfg
 from Utils.fileutils import cd, purgeOldFiles
 from Utils.dbutils import importCsv, isOpen
 from pymongo.mongo_client import MongoClient
 import os
-import json
-import sys
 import subprocess
 import tarfile
 import glob
@@ -36,7 +34,7 @@ def dbUpdateLatest(eodlist):
             eodf.write(str(eod) + '\n')
 
     mongo_client = MongoClient()
-    db = mongo_client.klsedb
+    db = mongo_client.klseeod
     importCsv(eodfile, db)
 
 
@@ -170,32 +168,6 @@ def postUpdateProcessing():
         print "Post-update Processing ... Done"
 
 
-def loadSetting(c):
-    global BKUP_DIR
-    global MT4_DIR
-    BKUP_DIR = c["main"]["BKUP_DIR"]
-    MT4_DIR = c["main"]["MT4_DIR"]
-    # Allows DATA_DIR to be overwritten here
-    try:
-        datadir = c["main"]["DATA_DIR"]
-        if len(datadir) > 0 and datadir.endswith('/'):
-            S.DATA_DIR = datadir
-    except Exception:
-        pass
-
-
-def loadCfg():
-    try:
-        # Refers backup drive instead of DATA_DIR which is in network share
-        with open(S.DATA_DIR + 'config.json') as json_data_file:
-            cfg = json.load(json_data_file)
-            loadSetting(cfg)
-            return cfg
-    except EnvironmentError:
-        print "Missing config.json file"
-        sys.exit(1)
-
-
 def scrapeKlse():
     '''
     stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
@@ -253,7 +225,7 @@ def scrapeKlse():
 
 
 if __name__ == '__main__':
-    cfg = loadCfg()
+    cfg = loadCfg(S.DATA_DIR)
     '''
     preUpdateProcessing()
     print scrapeKlseRelated('scrapers/investingcom/klse.idmap', False)
