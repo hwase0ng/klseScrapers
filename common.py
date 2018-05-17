@@ -70,7 +70,7 @@ def appendCsv(rtn_code, OUTPUT_FILE):
 
 
 def getDataDir(datadir):
-    if datadir.beginswith('/') or datadir.beginswith('\\'):
+    if datadir.startswith('/') or datadir.startswith('\\'):
         # Using absolute path; e.g. /d/klse/data
         return datadir
     # Using relative path such as ./data
