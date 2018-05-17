@@ -8,6 +8,7 @@ import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
 from Utils.dateutils import getToday
+from common import getDataDir
 
 I3STOCKSURL = 'https://klse.i3investor.com/jsp/stocks.jsp?g=S&m=int&s='
 
@@ -143,7 +144,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
         stk = key.split('.')
         shortname = stk[0].replace(';', '')
         stockCode = stk[1]
-        outfile = S.DATA_DIR + shortname + '.' + stockCode + '.csv'
+        outfile = getDataDir(S.DATA_DIR) + shortname + '.' + stockCode + '.csv'
         eod = shortname + ',' + lastTradingDate + ',' + ','.join(
             map(str, unpackEOD(*(stocksListing[key]))))
         eodlist.append(eod)
@@ -159,5 +160,5 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
 if __name__ == '__main__':
     S.DBG_ALL = False
     writeStocksListing()
-    writeLatestPrice(S.DATA_DIR + 'i3/', False)
+    writeLatestPrice(getDataDir(S.DATA_DIR) + 'i3/', False)
     pass

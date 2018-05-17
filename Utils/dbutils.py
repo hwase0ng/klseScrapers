@@ -13,8 +13,20 @@ import os
 import glob
 import json
 import pprint
+import socket
 
 header = ["0-Code", "1-Date", "2-Open", "3-High", "4-Low", "5-Close", "6-Volume"]
+
+
+def isOpen(ip,port):
+   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+   s.settimeout(5)
+   try:
+      s.connect((ip, port))
+      s.shutdown(2)
+      return True
+   except:
+      return False
 
 
 def importCsv(filenm, db):

@@ -69,6 +69,14 @@ def appendCsv(rtn_code, OUTPUT_FILE):
     ftmp.close()
 
 
+def getDataDir(datadir):
+    if datadir.beginswith('/') or datadir.beginswith('\\'):
+        # Using absolute path; e.g. /d/klse/data
+        return datadir
+    # Using relative path such as ./data
+    return "../../" + datadir
+
+
 if __name__ == '__main__':
     line = "3A,0012,THREE-A RESOURCES BHD,507"
     name, var = line.partition(',')[::2]

@@ -8,7 +8,7 @@ Note: This version is adapted from a source found in Internet which I could no l
 '''
 
 import sys
-from common import formStocklist, loadKlseCounters, appendCsv
+from common import formStocklist, loadKlseCounters, appendCsv, getDataDir
 import settings as S
 import Utils.dateutils as du
 import requests
@@ -87,7 +87,7 @@ class Quote(object):
             df = pd.read_html(self.response)
             df = df[0]  # Ignore footer table
             if S.DBG_ICOM:
-                df.to_csv(S.DATA_DIR + "/" + self.name + ".inf")
+                df.to_csv(getDataDir(S.DATA_DIR) + "/" + self.name + ".inf")
             price = df['Price'][0]
             # print self.name, type(price), price
             if math.isnan(price):
@@ -126,7 +126,7 @@ class Quote(object):
             df = 'ValueError'
             self.csverr = self.name + ": ValueError (No data for date range) " + ' (' + str(ve) + ')'
             if S.DBG_ICOM:
-                with open(S.DATA_DIR + "value.err", 'ab') as f:
+                with open(getDataDir(S.DATA_DIR) + "value.err", 'ab') as f:
                     f.write('\n=============================\n')
                     f.write(self.name + "\n")
                     f.write(self.response)
@@ -134,7 +134,7 @@ class Quote(object):
             # This happens when records being processed are larger than 3 months data,
             # try reducing the period
             if S.DBG_ICOM:
-                with open(S.DATA_DIR + "value.err", 'ab') as f:
+                with open(getDataDir(S.DATA_DIR) + "value.err", 'ab') as f:
                     f.write('\n=============================\n')
                     f.write(self.name + "\n")
                     f.write(self.response)
@@ -208,7 +208,7 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
         shortname = counter[0]
         stock_code = counter[1]
         rtn_code = 0
-        OUTPUT_FILE = S.DATA_DIR + shortname + "." + stock_code + ".csv"
+        OUTPUT_FILE = getDataDir(S.DATA_DIR) + shortname + "." + stock_code + ".csv"
         TMP_FILE = OUTPUT_FILE + 'tmp'
         if S.RESUME_FILE:
             lastdt = getLastDate(OUTPUT_FILE)
@@ -308,7 +308,7 @@ if __name__ == '__main__':
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
             rtn_code = 0
-            OUTPUT_FILE = S.DATA_DIR + 'investingcom/' + shortname + "." + stock_code + ".csv"
+            OUTPUT_FILE = getDataDir(S.DATA_DIR) + 'investingcom/' + shortname + "." + stock_code + ".csv"
             TMP_FILE = OUTPUT_FILE + 'tmp'
             if S.RESUME_FILE:
                 lastdt = getLastDate(OUTPUT_FILE)

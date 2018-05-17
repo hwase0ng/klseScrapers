@@ -29,7 +29,7 @@ import re
 from Utils.dateutils import getToday, getNextDay, getLastDate
 import csv
 from requests.exceptions import ConnectionError
-from common import formStocklist, loadKlseCounters, appendCsv
+from common import formStocklist, loadKlseCounters, appendCsv, getDataDir
 
 sys.path.append('../../')
 
@@ -313,7 +313,7 @@ if __name__ == '__main__':
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
             # OUTPUT_FILE = '../../data/yahoo/' + shortname + "." + stock_code + ".csv"
-            OUTPUT_FILE = S.DATA_DIR + 'yahoo/' + shortname + "." + stock_code + ".csv"
+            OUTPUT_FILE = getDataDir(S.DATA_DIR) + 'yahoo/' + shortname + "." + stock_code + ".csv"
             if S.RESUME_FILE:
                 lastdt = getLastDate(OUTPUT_FILE)
                 if len(lastdt) == 0:

@@ -10,7 +10,7 @@ import requests
 from BeautifulSoup import BeautifulSoup
 from datetime import date
 from dateutil.relativedelta import relativedelta
-from common import formStocklist, loadKlseCounters
+from common import formStocklist, loadKlseCounters, getDataDir
 
 I3FINURL = 'https://klse.i3investor.com/servlets/stk/fin/'
 I3LATESTFINURL = 'http://klse.i3investor.com/financial/quarter/latest.jsp'
@@ -171,7 +171,7 @@ if __name__ == '__main__':
         if len(stkcode) == 4:
             stkfin = scrapeStkFin(connectStkFin(stkcode), lastFinDate)
             if stkfin is not None:
-                fh = open(S.DATA_DIR + stkname + '.' + stkcode + ".fin", "w")
+                fh = open(getDataDir(S.DATA_DIR) + stkname + '.' + stkcode + ".fin", "w")
                 for key in sorted(stkfin.iterkeys()):
                     fin = ','.join(map(str, unpackFIN(key, *(stkfin[key]))))
                     print fin

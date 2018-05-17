@@ -14,7 +14,7 @@ from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv
 from Utils.fileutils import cd, purgeOldFiles
-from Utils.dbutils import importCsv
+from Utils.dbutils import importCsv, isOpen
 from pymongo.mongo_client import MongoClient
 import os
 import json
@@ -26,6 +26,10 @@ import fileinput
 
 
 def dbUpdateLatest(eodlist):
+    if not isOpen('127.0.0.1', 27017):
+        print "Skip mongodb update"
+        return
+
     eodfile = S.DATA_DIR + 'latest.eod'
     with open(eodfile, 'wb') as eodf:
         for eod in eodlist:
