@@ -14,8 +14,7 @@ from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg
 from Utils.fileutils import cd, purgeOldFiles
-from Utils.dbutils import importCsv, isOpen
-from pymongo.mongo_client import MongoClient
+from Utils.dbKlseEod import dbUpsertCounters, initKlseEod
 import os
 import subprocess
 import tarfile
@@ -24,18 +23,16 @@ import fileinput
 
 
 def dbUpdateLatest(eodlist):
-    if not isOpen('127.0.0.1', 27017):
-        print "Skip mongodb update"
-        return
-
-    eodfile = S.DATA_DIR + 'latest.eod'
-    with open(eodfile, 'wb') as eodf:
+    eodfile = 'latest.eod'
+    with open(S.DATA_DIR + eodfile, 'wb') as eodf:
         for eod in eodlist:
             eodf.write(str(eod) + '\n')
 
-    mongo_client = MongoClient()
-    db = mongo_client.klseeod
-    importCsv(eodfile, db)
+    db = initKlseEod()
+    if db is None:
+        print "Missing DB connection ... Skipped"
+        return
+    dbUpsertCounters(db, eodfile)
 
 
 def scrapeI3eod(sname, scode, lastdt):
@@ -113,13 +110,13 @@ def checkLastTradingDay(lastdt):
 
 
 def backupKLse(prefix):
-    if len(BKUP_DIR) == 0 or not BKUP_DIR.endswith('\\'):
-        print "Skipped backing up data", BKUP_DIR
+    if len(S.BKUP_DIR) == 0 or not S.BKUP_DIR.endswith('\\'):
+        print "Skipped backing up data", S.BKUP_DIR
         return
 
     with cd(S.DATA_DIR):
         subprocess.call('pwd')
-        bkfl = BKUP_DIR + prefix + 'klse' + getToday() + '.tgz'
+        bkfl = S.BKUP_DIR + prefix + 'klse' + getToday() + '.tgz'
         print "Backing up", bkfl
         with tarfile.open(bkfl, "w:gz") as tar:
             for csvfile in glob.glob("*.csv"):
@@ -133,13 +130,13 @@ def backupKLse(prefix):
 
 
 def preUpdateProcessing():
-    if len(BKUP_DIR) == 0:
+    if len(S.BKUP_DIR) == 0:
         print 'Nothing to do.'
         return
 
     try:
-        print "Pre-update Processing ...", BKUP_DIR
-        with cd(BKUP_DIR):
+        print "Pre-update Processing ...", S.BKUP_DIR
+        with cd(S.BKUP_DIR):
             purgeOldFiles('*.tgz', 10)
         '''
         with cd(S.DATA_DIR):
@@ -154,16 +151,17 @@ def preUpdateProcessing():
 def postUpdateProcessing():
     backupKLse("pst")
 
-    if len(MT4_DIR) == 0:
+    if len(S.MT4_DIR) == 0:
         return
 
     with cd(S.DATA_DIR):
         csvfiles = glob.glob("*.csv")
-        with open(MT4_DIR + 'quotes.csv', 'w') as qcsv:
+        quotes = S.MT4_DIR + "quotes.csv"
+        with open(quotes, 'w') as qcsv:
             input_lines = fileinput.input(csvfiles)
             qcsv.writelines(input_lines)
 
-    with cd(MT4_DIR):
+    with cd(S.MT4_DIR):
         os.system('mt4.sh')
         print "Post-update Processing ... Done"
 

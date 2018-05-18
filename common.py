@@ -11,10 +11,8 @@ import settings as S
 
 
 def loadSetting(c):
-    global BKUP_DIR
-    global MT4_DIR
-    BKUP_DIR = c["main"]["BKUP_DIR"]
-    MT4_DIR = c["main"]["MT4_DIR"]
+    S.BKUP_DIR = c["main"]["BKUP_DIR"]
+    S.MT4_DIR = c["main"]["MT4_DIR"]
     # Allows DATA_DIR to be overwritten here
     try:
         datadir = c["main"]["DATA_DIR"]
