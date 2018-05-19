@@ -13,6 +13,7 @@ matplotlib==2.2.2
 moment==0.8.2
 numpy==1.14.1
 openpyxl==2.5.3
+pymongo==3.6.1
 pandas==0.22.0
 pyparsing==2.2.0
 python-dateutil==2.7.2
