@@ -146,4 +146,6 @@ if __name__ == '__main__':
     print getDayBefore('2018-01-01')
     print getNextDay('2017-12-31')
     print getDaysBtwnDates('2016-02-01', '2016-03-01')
+    today = getToday('%Y-%m-%d')
+    print getDayOffset(today, -3000)
     pass

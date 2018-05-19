@@ -9,17 +9,16 @@ import pandas as pd
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice
-from Utils.dateutils import getLastDate, getDayBefore, getToday
+from Utils.dateutils import getLastDate, getDayBefore, getToday, getDayOffset
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
-from common import formStocklist, loadKlseCounters, appendCsv, loadCfg
+from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, exportQuotes
 from Utils.fileutils import cd, purgeOldFiles
 from Utils.dbKlseEod import dbUpsertCounters, initKlseEod
 import os
 import subprocess
 import tarfile
 import glob
-import fileinput
 
 
 def dbUpdateLatest(eodlist):
@@ -154,14 +153,19 @@ def postUpdateProcessing():
     if len(S.MT4_DIR) == 0:
         return
 
+    '''
+    # Replaced by using mongoexport in exportQuotes
     with cd(S.DATA_DIR):
         csvfiles = glob.glob("*.csv")
         quotes = S.MT4_DIR + "quotes.csv"
         with open(quotes, 'w') as qcsv:
             input_lines = fileinput.input(csvfiles)
             qcsv.writelines(input_lines)
+    '''
 
     with cd(S.MT4_DIR):
+        # -3000 or roughly 8 years of historical data per counter
+        exportQuotes(getDayOffset(getToday('%Y-%m-%d'), -3000))
         os.system('mt4.sh')
         print "Post-update Processing ... Done"
 

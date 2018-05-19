@@ -38,7 +38,7 @@ def initKlseEod():
             mongod = subprocess.Popen(['mongod', '--dbpath', os.path.expanduser(S.DATA_DIR)])
 
     mongo_client = MongoClient()
-    db = mongo_client.klseeod
+    db = mongo_client.klsedb
     return db
 
 
@@ -112,15 +112,18 @@ def processCsv(db, csvfile):
 
 
 if __name__ == '__main__':
+    '''
+    with cd('../data'):
+        exportQuotes('2018-05-10')
+    '''
     loadCfg(getDataDir(S.DATA_DIR, 1))
     db = initKlseEod()
     if db is None:
         print "No DB connection"
     else:
+        '''
         dbUpsertCounters(db, 'latest.eod')
         '''
         csvfile = ''
         processCsv(db, csvfile)
-        '''
-        db.shutdownServer()
     pass

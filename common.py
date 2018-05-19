@@ -8,6 +8,7 @@ import csv
 import json
 import sys
 import settings as S
+import os
 
 
 def loadSetting(c):
@@ -104,6 +105,14 @@ def getDataDir(datadir, lvl=2):
         return "../" + datadir
 
     return "../../" + datadir
+
+
+def exportQuotes(dt):
+    cmd = "mongoexport -d %s -c %s --type=csv -q \"{'1':{'$gt':'%s'}}\" "
+    cmd += "--fields \"0,1,2,3,4,5,6\" --noHeaderLine --out quotes.csv"
+    cmd = cmd % (S.MONGODB, S.MONGOEOD, dt)
+    print cmd
+    os.system(cmd)
 
 
 if __name__ == '__main__':
