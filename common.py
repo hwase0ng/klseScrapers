@@ -4,6 +4,7 @@ Created on Apr 27, 2018
 @author: hwase0ng
 '''
 from Utils.fileutils import getStockCode
+from Utils.dbKlseEod import startMongoD
 import csv
 import json
 import sys
@@ -108,6 +109,7 @@ def getDataDir(datadir, lvl=2):
 
 
 def exportQuotes(dt):
+    startMongoD()
     cmd = "mongoexport -d %s -c %s --type=csv -q \"{'1':{'$gt':'%s'}}\" "
     cmd += "--fields \"0,1,2,3,4,5,6\" --noHeaderLine --out quotes.csv"
     cmd = cmd % (S.MONGODB, S.MONGOEOD, dt)
