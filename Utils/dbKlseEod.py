@@ -31,12 +31,15 @@ def isOpen(ip, port):
         return False
 
 
-def initKlseEod():
+def startMongoD():
     if not isOpen('127.0.0.1', 27017):
         print 'Startind MongoDB ...'
         with cd(S.DATA_DIR):
             mongod = subprocess.Popen(['mongod', '--dbpath', os.path.expanduser(S.DATA_DIR)])
 
+
+def initKlseEod():
+    startMongoD()
     mongo_client = MongoClient()
     db = mongo_client.klsedb
     return db
