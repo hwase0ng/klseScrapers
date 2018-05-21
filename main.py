@@ -164,8 +164,10 @@ def postUpdateProcessing():
     '''
 
     with cd(S.MT4_DIR):
-        # -3000 or roughly 8 years of historical data per counter
-        exportQuotes(getDayOffset(getToday('%Y-%m-%d'), -3000))
+        mt4Start = getDayOffset(getToday('%Y-%m-%d'), S.MT4_DAYS * -1)
+        # Fixed to 1st Jan of year
+        mt4Start = mt4Start[:4] + "-01-01"
+        exportQuotes(mt4Start)
         os.system('mt4.sh')
         print "Post-update Processing ... Done"
 

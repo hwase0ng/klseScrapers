@@ -147,5 +147,7 @@ if __name__ == '__main__':
     print getNextDay('2017-12-31')
     print getDaysBtwnDates('2016-02-01', '2016-03-01')
     today = getToday('%Y-%m-%d')
-    print getDayOffset(today, -3000)
+    mt4start = getDayOffset(today, S.MT4_DAYS * -1)
+    mt4start = mt4start[:4] + '-01-01'
+    print mt4start
     pass
