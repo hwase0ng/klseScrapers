@@ -4,12 +4,12 @@ Created on Apr 27, 2018
 @author: hwase0ng
 '''
 from Utils.fileutils import getStockCode, cd
+from Utils.dateutils import getToday, getDayOffset
 import csv
 import json
 import sys
 import settings as S
 import os
-from Utils.dateutils import getToday, getDayOffset
 import subprocess
 import socket
 
@@ -137,7 +137,14 @@ def startMongoD():
             mongod = subprocess.Popen(['mongod', '--dbpath', os.path.expanduser(S.DATA_DIR)])
 
 
-def exportQuotes(dt):
+def getMt4StartDate():
+    mt4Start = getDayOffset(getToday('%Y-%m-%d'), S.MT4_DAYS * -1)
+    # Fixed to 1st Jan of year
+    mt4Start = mt4Start[:4] + "-01-01"
+    return mt4Start
+
+
+def exportQuotes(dt=getMt4StartDate()):
     startMongoD()
     cmd = "mongoexport -d %s -c %s --type=csv -q \"{'1':{'$gt':'%s'}}\" "
     cmd += "--fields \"0,1,2,3,4,5,6\" --noHeaderLine --out quotes.csv"
@@ -146,13 +153,24 @@ def exportQuotes(dt):
     os.system(cmd)
 
 
+def exportCounters(dt=getMt4StartDate()):
+    startMongoD()
+    for key in sorted(i3map.iterkeys()):
+        filenm = key + '.' + i3map[key] + '.csv'
+        cmd = "mongoexport -d %s -c %s --type=csv -q \"{'0':'%s', '1':{'$gt':'%s'}}\" "
+        cmd += "--fields \"0,1,2,3,4,5,6\" --noHeaderLine --out %s"
+        cmd = cmd % (S.MONGODB, S.MONGOEOD, key, dt, filenm)
+        print cmd
+        os.system(cmd)
+
+
 if __name__ == '__main__':
+    global i3map
     loadCfg(S.DATA_DIR)
+    i3map = loadMap("scrapers/i3investor/klse.txt", ",")
     with cd("./data"):
-        mt4Start = getDayOffset(getToday('%Y-%m-%d'), S.MT4_DAYS * -1)
-        # Fixed to 1st Jan of year
-        mt4Start = mt4Start[:4] + "-01-01"
-        exportQuotes(mt4Start)
+        exportCounters()
+        exportQuotes()
     '''
     line = "3A,0012,THREE-A RESOURCES BHD,507"
     name, var = line.partition(',')[::2]
