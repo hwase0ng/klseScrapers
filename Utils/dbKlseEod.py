@@ -6,7 +6,7 @@ Created on May 14, 2018
 
 from pymongo import MongoClient
 from Utils.fileutils import cd
-from common import getDataDir, loadCfg
+from common import getDataDir, loadCfg, startMongoD
 from pandas.errors import EmptyDataError
 import pandas as pd
 import settings as S
@@ -14,28 +14,8 @@ import os
 import glob
 import json
 import pprint
-import socket
-import subprocess
 
 header = ["0-Code", "1-Date", "2-Open", "3-High", "4-Low", "5-Close", "6-Volume"]
-
-
-def isOpen(ip, port):
-    s = socket.socket(socket. AF_INET, socket.SOCK_STREAM)
-    s.settimeout(5)
-    try:
-        s.connect((ip, port))
-        s.shutdown(2)
-        return True
-    except Exception:
-        return False
-
-
-def startMongoD():
-    if not isOpen('127.0.0.1', 27017):
-        print 'Startind MongoDB ...'
-        with cd(S.DATA_DIR):
-            mongod = subprocess.Popen(['mongod', '--dbpath', os.path.expanduser(S.DATA_DIR)])
 
 
 def initKlseEod():

@@ -9,16 +9,18 @@ import pandas as pd
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice
-from Utils.dateutils import getLastDate, getDayBefore, getToday, getDayOffset
+from Utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
-from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, exportQuotes
-from Utils.fileutils import cd, purgeOldFiles
+from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap
+from Utils.fileutils import cd, purgeOldFiles, getStockCode
 from Utils.dbKlseEod import dbUpsertCounters, initKlseEod
 import os
 import subprocess
 import tarfile
 import glob
+import fileinput
+import csv
 
 
 def dbUpdateLatest(eodlist=''):
@@ -153,27 +155,43 @@ def preUpdateProcessing():
         pass
 
 
+def getCsvFiles(eodfile):
+    i3map = loadMap("scrapers/i3investor/klse.txt", ",")
+    csvfiles = []
+    if os.path.isfile(eodfile):
+        with open(eodfile, 'r') as f:
+            reader = csv.reader(f)
+            csvlist = list(reader)
+            for item in csvlist:
+                shortname = item[0]
+                try:
+                    scode = i3map[shortname]
+                except KeyError:
+                    print "INFO:Unmatched stock:", shortname
+                    continue
+                csvname = shortname + '.' + scode + '.csv'
+                csvfiles.append(csvname)
+                print csvname
+    else:
+        csvfiles = glob.glob("*.csv")
+    return csvfiles
+
+
 def postUpdateProcessing():
-    backupKLse("pst")
+    # backupKLse("pst")
 
     if len(S.MT4_DIR) == 0:
         return
 
-    '''
-    # Replaced by using mongoexport in exportQuotes
+    csvfiles = getCsvFiles(S.DATA_DIR + 'latest.eod')
+
     with cd(S.DATA_DIR):
-        csvfiles = glob.glob("*.csv")
         quotes = S.MT4_DIR + "quotes.csv"
         with open(quotes, 'w') as qcsv:
             input_lines = fileinput.input(csvfiles)
             qcsv.writelines(input_lines)
-    '''
 
     with cd(S.MT4_DIR):
-        mt4Start = getDayOffset(getToday('%Y-%m-%d'), S.MT4_DAYS * -1)
-        # Fixed to 1st Jan of year
-        mt4Start = mt4Start[:4] + "-01-01"
-        exportQuotes(mt4Start)
         os.system('mt4.sh')
         print "Post-update Processing ... Done"
 
@@ -237,6 +255,7 @@ if __name__ == '__main__':
 
     stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
     stocks = 'D&O,E&O,F&N,L&G,M&G,P&O,Y&G'
+    postUpdateProcessing()
     '''
     scrapeKlse()
     pass

@@ -200,8 +200,8 @@ def unpackEOD(sname, sdate, popen, phigh, plow, pclose, pvol):
 
 def scrapeKlseRelated(klsemap, WRITE_CSV=True):
     idmap = loadIdMap(klsemap)
-    counters = 'USDMYR.2168,FTFBM100.0200,FTFBMKLCI.0201,FTFBMMES.0202,FTFBMSCAP.0203,FTFBM70.0204,FTFBMEMAS.0205'
-    counterlist = counters.split(',')
+    # counters = 'USDMYR.2168,FTFBM100.0200,FTFBMKLCI.0201,FTFBMMES.0202,FTFBMSCAP.0203,FTFBM70.0204,FTFBMEMAS.0205'
+    counterlist = S.KLSE_RELATED.split(',')
     eodlist = []
     for i in counterlist:
         counter = i.split('.')

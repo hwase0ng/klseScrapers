@@ -3,13 +3,15 @@ Created on Apr 27, 2018
 
 @author: hwase0ng
 '''
-from Utils.fileutils import getStockCode
-from Utils.dbKlseEod import startMongoD
+from Utils.fileutils import getStockCode, cd
 import csv
 import json
 import sys
 import settings as S
 import os
+from Utils.dateutils import getToday, getDayOffset
+import subprocess
+import socket
 
 
 def loadSetting(c):
@@ -36,8 +38,17 @@ def loadCfg(datadir):
         sys.exit(1)
 
 
+def loadRelatedMap():
+    idmap = {}
+    others = S.KLSE_RELATED.split(',')
+    for item in others:
+        other = item.split('.')
+        idmap[other[0]] = other[1]
+    return idmap
+
+
 def loadMap(klsemap, sep=","):
-    ID_MAPPING = {}
+    ID_MAPPING = loadRelatedMap()
     try:
         with open(klsemap) as idmap:
             for line in idmap:
@@ -108,6 +119,24 @@ def getDataDir(datadir, lvl=2):
     return "../../" + datadir
 
 
+def isOpen(ip, port):
+    s = socket.socket(socket. AF_INET, socket.SOCK_STREAM)
+    s.settimeout(5)
+    try:
+        s.connect((ip, port))
+        s.shutdown(2)
+        return True
+    except Exception:
+        return False
+
+
+def startMongoD():
+    if not isOpen('127.0.0.1', 27017):
+        print 'Startind MongoDB ...'
+        with cd(S.DATA_DIR):
+            mongod = subprocess.Popen(['mongod', '--dbpath', os.path.expanduser(S.DATA_DIR)])
+
+
 def exportQuotes(dt):
     startMongoD()
     cmd = "mongoexport -d %s -c %s --type=csv -q \"{'1':{'$gt':'%s'}}\" "
@@ -118,10 +147,18 @@ def exportQuotes(dt):
 
 
 if __name__ == '__main__':
+    loadCfg(S.DATA_DIR)
+    with cd("./data"):
+        mt4Start = getDayOffset(getToday('%Y-%m-%d'), S.MT4_DAYS * -1)
+        # Fixed to 1st Jan of year
+        mt4Start = mt4Start[:4] + "-01-01"
+        exportQuotes(mt4Start)
+    '''
     line = "3A,0012,THREE-A RESOURCES BHD,507"
     name, var = line.partition(',')[::2]
     if ',' in var:
         var, dummy = var.partition(',')[::2]
     print name
     print var
+    '''
     pass
