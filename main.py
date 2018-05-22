@@ -13,7 +13,7 @@ from Utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap
-from Utils.fileutils import cd, purgeOldFiles, getStockCode
+from Utils.fileutils import cd, purgeOldFiles
 from Utils.dbKlseEod import dbUpsertCounters, initKlseEod
 import os
 import subprocess
@@ -29,8 +29,11 @@ def dbUpdateLatest(eodlist=''):
         with open(S.DATA_DIR + eodfile, 'wb') as eodf:
             for eod in eodlist:
                 eodf.write(str(eod) + '\n')
+        # return and do not perform upsert ops due to speed
+        return
     elif os.path.isfile(eodfile):
-        print "Processing form last EOD file ... "
+        print "Processing from last EOD file ... "
+        return
     else:
         print "ERR: Missing EOD file!"
         return
@@ -171,14 +174,14 @@ def getCsvFiles(eodfile):
                     continue
                 csvname = shortname + '.' + scode + '.csv'
                 csvfiles.append(csvname)
-                print csvname
     else:
         csvfiles = glob.glob("*.csv")
+
     return csvfiles
 
 
 def postUpdateProcessing():
-    # backupKLse("pst")
+    backupKLse("pst")
 
     if len(S.MT4_DIR) == 0:
         return
