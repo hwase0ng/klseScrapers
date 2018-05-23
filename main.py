@@ -190,9 +190,12 @@ def postUpdateProcessing():
 
     with cd(S.DATA_DIR):
         quotes = S.MT4_DIR + "quotes.csv"
+        print os.getcwd()
+        print "Writing to MT4 ... " + quotes
         with open(quotes, 'w') as qcsv:
             input_lines = fileinput.input(csvfiles)
             qcsv.writelines(input_lines)
+        print "Writing to MT4 ... Done"
 
     with cd(S.MT4_DIR):
         os.system('mt4.sh')
