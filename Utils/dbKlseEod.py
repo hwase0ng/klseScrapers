@@ -4,9 +4,8 @@ Created on May 14, 2018
 @author: hwase0ng
 '''
 
-from pymongo import MongoClient
 from Utils.fileutils import cd
-from common import getDataDir, loadCfg, startMongoD
+from common import getDataDir, loadCfg
 from pandas.errors import EmptyDataError
 import pandas as pd
 import settings as S
@@ -14,15 +13,9 @@ import os
 import glob
 import json
 import pprint
+from dbcommons import initKlseEod
 
 header = ["0-Code", "1-Date", "2-Open", "3-High", "4-Low", "5-Close", "6-Volume"]
-
-
-def initKlseEod():
-    startMongoD()
-    mongo_client = MongoClient()
-    db = mongo_client.klsedb
-    return db
 
 
 def dbUpsertCounters(db, filenm):
