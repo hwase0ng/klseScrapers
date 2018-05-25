@@ -7,7 +7,7 @@ Created on May 2, 2018
 import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
-from Utils.fileutils import getStockCode
+from utils.fileutils import getStockCode
 from common import loadMap
 
 WSJSTOCKSURL = 'https://quotes.wsj.com/company-list/country/malaysia'

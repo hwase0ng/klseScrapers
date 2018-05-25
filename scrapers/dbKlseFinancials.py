@@ -3,19 +3,16 @@ Created on May 14, 2018
 
 @author: hwase0ng
 '''
-
-from Utils.fileutils import cd
+from utils.fileutils import cd
 from common import getDataDir, loadCfg
 from pandas.errors import EmptyDataError
+from dbcommons import initKlseEod
 import pandas as pd
 import settings as S
 import os
 import glob
 import json
 import pprint
-from dbcommons import initKlseEod
-
-header = ["0-Code", "1-Date", "2-Open", "3-High", "4-Low", "5-Close", "6-Volume"]
 
 
 def dbUpsertCounters(db, filenm):

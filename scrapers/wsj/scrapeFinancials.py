@@ -8,7 +8,7 @@ import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
 from common import loadMap
-from Utils.fileutils import getStockCode
+from utils.fileutils import getStockCode
 
 WSJFIN = 'https://quotes.wsj.com/MY/XKLS/?/financials/'
 WSJTERM = {'A': 'annual', 'Q': 'quarter'}

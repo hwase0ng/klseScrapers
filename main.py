@@ -9,12 +9,12 @@ import pandas as pd
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice
-from Utils.dateutils import getLastDate, getDayBefore, getToday
+from utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap
-from Utils.fileutils import cd, purgeOldFiles
-from Utils.dbKlseEod import dbUpsertCounters, initKlseEod
+from utils.fileutils import cd, purgeOldFiles
+from scrapers.dbKlseEod import dbUpsertCounters, initKlseEod
 import os
 import subprocess
 import tarfile

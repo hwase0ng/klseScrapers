@@ -6,7 +6,7 @@ Created on May 25, 2018
 import settings as S
 from pymongo.mongo_client import MongoClient
 from common import isOpen, getMt4StartDate, loadCfg, loadMap, getDataDir
-from Utils.fileutils import cd
+from utils.fileutils import cd
 import subprocess
 import os
 
@@ -22,6 +22,7 @@ def exportQuotes(dt=getMt4StartDate()):
 
 def exportCounters(dt=getMt4StartDate()):
     startMongoD()
+    i3map = loadMap("scrapers/i3investor/klse.txt", ",")
     for key in sorted(i3map.iterkeys()):
         filenm = key + '.' + i3map[key] + '.csv'
         cmd = "mongoexport -d %s -c %s --type=csv -q \"{'0':'%s', '1':{'$gt':'%s'}}\" "
@@ -32,6 +33,7 @@ def exportCounters(dt=getMt4StartDate()):
 
 
 def startMongoD():
+    global mongod
     if not isOpen('127.0.0.1', 27017):
         print 'Startind MongoDB ...'
         with cd(S.DATA_DIR):
@@ -46,10 +48,10 @@ def initKlseEod():
 
 
 if __name__ == '__main__':
-    global i3map
     loadCfg(S.DATA_DIR)
-    i3map = loadMap("scrapers/i3investor/klse.txt", ",")
     with cd(getDataDir(S.DATA_DIR)):
         exportCounters()
         exportQuotes()
+    if mongod is not None:
+        mongod.terminate()
     pass

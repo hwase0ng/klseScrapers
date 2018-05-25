@@ -3,8 +3,8 @@ Created on Apr 27, 2018
 
 @author: hwase0ng
 '''
-from Utils.fileutils import getStockCode
-from Utils.dateutils import getToday, getDayOffset
+from utils.fileutils import getStockCode
+from utils.dateutils import getToday, getDayOffset
 import csv
 import json
 import sys

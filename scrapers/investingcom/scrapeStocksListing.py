@@ -7,7 +7,7 @@ Created on Apr 13, 2018
 import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
-from Utils.fileutils import getStockShortNameById, getStockCode
+from utils.fileutils import getStockShortNameById, getStockCode
 
 # EQUITIESURL = "https://www.investing.com/equities/malaysia"
 EQUITIESURL = "https://www.investing.com/equities/StocksFilter?noconstruct=1&smlID=618&sid=&tabletype=price&index_id=all"

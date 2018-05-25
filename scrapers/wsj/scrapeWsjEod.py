@@ -7,13 +7,13 @@ Created on May 2, 2018
 import sys
 from common import formStocklist, loadKlseCounters, appendCsv
 import settings as S
-import Utils.dateutils as du
+import utils.dateutils as du
 import requests
 import pandas as pd
 import numpy as np
 import datetime
 import math
-from Utils.dateutils import getLastDate, getToday, getDaysBtwnDates
+from utils.dateutils import getLastDate, getToday, getDaysBtwnDates
 
 
 class Quote(object):

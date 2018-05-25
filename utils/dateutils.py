@@ -6,7 +6,7 @@ Created on Dec 17, 2016
 import settings as S
 from matplotlib.dates import date2num
 from datetime import date, datetime, timedelta
-from Utils.fileutils import tail
+from utils.fileutils import tail
 from time import time
 
 

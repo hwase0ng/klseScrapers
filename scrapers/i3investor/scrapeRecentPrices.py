@@ -6,7 +6,7 @@ Created on Apr 13, 2018
 
 import settings as S
 import requests
-from Utils.dateutils import change2KlseDateFmt
+from utils.dateutils import change2KlseDateFmt
 from BeautifulSoup import BeautifulSoup
 
 I3PRICEURL = 'https://klse.i3investor.com/servlets/stk/rec/'

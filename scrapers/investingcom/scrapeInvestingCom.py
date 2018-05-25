@@ -10,14 +10,14 @@ Note: This version is adapted from a source found in Internet which I could no l
 import sys
 from common import formStocklist, loadKlseCounters, appendCsv, getDataDir
 import settings as S
-import Utils.dateutils as du
+import utils.dateutils as du
 import requests
 import pandas as pd
 import numpy as np
 import datetime
 import math
 from scrapers.investingcom.scrapeStocksListing import writeStocksListing
-from Utils.dateutils import getLastDate, getToday
+from utils.dateutils import getLastDate, getToday
 from scrapers.yahoo.yahoo import getYahooCookie, YahooQuote
 
 sys.path.append('../../')

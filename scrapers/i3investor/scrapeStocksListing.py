@@ -7,7 +7,7 @@ Created on Apr 13, 2018
 import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
-from Utils.dateutils import getToday
+from utils.dateutils import getToday
 from common import getDataDir
 
 I3STOCKSURL = 'https://klse.i3investor.com/jsp/stocks.jsp?g=S&m=int&s='
