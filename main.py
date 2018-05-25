@@ -14,7 +14,7 @@ from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap
 from utils.fileutils import cd, purgeOldFiles
-from scrapers.dbKlseEod import dbUpsertCounters, initKlseEod
+from scrapers.dbKlseEod import dbUpsertCounters, initKlseDB
 import os
 import subprocess
 import tarfile
@@ -38,7 +38,7 @@ def dbUpdateLatest(eodlist=''):
         print "ERR: Missing EOD file!"
         return
 
-    db = initKlseEod()
+    db = initKlseDB()
     if db is None:
         print "Missing DB connection ... Skipped"
         return

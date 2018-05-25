@@ -7,13 +7,13 @@ Created on May 14, 2018
 from utils.fileutils import cd
 from common import getDataDir, loadCfg
 from pandas.errors import EmptyDataError
+from dbcommons import initKlseDB
 import pandas as pd
 import settings as S
 import os
 import glob
 import json
 import pprint
-from dbcommons import initKlseEod
 
 header = ["0-Code", "1-Date", "2-Open", "3-High", "4-Low", "5-Close", "6-Volume"]
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
         exportQuotes('2018-05-10')
     '''
     loadCfg(getDataDir(S.DATA_DIR, 1))
-    db = initKlseEod()
+    db = initKlseDB()
     if db is None:
         print "No DB connection"
     else:

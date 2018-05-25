@@ -95,7 +95,7 @@ def unpackTD(td):
     try:
         fy = datetime.datetime.strptime(fy, "%d-%b-%Y").strftime('%Y-%m-%d')
         quarter = datetime.datetime.strptime(quarter, "%d-%b-%Y").strftime('%Y-%m-%d')
-        if len(anndate) == 0:
+:        if len(anndate) == 0:
             year = int(quarter[0:4])
             month = int(quarter[5:7])
             day = int(quarter[8:10])
