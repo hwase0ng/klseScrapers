@@ -86,8 +86,10 @@ def formStocklist(stocks, infile):
     else:
         stocks = [stocks]
 
+    imap = loadMap(infile, ',')
     for shortname in stocks:
-        stock_code = getStockCode(shortname, infile)
+        # stock_code = getStockCode(shortname, infile)
+        stock_code = imap[shortname]
         stocklist[shortname] = stock_code
 
     return stocklist

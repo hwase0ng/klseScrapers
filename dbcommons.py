@@ -9,6 +9,7 @@ from common import isOpen, getMt4StartDate, loadCfg, loadMap, getDataDir
 from utils.fileutils import cd
 import subprocess
 import os
+from pymongo import mongo_client
 
 
 def exportQuotes(dt=getMt4StartDate()):
@@ -35,16 +36,26 @@ def exportCounters(dt=getMt4StartDate()):
 def startMongoD():
     global mongod
     if not isOpen('127.0.0.1', 27017):
-        print 'Startind MongoDB ...'
+        print 'Startind MongoDB daemon ...'
         with cd(S.DATA_DIR):
-            mongod = subprocess.Popen(['mongod', '--dbpath',os.path.expanduser(S.DATA_DIR)])
+            mongod = subprocess.Popen(['mongod', '--dbpath', os.path.expanduser(S.DATA_DIR)])
 
 
 def initKlseDB():
     startMongoD()
+    global mongo_client
     mongo_client = MongoClient()
     db = mongo_client.klsedb
     return db
+
+
+def closeKlseDB():
+    if mongo_client is not None:
+        print 'Terminating Mongo Client ...'
+        mongo_client.close()
+    if mongod is not None:
+        print 'Terminating MongoDB daemon ...'
+        mongod.terminate()
 
 
 if __name__ == '__main__':
@@ -52,6 +63,5 @@ if __name__ == '__main__':
     with cd(getDataDir(S.DATA_DIR)):
         exportCounters()
         exportQuotes()
-    if mongod is not None:
-        mongod.terminate()
+    closeKlseDB()
     pass
