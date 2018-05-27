@@ -7,12 +7,14 @@ Created on May 8, 2018
 import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
-from common import loadMap
-from utils.fileutils import getStockCode
+from common import loadMap, getDataDir, loadCfg, formStocklist
+from utils.dateutils import change2KlseDateFmt
+from dbcommons import initKlseDB, closeKlseDB
 
 WSJFIN = 'https://quotes.wsj.com/MY/XKLS/?/financials/'
 WSJTERM = {'A': 'annual', 'Q': 'quarter'}
 WSJRPT = {'I': 'income-statement', 'B': 'balance-sheet', 'C': 'cash-flow'}
+WSJCOL = {'I': 'klseis', 'B': 'klsebs', 'C': 'klsecf'}
 
 
 def connectStocksListing(url):
@@ -29,53 +31,41 @@ def connectStocksListing(url):
     return soup
 
 
-def scrapeFinancials(soup):
+def scrapeFinancials(soup, counter, term, report):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
         return None
 
-    stocks = {}
-    table = soup.find('table', {'class': 'cl-table'})
+    klsecol = WSJCOL[report] + term
+    table = soup.find('table', {'class': 'cr_dataTable'})
+    if table is None:
+        print "ERR:", counter, term, report
+        return None
+
+    qrs = {}
     # for each row, there are many rows including no table
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
         if len(td) == 0:
+            for th in table.findAll('th'):
+                tht = th.text
+                if len(tht) <= 0:
+                    continue
+                if tht[0].isalpha() or tht[len(tht) - 1].isalpha():
+                    # Skip "fiscalYr" class and 5-year trend
+                    continue
+                if term == 'Q':
+                    qrs[change2KlseDateFmt(tht, '%d-%b-%Y')] = True
+                else:
+                    qrs[tht] = True
+            '''
+            for qr in qrs.iterkeys():
+                if db[klsecol].find({counter: {term: qr}}).count() <= 0:
+                    qrs[qr] = False
+            '''
+            print qrs
             continue
-        # Sample stockLink: <a href="https://quotes.wsj.com/MY/XKLS/SEM">
-        stockLink = tr.find('a').get('href')
-        stockShortName = stockLink[31:]
-        # if any(stockShortName in s for s in klsefilter):
-        if stockShortName in klsefilter:
-            print "INFO:Ignored counter:", stockShortName
-            continue
-        stockName = tr.find('span', {'class': 'cl-name'}).text.upper().replace('AMP;', '')
-        try:
-            newname = wsjmap[stockShortName]
-            if S.DBG_ALL:
-                print "new name:", stockShortName, newname
-            stockShortName = newname
-        except KeyError:
-            pass
-        try:
-            stockCode = i3map[stockShortName]
-        except KeyError:
-            print "INFO:Unmatched stock:", stockShortName + ',', stockName
-            continue
-        '''
-        stockCode = getStockCode(stockShortName, '../i3investor/klse.txt', wsjmap)
-        if len(stockCode) == 0:
-            print "INFO:Skipped unmatched stock:", stockShortName + ',', stockName
-        '''
-        tds = [x.text.strip() for x in td]
-        xchange = tds[1]
-        sector = tds[2]
-        if len(sector) == 0:
-            sector = '-'
-        if S.DBG_ALL:
-            print stockShortName, stockCode, stockName, xchange, sector
-        stocks[stockShortName] = [stockCode, stockName, xchange, sector]
-
-    return stocks
+    return qrs
 
 
 def unpackListing(scode, sname, xchange, sector):
@@ -85,11 +75,12 @@ def unpackListing(scode, sname, xchange, sector):
 def writeStocksFinancials(stock, term, report):
     finurl = WSJFIN.replace('?', stock) + WSJTERM[term] + '/' + WSJRPT[report]
     print finurl
-    rpt = scrapeFinancials(connectStocksListing(finurl))
+    rpt = scrapeFinancials(connectStocksListing(finurl), stock, term, report)
 
     if rpt is None:
         return
 
+    '''
     stockCode = wsjmap[stock]
     outfile = stock + '.' + stockCode + '.' + term + '.' + report + '.fin'
     print outfile
@@ -101,9 +92,24 @@ def writeStocksFinancials(stock, term, report):
             print listing
         fh.write(listing + '\n')
     fh.close()
+    '''
 
 
 if __name__ == '__main__':
-    global wsjmap
-    wsjmap = loadMap('./klse.txt', ',')
+    loadCfg(getDataDir(S.DATA_DIR))
+    db = initKlseDB()
+    stocks = 'LCTITAN'
+    if db is not None:
+        if len(stocks) > 0:
+            stocklist = formStocklist(stocks, '../i3investor/klse.txt')
+        else:
+            stocklist = loadMap('../i3investor/klse.txt', ',')
+
+        for stock in sorted(stocklist.iterkeys()):
+            for rpt in WSJRPT.iterkeys():
+                for term in WSJTERM.iterkeys():
+                    writeStocksFinancials(stock, term, rpt)
+        closeKlseDB()
+    else:
+        print "No DB connection"
     pass
