@@ -36,7 +36,7 @@ def scrapeFinancials(soup, counter, term, report):
         print 'ERR: no result'
         return None
 
-    klsecol = WSJCOL[report] + term
+    # klsecol = WSJCOL[report] + term
     table = soup.find('table', {'class': 'cr_dataTable'})
     if table is None:
         print "ERR:", counter, term, report
@@ -55,16 +55,17 @@ def scrapeFinancials(soup, counter, term, report):
                     # Skip "fiscalYr" class and 5-year trend
                     continue
                 if term == 'Q':
-                    qrs[change2KlseDateFmt(tht, '%d-%b-%Y')] = True
+                    qrs[counter][change2KlseDateFmt(tht, '%d-%b-%Y')] = True
                 else:
-                    qrs[tht] = True
+                    qrs[counter][tht] = True
             '''
             for qr in qrs.iterkeys():
                 if db[klsecol].find({counter: {term: qr}}).count() <= 0:
                     qrs[qr] = False
-            '''
             print qrs
+            '''
             continue
+        qrs[counter][]
     return qrs
 
 
