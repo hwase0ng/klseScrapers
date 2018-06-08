@@ -107,7 +107,7 @@ def scrapeI3(stocklist):
 
 def checkLastTradingDay(lastdt):
     idmap = loadIdMap('scrapers/investingcom/klse.idmap')
-    eod = InvestingQuote(idmap, 'ZHULIAN', getDayBefore(lastdt))
+    eod = InvestingQuote(idmap, 'PBBANK', getDayBefore(lastdt))
     if isinstance(eod.response, unicode):
         dfEod = eod.to_df()
         if isinstance(dfEod, pd.DataFrame):
@@ -218,7 +218,7 @@ def scrapeKlse(stocks=''):
           2. latest eod record in csv file is 1 trading day behind
              that of investing.com latest eod
         '''
-        lastdt = getLastDate(S.DATA_DIR + 'ZHULIAN.5131.csv')
+        lastdt = getLastDate(S.DATA_DIR + 'PBBANK.1295.csv')
         dates = checkLastTradingDay(lastdt)
         if dates is None or (len(dates) == 1 and dates[0] == lastdt):
             print "Already latest. Nothing to update."
@@ -235,8 +235,8 @@ def scrapeKlse(stocks=''):
             else:
                 # Full download using klse.txt
                 # To do: a fix schedule to refresh klse.txt
-                writeStocksListing = False
-                if writeStocksListing:
+                writeStkList = False
+                if writeStkList:
                     print "Scraping i3 stocks listing ..."
                     writeStocksListing(klse)
 
