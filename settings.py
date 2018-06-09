@@ -28,3 +28,4 @@ DBG_YAHOO = False
 RESUME_FILE = True  # False = fresh reload from ABS_START date, True = only download from next date of last record
 PRICE_WITHOUT_SPLIT = True  # False - Apply adjusted close by default
 I3LATEST = True
+USEMONGO = False
