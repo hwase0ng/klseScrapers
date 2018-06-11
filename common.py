@@ -12,9 +12,9 @@ import socket
 
 
 def loadSetting(c):
-    chromedir = c["main"]["CHROMEDIR"]
+    chromedir = c["main"]["CHROME_DIR"]
     if len(chromedir) > 0:
-        S.CHROMEDIR = chromedir
+        S.CHROME_DIR = chromedir
     S.BKUP_DIR = c["main"]["BKUP_DIR"]
     S.MT4_DIR = c["main"]["MT4_DIR"]
     try:

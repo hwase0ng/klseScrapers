@@ -65,12 +65,12 @@ def compilePortfolioLinks(soup):
 
 def openPortfolioLinks(chartlinks):
     new = 1
-    if len(S.CHROMEDIR) > 0:
-        browser = webbrowser.get(S.CHROMEDIR)
+    if len(S.CHROME_DIR) > 0:
+        browser = webbrowser.get(S.CHROME_DIR)
     for url in chartlinks:
         if S.DBG_ALL:
             print url
-        if len(S.CHROMEDIR) > 0:
+        if len(S.CHROME_DIR) > 0:
             browser.open(url, new=new, autoraise=True)
         else:
             webbrowser.open(url, new=new, autoraise=True)
@@ -79,7 +79,12 @@ def openPortfolioLinks(chartlinks):
 
 if __name__ == '__main__':
     loadCfg(getDataDir(S.DATA_DIR))
-    counters = S.I3_HOLDINGS + S.I3_WATCHLIST
+    counters = S.I3_HOLDINGS
+    if len(S.I3_WATCHLIST) > 0:
+        if len(counters) > 0:
+            counters += ',' + S.I3_WATCHLIST
+        else:
+            counters = S.I3_WATCHLIST
     if len(counters) > 0:
         i3chartlinks = []
         sbchartlinks = []
