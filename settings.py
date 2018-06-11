@@ -16,6 +16,10 @@ MONGOEOD = 'klseeod'
 MT4_DAYS = 2500
 MT4_DIR = ''
 SHORTLISTED_FILE = ''
+I3_UID = ''
+I3_PWD = ''
+I3_KLSE_URL = ''
+I3_PORTFOLIO_URL = ''
 HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36"

@@ -3,7 +3,6 @@ Created on Apr 27, 2018
 
 @author: hwase0ng
 '''
-from utils.fileutils import getStockCode
 from utils.dateutils import getToday, getDayOffset
 import csv
 import json
@@ -15,13 +14,17 @@ import socket
 def loadSetting(c):
     S.BKUP_DIR = c["main"]["BKUP_DIR"]
     S.MT4_DIR = c["main"]["MT4_DIR"]
-    # Allows DATA_DIR to be overwritten here
     try:
+        # Allows DATA_DIR to be overwritten here
         datadir = c["main"]["DATA_DIR"]
         if len(datadir) > 0 and datadir.endswith('/'):
             S.DATA_DIR = datadir
     except Exception:
         pass
+    S.I3_UID = c["i3"]["UID"]
+    S.I3_PWD = c["i3"]["PWD"]
+    S.I3_KLSE_URL = c["i3"]["KLSE_URL"]
+    S.I3_PORTFOLIO_URL = S.I3_KLSE_URL + c["i3"]["PORTFOLIO_URL"]
 
 
 def loadCfg(datadir):
