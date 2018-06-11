@@ -7,7 +7,8 @@ import settings as S
 import requests
 from lxml import html
 from BeautifulSoup import BeautifulSoup
-from common import loadCfg, getDataDir
+from common import loadCfg, getDataDir, formStocklist
+import webbrowser
 
 LOGIN_URL = "/loginservlet.jsp"
 REFERER_URL = "/jsp/admin/login.jsp"
@@ -62,8 +63,34 @@ def compilePortfolioLinks(soup):
         print stockShortName, stockCode, stockLink, chartlink
 
 
+def openPortfolioLinks(chartlinks):
+    new = 1
+    if len(S.CHROMEDIR) > 0:
+        browser = webbrowser.get(S.CHROMEDIR)
+    for url in chartlinks:
+        if S.DBG_ALL:
+            print url
+        if len(S.CHROMEDIR) > 0:
+            browser.open(url, new=new, autoraise=True)
+        else:
+            webbrowser.open(url, new=new, autoraise=True)
+        new = 2
+
+
 if __name__ == '__main__':
     loadCfg(getDataDir(S.DATA_DIR))
-    LOGIN_URL = S.I3_KLSE_URL + LOGIN_URL
-    REFERER_URL = S.I3_KLSE_URL + REFERER_URL
-    compilePortfolioLinks(connectPortfolio("roysten", "way2go"))
+    counters = S.I3_HOLDINGS + S.I3_WATCHLIST
+    if len(counters) > 0:
+        i3chartlinks = []
+        sbchartlinks = []
+        SB_URL = 'https://my.stockbit.com/#/symbol/KLSE-'
+        stocklist = formStocklist(counters, './klse.txt')
+        for key in stocklist.iterkeys():
+            i3chartlinks.append(S.I3_KLSE_URL + '/servlets/stk/chart/' + stocklist[key] + '.jsp')
+            sbchartlinks.append(SB_URL + key + '/chartbit')
+        openPortfolioLinks(i3chartlinks)
+        openPortfolioLinks(sbchartlinks)
+    else:
+        LOGIN_URL = S.I3_KLSE_URL + LOGIN_URL
+        REFERER_URL = S.I3_KLSE_URL + REFERER_URL
+        compilePortfolioLinks(connectPortfolio("roysten", "way2go"))

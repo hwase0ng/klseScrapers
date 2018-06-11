@@ -12,6 +12,9 @@ import socket
 
 
 def loadSetting(c):
+    chromedir = c["main"]["CHROMEDIR"]
+    if len(chromedir) > 0:
+        S.CHROMEDIR = chromedir
     S.BKUP_DIR = c["main"]["BKUP_DIR"]
     S.MT4_DIR = c["main"]["MT4_DIR"]
     try:
@@ -24,6 +27,8 @@ def loadSetting(c):
     S.I3_UID = c["i3"]["UID"]
     S.I3_PWD = c["i3"]["PWD"]
     S.I3_KLSE_URL = c["i3"]["KLSE_URL"]
+    S.I3_HOLDINGS = c["i3"]["HOLDINGS"]
+    S.I3_WATCHLIST = c["i3"]["WATCHLIST"]
     S.I3_PORTFOLIO_URL = S.I3_KLSE_URL + c["i3"]["PORTFOLIO_URL"]
 
 
