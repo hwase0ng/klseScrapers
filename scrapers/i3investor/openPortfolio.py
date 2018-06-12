@@ -98,4 +98,4 @@ if __name__ == '__main__':
     else:
         LOGIN_URL = S.I3_KLSE_URL + LOGIN_URL
         REFERER_URL = S.I3_KLSE_URL + REFERER_URL
-        compilePortfolioLinks(connectPortfolio("roysten", "way2go"))
+        compilePortfolioLinks(connectPortfolio(S.I3_UID, S.I3_PWD))
