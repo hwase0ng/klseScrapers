@@ -6,7 +6,7 @@ Arguments:
 Opetions:
     -i,--i3        Open in i3investor.com
     -s,--sb        Open in my.stockbit.com
-    -b,--both      Open in both i3investor and stockbit
+    -b,--both      Open in both i3investor and stockbit [default: True]
     -h,--help      This page
 
 This app opens counter[s] in browser, if counter not specified, then refer config.json
@@ -89,6 +89,7 @@ def openPortfolioLinks(chartlinks):
 def getCounters(counterlist):
     if len(counterlist) > 0:
         counters = ','.join(counterlist)
+        print counters
     else:
         counters = S.I3_HOLDINGS
         if len(S.I3_WATCHLIST) > 0:
@@ -99,15 +100,24 @@ def getCounters(counterlist):
     return counters.upper()
 
 
-def compileLinks(args, counters):
+def getLinkOpts(args):
+    if args['--i3']:
+        return 'i'
+    elif args['--sb']:
+        return 's'
+    else:
+        return 'b'
+
+
+def compileLinks(linkopt, counters):
     i3chartlinks = []
     sbchartlinks = []
     SB_URL = 'https://my.stockbit.com/#/symbol/KLSE-'
     stocklist = formStocklist(counters, './klse.txt')
     for key in stocklist.iterkeys():
-        if args['--both'] or args['--i3']:
+        if linkopt == 'b' or linkopt == 'i':
             i3chartlinks.append(S.I3_KLSE_URL + '/servlets/stk/chart/' + stocklist[key] + '.jsp')
-        if args['--both'] or args['--sb']:
+        if linkopt == 'b' or linkopt == 's':
             sbchartlinks.append(SB_URL + key + '/chartbit')
     return i3chartlinks, sbchartlinks
 
@@ -117,12 +127,13 @@ if __name__ == '__main__':
     loadCfg(getDataDir(S.DATA_DIR))
     counters = getCounters(args['COUNTER'])
     if len(counters) > 0:
-        i3chartlinks, sbchartlinks = compileLinks(args, counters)
-        if len(i3chartlinks) > 0:
-            openPortfolioLinks(i3chartlinks)
-        if len(sbchartlinks) > 0:
-            openPortfolioLinks(sbchartlinks)
+        i3chartlinks, sbchartlinks = compileLinks(getLinkOpts(args), counters)
     else:
         LOGIN_URL = S.I3_KLSE_URL + LOGIN_URL
         REFERER_URL = S.I3_KLSE_URL + REFERER_URL
         compilePortfolioLinks(connectPortfolio(S.I3_UID, S.I3_PWD))
+
+    if len(i3chartlinks) > 0:
+        openPortfolioLinks(i3chartlinks)
+    if len(sbchartlinks) > 0:
+        openPortfolioLinks(sbchartlinks)
