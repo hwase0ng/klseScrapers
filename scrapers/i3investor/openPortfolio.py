@@ -3,7 +3,7 @@ Usage: openPortfolio [-bpwish] [COUNTER] ...
 
 Arguments:
     COUNTER           Optional counters
-Opetions:
+Options:
     -p,--portfolio    Select portfolio from config.json
     -w,--watchlist    Select watchlist from config.json
     -i,--i3           Open in i3investor.com
