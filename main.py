@@ -1,6 +1,17 @@
 '''
-Created on Apr 16, 2018
+Usage: main [-cpwh] [COUNTER] ...
 
+Arguments:
+    COUNTER           Optional counters
+Options:
+    -c,--check        Check processing mode
+    -p,--portfolio    Select portfolio from config.json
+    -w,--watchlist    Select watchlist from config.json
+    -h,--help         This page
+
+This app downloads EOD from KLSE, either for all counters or selectively
+
+Created on Apr 16, 2018
 @author: hwase0ng
 '''
 
@@ -12,7 +23,8 @@ from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
 from utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
-from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap
+from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap,\
+    getCounters
 from utils.fileutils import cd, purgeOldFiles
 from scrapers.dbKlseEod import dbUpsertCounters, initKlseDB
 import os
@@ -21,6 +33,7 @@ import tarfile
 import glob
 import fileinput
 import csv
+from docopt import docopt
 
 
 def dbUpdateLatest(eodlist=''):
@@ -200,59 +213,59 @@ def postUpdateProcessing():
         print "Post-update Processing ... Done"
 
 
-def scrapeKlse(stocks=''):
-    S.DBG_ALL = False
-    S.RESUME_FILE = True
+def scrapeKlse(procmode):
+    '''
+    Determine if can use latest price found in i3 stocks page
+    Conditions:
+      1. latest eod record in csv file is not today
+      2. latest eod record in csv file is 1 trading day behind
+         that of investing.com latest eod
+    '''
+    lastdt = getLastDate(S.DATA_DIR + 'PBBANK.1295.csv')
+    dates = checkLastTradingDay(lastdt)
+    if dates is None or (len(dates) == 1 and dates[0] == lastdt):
+        if procmode:
+            print "Post updating mode ON"
+            print lastdt, dates
+            return
 
-    klse = "scrapers/i3investor/klse.txt"
-    if len(stocks) > 0:
-        #  download only selected counters
-        scrapeI3(formStocklist(stocks, klse))
+        print "Already latest. Post-updating now."
+        postUpdateProcessing()
     else:
-        '''
-        Determine if can use latest price found in i3 stocks page
-        Conditions:
-          1. latest eod record in csv file is not today
-          2. latest eod record in csv file is 1 trading day behind
-             that of investing.com latest eod
-        '''
-        lastdt = getLastDate(S.DATA_DIR + 'PBBANK.1295.csv')
-        dates = checkLastTradingDay(lastdt)
-        if dates is None or (len(dates) == 1 and dates[0] == lastdt):
-            print "Already latest. Nothing to update."
-            postUpdateProcessing()
+        if procmode:
+            print "Post updating mode OFF"
+            return
+
+        if len(dates) == 2 and dates[1] > lastdt and dates[0] == lastdt:
+            useI3latest = True
         else:
-            if len(dates) == 2 and dates[1] > lastdt and dates[0] == lastdt:
-                useI3latest = True
-            else:
-                useI3latest = False
+            useI3latest = False
 
-            if useI3latest:
-                preUpdateProcessing()
-                list1 = writeLatestPrice(dates[1], True)
-            else:
-                # Full download using klse.txt
-                # To do: a fix schedule to refresh klse.txt
-                writeStkList = False
-                if writeStkList:
-                    print "Scraping i3 stocks listing ..."
-                    writeStocksListing(klse)
+        if useI3latest:
+            preUpdateProcessing()
+            list1 = writeLatestPrice(dates[1], True)
+        else:
+            # Full download using klse.txt
+            # To do: a fix schedule to refresh klse.txt
+            writeStkList = False
+            if writeStkList:
+                print "Scraping i3 stocks listing ..."
+                writeStocksListing(klse)
 
-                # TODO:
-                # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
-                # May need to do additional checking to determine if need to use either
-                list1 = scrapeI3(loadKlseCounters(klse))
+            # TODO:
+            # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
+            # May need to do additional checking to determine if need to use either
+            list1 = scrapeI3(loadKlseCounters(klse))
 
-            if S.USEMONGO:
-                # do not perform upsert ops due to speed
-                list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
-                eodlist = list2 + list1
-                dbUpdateLatest(eodlist)
-
-    print "\nDone."
+        if S.USEMONGO:
+            # do not perform upsert ops due to speed
+            list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
+            eodlist = list2 + list1
+            dbUpdateLatest(eodlist)
 
 
 if __name__ == '__main__':
+    args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
     '''
     preUpdateProcessing()
@@ -263,5 +276,16 @@ if __name__ == '__main__':
     stocks = 'D&O,E&O,F&N,L&G,M&G,P&O,Y&G'
     postUpdateProcessing()
     '''
-    scrapeKlse()
-    pass
+    global klse
+    klse = "scrapers/i3investor/klse.txt"
+    stocks = getCounters(args['COUNTER'], args['--portfolio'], args['--watchlist'], False)
+    S.DBG_ALL = False
+    S.RESUME_FILE = True
+
+    if len(stocks) > 0:
+        #  download only selected counters
+        scrapeI3(formStocklist(stocks, klse))
+    else:
+        scrapeKlse(args['--check'])
+
+    print "\nDone."

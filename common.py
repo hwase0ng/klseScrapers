@@ -145,6 +145,30 @@ def getMt4StartDate():
     return mt4Start
 
 
+def getCounters(counterlist, pf, wl, verbose=True):
+    counters = ''
+    if pf:
+        counters = S.I3_HOLDINGS
+    if wl and len(S.I3_WATCHLIST) > 0:
+        if len(counters) > 0:
+            counters += ',' + S.I3_WATCHLIST
+        else:
+            counters = S.I3_WATCHLIST
+
+    if len(counterlist) > 0:
+        if len(counters) > 0:
+            counters += ',' + ','.join(counterlist)
+        else:
+            counters = ','.join(counterlist)
+
+    if len(counters) > 0:
+        return counters.upper()
+
+    if verbose:
+        print " INF:Counter is empty"
+    return counters
+
+
 if __name__ == '__main__':
     '''
     line = "3A,0012,THREE-A RESOURCES BHD,507"

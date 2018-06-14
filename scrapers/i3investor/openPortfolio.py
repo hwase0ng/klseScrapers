@@ -1,5 +1,5 @@
 '''
-Usage: openPortfolio [-bpwish] [COUNTER] ...
+Usage: openPortfolio [-pwish] [COUNTER] ...
 
 Arguments:
     COUNTER           Optional counters
@@ -16,7 +16,7 @@ import settings as S
 import requests
 from lxml import html
 from BeautifulSoup import BeautifulSoup
-from common import loadCfg, getDataDir, formStocklist
+from common import loadCfg, getDataDir, formStocklist, getCounters
 import webbrowser
 from docopt import docopt
 
@@ -85,29 +85,6 @@ def openPortfolioLinks(chartlinks):
         else:
             webbrowser.open(url, new=new, autoraise=True)
         new = 2
-
-
-def getCounters(counterlist, pf, wl):
-    counters = ''
-    if pf:
-        counters = S.I3_HOLDINGS
-    if wl and len(S.I3_WATCHLIST) > 0:
-        if len(counters) > 0:
-            counters += ',' + S.I3_WATCHLIST
-        else:
-            counters = S.I3_WATCHLIST
-
-    if len(counterlist) > 0:
-        if len(counters) > 0:
-            counters += ',' + ','.join(counterlist)
-        else:
-            counters = ','.join(counterlist)
-
-    if len(counters) > 0:
-        return counters.upper()
-
-    print "Nothing to browse"
-    return counters
 
 
 def compileLinks(i3, sb, counters):
