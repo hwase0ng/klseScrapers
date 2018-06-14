@@ -9,6 +9,9 @@ import json
 import sys
 import settings as S
 import socket
+import os
+from IPython.utils.process import abbrev_cwd
+from utils.fileutils import cd
 
 
 def loadSetting(c):
@@ -116,15 +119,20 @@ def appendCsv(rtn_code, OUTPUT_FILE):
     ftmp.close()
 
 
-def getDataDir(datadir, lvl=2):
+def getDataDir(datadir):
     if datadir.startswith('/') or datadir.startswith('\\'):
         # Using absolute path; e.g. /d/klse/data
         return datadir
     # Using relative path such as ./data
-    if lvl == 1:
-        return "../" + datadir
+    cwd = os.getcwd().split(os.sep)
+    ind = cwd.index('klseScrapers')
+    cwdlen = len(cwd)
+    if ind == cwdlen - 1:
+        return os.path.join(".", datadir)
+    elif ind == cwdlen - 2:
+        return os.path.join("..", datadir)
 
-    return "../../" + datadir
+    return os.path.join("..", "..", datadir)
 
 
 def isOpen(ip, port):
@@ -178,4 +186,9 @@ if __name__ == '__main__':
     print name
     print var
     '''
+    print getDataDir('data/')
+    with cd('scrapers'):
+        print getDataDir('data/')
+    with cd('scrapers/i3'):
+        print getDataDir('data/')
     pass

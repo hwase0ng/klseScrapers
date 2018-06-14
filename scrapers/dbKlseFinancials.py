@@ -15,7 +15,7 @@ import json
 import pprint
 
 header = ["0-fy", "1-anndate", "2-qr", "3-qnum", "4-revenue", "5-pbt", "6-np", "7-dividend",
-                "8-npmargin", "9-roe", "10-eps", "11-adjeps", "12-dps"]
+          "8-npmargin", "9-roe", "10-eps", "11-adjeps", "12-dps"]
 
 
 def dbUpsertCounters(db, filenm):
@@ -70,7 +70,7 @@ def dbNewImport(db, filenm):
 
 
 def processCsv(db, csvfile):
-    with cd(getDataDir(S.DATA_DIR, 1)):
+    with cd(getDataDir(S.DATA_DIR)):
         print os.getcwd()
         if len(csvfile) > 0:
             dbReplaceCounter(db, csvfile)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     with cd('../data'):
         exportQuotes('2018-05-10')
     '''
-    loadCfg(getDataDir(S.DATA_DIR, 1))
+    loadCfg(getDataDir(S.DATA_DIR))
     db = initKlseDB()
     if db is None:
         print "No DB connection"

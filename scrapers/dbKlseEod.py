@@ -72,7 +72,7 @@ def dbNewImport(db, filenm):
 
 
 def processCsv(db, csvfile):
-    with cd(getDataDir(S.DATA_DIR, 1)):
+    with cd(getDataDir(S.DATA_DIR)):
         print os.getcwd()
         if len(csvfile) > 0:
             dbReplaceCounter(db, csvfile)
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     with cd('../data'):
         exportQuotes('2018-05-10')
     '''
-    loadCfg(getDataDir(S.DATA_DIR, 1))
+    loadCfg(getDataDir(S.DATA_DIR))
     db = initKlseDB()
     if db is None:
         print "No DB connection"

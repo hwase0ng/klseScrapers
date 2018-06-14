@@ -87,7 +87,7 @@ class Quote(object):
             df = pd.read_html(self.response)
             df = df[0]  # Ignore footer table
             if S.DBG_ICOM:
-                df.to_csv(getDataDir(S.DATA_DIR) + "/" + self.name + ".inf")
+                df.to_csv(getDataDir(S.DATA_DIR) + self.name + ".inf")
             price = df['Price'][0]
             # print self.name, type(price), price
             if math.isnan(price):
