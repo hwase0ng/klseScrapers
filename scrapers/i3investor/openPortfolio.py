@@ -1,13 +1,15 @@
 '''
-Usage: openPortfolio [-isbh] [COUNTER] ...
+Usage: openPortfolio [-bpwish] [COUNTER] ...
 
 Arguments:
     COUNTER        Optional counters
 Opetions:
-    -i,--i3        Open in i3investor.com
-    -s,--sb        Open in my.stockbit.com
-    -b,--both      Open in both i3investor and stockbit [default: True]
-    -h,--help      This page
+    -b,--both         Open both porfolio and watchlist from config.json
+    -p,--portfolio    Select portfolio from config.json
+    -w,--watchlist    Select watchlist from config.json
+    -i,--i3           Open in i3investor.com
+    -s,--sb           Open in my.stockbit.com
+    -h,--help         This page
 
 This app opens counter[s] in browser, if counter not specified, then refer config.json
 '''
@@ -86,54 +88,58 @@ def openPortfolioLinks(chartlinks):
         new = 2
 
 
-def getCounters(counterlist):
-    if len(counterlist) > 0:
-        counters = ','.join(counterlist)
-        print counters
-    else:
+def getCounters(counterlist, pf, wl):
+    counters = ''
+    if pf:
         counters = S.I3_HOLDINGS
-        if len(S.I3_WATCHLIST) > 0:
-            if len(counters) > 0:
-                counters += ',' + S.I3_WATCHLIST
-            else:
-                counters = S.I3_WATCHLIST
-    return counters.upper()
+    if wl and len(S.I3_WATCHLIST) > 0:
+        if len(counters) > 0:
+            counters += ',' + S.I3_WATCHLIST
+        else:
+            counters = S.I3_WATCHLIST
+
+    if len(counterlist) > 0:
+        if len(counters) > 0:
+            counters += ',' + ','.join(counterlist)
+        else:
+            counters = ','.join(counterlist)
+
+    if len(counters) > 0:
+        return counters.upper()
+
+    print "Nothing to browse"
+    return counters
 
 
-def getLinkOpts(args):
-    if args['--i3']:
-        return 'i'
-    elif args['--sb']:
-        return 's'
-    else:
-        return 'b'
-
-
-def compileLinks(linkopt, counters):
+def compileLinks(i3, sb, counters):
     i3chartlinks = []
     sbchartlinks = []
     SB_URL = 'https://my.stockbit.com/#/symbol/KLSE-'
     stocklist = formStocklist(counters, './klse.txt')
     for key in stocklist.iterkeys():
-        if linkopt == 'b' or linkopt == 'i':
-            i3chartlinks.append(S.I3_KLSE_URL + '/servlets/stk/chart/' + stocklist[key] + '.jsp')
-        if linkopt == 'b' or linkopt == 's':
+        if i3:
+            i3chartlinks.append(S.I3_KLSE_URL + '/servlets/stk/chart/' +
+                                stocklist[key] + '.jsp')
+        if sb:
             sbchartlinks.append(SB_URL + key + '/chartbit')
+
     return i3chartlinks, sbchartlinks
 
 
 if __name__ == '__main__':
     args = docopt(__doc__)
     loadCfg(getDataDir(S.DATA_DIR))
-    counters = getCounters(args['COUNTER'])
+    counters = getCounters(args['COUNTER'], args['--portfolio'],
+                           args['--watchlist'])
     if len(counters) > 0:
-        i3chartlinks, sbchartlinks = compileLinks(getLinkOpts(args), counters)
+        i3chartlinks, sbchartlinks = compileLinks(args['--i3'],
+                                                  args['--sb'], counters)
     else:
         LOGIN_URL = S.I3_KLSE_URL + LOGIN_URL
         REFERER_URL = S.I3_KLSE_URL + REFERER_URL
         compilePortfolioLinks(connectPortfolio(S.I3_UID, S.I3_PWD))
 
-    if len(i3chartlinks) > 0:
+    if i3chartlinks is not None and len(i3chartlinks) > 0:
         openPortfolioLinks(i3chartlinks)
-    if len(sbchartlinks) > 0:
+    if sbchartlinks is not None and len(sbchartlinks) > 0:
         openPortfolioLinks(sbchartlinks)
