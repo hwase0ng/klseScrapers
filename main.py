@@ -234,7 +234,6 @@ def scrapeKlse(procmode):
     else:
         if procmode:
             print "Post updating mode OFF"
-            return
 
         if len(dates) == 2 and dates[1] > lastdt and dates[0] == lastdt:
             useI3latest = True
@@ -257,9 +256,10 @@ def scrapeKlse(procmode):
             # May need to do additional checking to determine if need to use either
             list1 = scrapeI3(loadKlseCounters(klse))
 
+        list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
+
         if S.USEMONGO:
             # do not perform upsert ops due to speed
-            list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
             eodlist = list2 + list1
             dbUpdateLatest(eodlist)
 

@@ -144,7 +144,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
         stk = key.split('.')
         shortname = stk[0].replace(';', '')
         stockCode = stk[1]
-        if ".iew/" in stockCode:
+        if ".iew" in stockCode:
             print " INF:WriteLatestPrice:", key
             stockCode = stockCode.replace('.iew/', '')
         outfile = getDataDir(S.DATA_DIR) + shortname + '.' + stockCode + '.csv'
@@ -152,8 +152,14 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
             map(str, unpackEOD(*(stocksListing[key]))))
         eodlist.append(eod)
         if writeEOD:
-            with open(outfile, "ab") as fh:
-                fh.write(eod + '\n')
+            try:
+                with open(outfile, "ab") as fh:
+                    fh.write(eod + '\n')
+            except Exception:
+                print " ERR:WriteLatestPrice:", key
+                print shortname
+                print stockCode
+                raise
         else:
             print eod
 
