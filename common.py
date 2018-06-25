@@ -135,6 +135,16 @@ def getDataDir(datadir):
     return os.path.join("..", "..", datadir)
 
 
+def getI3Dir():
+    cwd = os.getcwd().split(os.sep)
+    cwdlen = len(cwd)
+    if cwd[cwdlen - 1] == 'klseScrapers':
+        return 'scrapers/i3investor/'
+    elif cwd[cwdlen - 1] == 'i3investor':
+        return './'
+    return ''
+
+
 def isOpen(ip, port):
     s = socket.socket(socket. AF_INET, socket.SOCK_STREAM)
     s.settimeout(5)
