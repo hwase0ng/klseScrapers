@@ -7,7 +7,7 @@ import settings as S
 from matplotlib.dates import date2num
 from datetime import date, datetime, timedelta
 from utils.fileutils import tail
-from time import time
+from time import time, ctime
 
 
 def get_now_epoch():
@@ -140,6 +140,11 @@ def getDaysBtwnDates(d1, d2):
     l_date = date(year, month, day)
     delta = l_date - f_date
     return delta.days
+
+
+def getTime():
+    tm = ctime().split()
+    return tm[3]
 
 
 if __name__ == '__main__':

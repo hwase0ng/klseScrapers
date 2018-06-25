@@ -1,5 +1,5 @@
 '''
-Usage: openPortfolio [-pwish] [COUNTER] ...
+Usage: openPortfolio [-dpwish] [COUNTER] ...
 
 Arguments:
     COUNTER           Optional counters
@@ -8,17 +8,19 @@ Options:
     -w,--watchlist    Select watchlist from config.json
     -i,--i3           Open in i3investor.com
     -s,--sb           Open in my.stockbit.com
+    -d,--debug        Debug mode
     -h,--help         This page
 
 This app opens counter[s] in browser, if counter not specified, then refer config.json
 '''
 import settings as S
 import requests
+import webbrowser
 from lxml import html
 from BeautifulSoup import BeautifulSoup
-from common import loadCfg, getDataDir, formStocklist, getCounters
-import webbrowser
+from common import loadCfg, getDataDir, formStocklist, getCounters, getI3Dir
 from docopt import docopt
+from utils.dateutils import getTime
 
 LOGIN_URL = "/loginservlet.jsp"
 REFERER_URL = "/jsp/admin/login.jsp"
@@ -79,7 +81,7 @@ def openPortfolioLinks(chartlinks):
         browser = webbrowser.get(S.CHROME_DIR)
     for url in chartlinks:
         if S.DBG_ALL:
-            print url
+            print getTime(), url
         if len(S.CHROME_DIR) > 0:
             browser.open(url, new=new, autoraise=True)
         else:
@@ -91,7 +93,7 @@ def compileLinks(i3, sb, counters):
     i3chartlinks = []
     sbchartlinks = []
     SB_URL = 'https://my.stockbit.com/#/symbol/KLSE-'
-    stocklist = formStocklist(counters, './klse.txt')
+    stocklist = formStocklist(counters, getI3Dir() + 'klse.txt')
     for key in stocklist.iterkeys():
         if i3:
             i3chartlinks.append(S.I3_KLSE_URL + '/servlets/stk/chart/' +
@@ -107,9 +109,17 @@ if __name__ == '__main__':
     loadCfg(getDataDir(S.DATA_DIR))
     counters = getCounters(args['COUNTER'], args['--portfolio'],
                            args['--watchlist'])
+    if args['--debug']:
+        S.DBG_ALL = True
+    if S.DBG_ALL:
+        print getTime(), counters
+
     if len(counters) > 0:
         i3chartlinks, sbchartlinks = compileLinks(args['--i3'],
                                                   args['--sb'], counters)
+        if S.DBG_ALL:
+            print getTime(), i3chartlinks
+            print getTime(), sbchartlinks
     else:
         LOGIN_URL = S.I3_KLSE_URL + LOGIN_URL
         REFERER_URL = S.I3_KLSE_URL + REFERER_URL
