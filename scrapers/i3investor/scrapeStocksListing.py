@@ -141,12 +141,12 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
 
     print ' Writing latest price from i3 ...'
     for key in sorted(stocksListing.iterkeys()):
+        # key = L&G;.iew/3174
+        # IOError: [Errno 2] No such file or directory: u'.../data/L&G.iew/3174.csv'
+        key = key.replace(';.iew/', '.')
         stk = key.split('.')
-        shortname = stk[0].replace(';', '')
+        shortname = stk[0]
         stockCode = stk[1]
-        if ".iew" in stockCode:
-            print " INF:WriteLatestPrice:", key
-            stockCode = stockCode.replace('.iew/', '')
         outfile = getDataDir(S.DATA_DIR) + shortname + '.' + stockCode + '.csv'
         eod = shortname + ',' + lastTradingDate + ',' + ','.join(
             map(str, unpackEOD(*(stocksListing[key]))))
@@ -156,9 +156,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
                 with open(outfile, "ab") as fh:
                     fh.write(eod + '\n')
             except Exception:
-                print " ERR:WriteLatestPrice:", key
-                print shortname
-                print stockCode
+                print " ERR:WriteLatestPrice:", key, ':', shortname, ':', stockCode
                 raise
         else:
             print eod
