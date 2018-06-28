@@ -10,7 +10,6 @@ import sys
 import settings as S
 import socket
 import os
-from IPython.utils.process import abbrev_cwd
 from utils.fileutils import cd
 
 
