@@ -145,7 +145,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
         # IOError: [Errno 2] No such file or directory: u'.../data/L&G.iew/3174.csv'
         key = key.replace(';.iew/', '.')
         stk = key.split('.')
-        shortname = stk[0]
+        shortname = stk[0].replace(';', '')
         stockCode = stk[1]
         outfile = getDataDir(S.DATA_DIR) + shortname + '.' + stockCode + '.csv'
         eod = shortname + ',' + lastTradingDate + ',' + ','.join(
