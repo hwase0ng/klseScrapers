@@ -89,7 +89,7 @@ def unpackTD(shortname, longname, cap, price_open, price_range, price_close, cha
     </tr>
     '''
     prange = [x.strip() for x in price_range.split('-')]
-    return shortname, price_open, prange[1], prange[0], price_close, volume
+    return shortname.replace(';', ''), price_open, prange[1], prange[0], price_close, volume
 
 
 def scrapeLatestPrice(soup):
