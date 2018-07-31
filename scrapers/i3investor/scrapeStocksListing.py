@@ -146,6 +146,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
         if '.iew/' in key:
             print 'INF:Replacing key:', key
             key = key.replace('.iew/', '.')
+            print 'INF:New key:', key
         key = key.replace(';', '')
         stk = key.split('.')
         shortname = stk[0].replace(';', '')
