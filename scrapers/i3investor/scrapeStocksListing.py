@@ -143,9 +143,10 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
     for key in sorted(stocksListing.iterkeys()):
         # key = L&G;.iew/3174
         # IOError: [Errno 2] No such file or directory: u'.../data/L&G.iew/3174.csv'
-        if ';.iew' in key:
+        if '.iew/' in key:
             print 'INF:Replacing key:', key
-        key = key.replace(';.iew/', '.')
+            key = key.replace('.iew/', '.')
+        key = key.replace(';', '')
         stk = key.split('.')
         shortname = stk[0].replace(';', '')
         stockCode = stk[1]
