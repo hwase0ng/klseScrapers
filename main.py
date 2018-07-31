@@ -130,14 +130,14 @@ def checkLastTradingDay(lastdt):
     return None
 
 
-def backupKLse(prefix):
-    if len(S.BKUP_DIR) == 0 or not S.BKUP_DIR.endswith('\\'):
-        print "Skipped backing up data", S.BKUP_DIR
+def backupKLse(tgtdir, prefix):
+    if len(tgtdir) == 0 or not tgtdir.endswith('\\'):
+        print "Skipped backing up data", tgtdir
         return
 
     with cd(S.DATA_DIR):
         subprocess.call('pwd')
-        bkfl = S.BKUP_DIR + prefix + 'klse' + getToday() + '.tgz'
+        bkfl = tgtdir + prefix + 'klse' + getToday() + '.tgz'
         print "Backing up", bkfl
         with tarfile.open(bkfl, "w:gz") as tar:
             for csvfile in glob.glob("*.csv"):
@@ -151,22 +151,27 @@ def backupKLse(prefix):
 
 
 def preUpdateProcessing():
-    if len(S.BKUP_DIR) == 0:
-        print 'Nothing to do.'
+    print "Pre-update Processing ... Done"
+
+
+def housekeeping(tgtdir, purgedays=10):
+    print "Housekeeping ...", tgtdir
+    if len(tgtdir) == 0:
+        print '\tNothing to do.'
         return
 
     try:
-        print "Pre-update Processing ...", S.BKUP_DIR
-        with cd(S.BKUP_DIR):
-            purgeOldFiles('*.tgz', 10)
+        with cd(tgtdir):
+            purgeOldFiles('*.tgz', purgedays)
         '''
-        with cd(S.DATA_DIR):
+        with cd(tgtdir):
             backupKLse("pre")
         '''
-        print "Pre-update Processing ... Done"
     except Exception, e:
         print e
         pass
+
+    print "Housekeeping ... Done"
 
 
 def getCsvFiles(eodfile):
@@ -192,7 +197,8 @@ def getCsvFiles(eodfile):
 
 
 def postUpdateProcessing():
-    backupKLse("pst")
+    housekeeping(S.BKUP_DIR)
+    backupKLse(S.BKUP_DIR, "pst")
 
     if len(S.MT4_DIR) == 0:
         return
