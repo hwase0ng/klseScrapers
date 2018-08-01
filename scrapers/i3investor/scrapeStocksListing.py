@@ -69,7 +69,8 @@ def writeStocksListing(outfile='klse.txt'):
 
     fh = open(outfile, "w")
     for key in sorted(stocksListing.iterkeys()):
-        stock = key + ',' + ','.join(map(str, unpackListing(*(stocksListing[key]))))
+        stock = key + ',' + \
+            ','.join(map(str, unpackListing(*(stocksListing[key]))))
         if S.DBG_ALL:
             print stock
         fh.write(stock + '\n')
@@ -89,7 +90,8 @@ def unpackTD(shortname, longname, cap, price_open, price_range, price_close, cha
     </tr>
     '''
     prange = [x.strip() for x in price_range.split('-')]
-    return shortname.replace(';', ''), price_open, prange[1], prange[0], price_close, volume
+    return shortname.replace(';', '').replace('.iew/', ''), \
+        price_open, prange[1], prange[0], price_close, volume
 
 
 def scrapeLatestPrice(soup):
@@ -106,7 +108,8 @@ def scrapeLatestPrice(soup):
         td = tr.findAll('td')
         eod = [x.text.strip() for x in td]
         if len(eod) == 9:
-            shortname, price_open, price_high, price_low, price_close, volume = unpackTD(*eod)
+            shortname, price_open, price_high, price_low, price_close, volume = unpackTD(
+                *eod)
             if int(volume.replace(',', '')) > 0:
                 # <a href="/servlets/stk/7054.jsp">AASIA</a>
                 stockLink = tr.find('a').get('href')
