@@ -114,6 +114,10 @@ def scrapeLatestPrice(soup):
                 # <a href="/servlets/stk/7054.jsp">AASIA</a>
                 stockLink = tr.find('a').get('href')
                 stkcd = stockLink[14:-4]
+                if 'iew/' in stkcd:
+                    print 'INF:Replacing stkcd:', stkcd
+                    stkcd = stkcd.replace('iew/', '')
+                    print 'INF:New stkcd:', stkcd
                 i3eod[shortname + '.' + stkcd] = [
                     price_open, price_high, price_low, price_close, volume]
             else:
