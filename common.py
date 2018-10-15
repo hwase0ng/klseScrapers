@@ -13,6 +13,36 @@ import os
 from utils.fileutils import cd
 
 
+class FifoList:
+    def __init__(self):
+        self.data = []
+
+    def append(self, data):
+        self.data.append(data)
+
+    def pop(self):
+        return self.data.pop(0)
+
+
+class FifoDict:
+    def __init__(self):
+        self.data = {}
+        self.nextin = 0
+        self.nextout = 0
+
+    def append(self, data):
+        self.nextin += 1
+        self.data[self.nextin] = data
+
+    def pop(self):
+        self.nextout += 1
+        result = self.data[self.nextout]
+        del self.data[self.nextout]
+        if S.DBG_ALL:
+            print 'out:', self.nextout, result
+        return result
+
+
 def loadSetting(c):
     chromedir = c["main"]["CHROME_DIR"]
     if len(chromedir) > 0:
