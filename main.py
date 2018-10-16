@@ -175,7 +175,8 @@ def housekeeping(tgtdir, purgedays=10):
 
 
 def getCsvFiles(eodfile):
-    i3map = loadMap("scrapers/i3investor/klse.txt", ",")
+    # i3map = loadMap("scrapers/i3investor/klse.txt", ",")
+    i3map = loadMap(klse, ",")
     csvfiles = []
     if os.path.isfile(eodfile):
         with open(eodfile, 'r') as f:
