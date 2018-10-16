@@ -17,7 +17,7 @@ Price  - 20% up in 15 days
 @author: hwase0ng
 '''
 
-from common import getCounters, loadCfg, formStocklist, FifoDict
+from common import getCounters, loadCfg, formStocklist, FifoDict, loadKlseCounters
 from docopt import docopt
 import csv
 import settings as S
@@ -29,10 +29,11 @@ def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volum
 
 
 def generateMVP(counter, stkcode):
+    if S.DBG_YAHOO:
+        print shortname, stkcode
     totalVol = 0.0
     totalPrice = 0.0
     mvpDaysUp = 0
-    mvpDaysDown = 0
     eodlist = FifoDict()
     for i in range(S.MVP_DAYS):
         # counter, date, open, high, low, close, volume, total vol, total price,
@@ -59,7 +60,7 @@ def generateMVP(counter, stkcode):
                 else:
                     dayUp = 0
                 eodpop = eodlist.pop()
-                mvpDaysUp = mvpDaysUp + dayUp - int(eodpop[-5])
+                mvpDaysUp = mvpDaysUp + dayUp - int(eodpop[-4])
                 totalPrice = totalPrice + float(pclose) - float(eodpop[5])
                 totalVol = totalVol + float(volume) - float(eodpop[6])
                 aveVol = float(eodpop[7]) / S.MVP_DAYS
@@ -89,6 +90,10 @@ if __name__ == '__main__':
     global klse
     klse = "scrapers/i3investor/klse.txt"
     stocks = getCounters(args['COUNTER'], args['--portfolio'], args['--watchlist'], False)
-    stocklist = formStocklist(stocks, klse)
+    if len(stocks):
+        stocklist = formStocklist(stocks, klse)
+    else:
+        S.DBG_YAHOO = True
+        stocklist = loadKlseCounters(klse)
     for shortname in sorted(stocklist.iterkeys()):
         generateMVP(shortname, stocklist[shortname])
