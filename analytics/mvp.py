@@ -36,10 +36,9 @@ def generateMVP(counter, stkcode):
     eodlist = FifoDict()
     for i in range(S.MVP_DAYS):
         # counter, date, open, high, low, close, volume, total vol, total price,
-        #   down from previous day, up from previous day,
-        #   total days down, total days up, vol diff, price diff
-        eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0, 0, 0.0, 0.0])
-    lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0, 0, 0.0, 0.0]
+        #   up from previous day, total days up, vol diff, price diff
+        eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0])
+    lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0]
 
     S.DBG_ALL = False
     if S.DBG_ALL:
@@ -57,13 +56,10 @@ def generateMVP(counter, stkcode):
                         i, stock, dt, popen, phigh, plow, pclose, volume)
                 if pclose >= popen and pclose >= lasteod[5]:
                     dayUp = 1
-                    dayDown = 0
                 else:
                     dayUp = 0
-                    dayDown = -1
                 eodpop = eodlist.pop()
                 mvpDaysUp = mvpDaysUp + dayUp - int(eodpop[-5])
-                mvpDaysDown = mvpDaysDown + dayDown - int(eodpop[-6])
                 totalPrice = totalPrice + float(pclose) - float(eodpop[5])
                 totalVol = totalVol + float(volume) - float(eodpop[6])
                 aveVol = float(eodpop[7]) / S.MVP_DAYS
@@ -73,9 +69,9 @@ def generateMVP(counter, stkcode):
                 priceDiff *= 20  # easier to view as value is below 1
                 if S.DBG_ALL and dt.startswith('2018-07'):
                     print '\t', dt, aveVol, avePrice, volDiff, priceDiff
-                neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{},{},{:.2f},{:.2f}'.format(
-                    stock, dt, popen, phigh, plow, pclose, volume, totalVol, totalPrice,
-                    dayDown, dayUp, mvpDaysDown, mvpDaysUp, volDiff, priceDiff)
+                neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
+                    stock, dt, popen, phigh, plow, pclose, volume,
+                    totalVol, totalPrice, dayUp, mvpDaysUp, volDiff, priceDiff)
                 if S.DBG_ALL:
                     print neweod
                 fh.write(neweod + '\n')
