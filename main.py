@@ -1,10 +1,11 @@
 '''
-Usage: main [-cpwh] [COUNTER] ...
+Usage: main [-ckpwh] [COUNTER] ...
 
 Arguments:
     COUNTER           Optional counters
 Options:
     -c,--check        Check processing mode
+    -k,--klse         Download all KLSE counters
     -p,--portfolio    Select portfolio from config.json
     -w,--watchlist    Select watchlist from config.json
     -h,--help         This page
@@ -293,6 +294,10 @@ if __name__ == '__main__':
         #  download only selected counters
         scrapeI3(formStocklist(stocks, klse))
     else:
-        scrapeKlse(args['--check'])
+        if args['--klse']:
+            print "Scraping i3 stocks listing ..."
+            writeStocksListing(klse)
+        else:
+            scrapeKlse(args['--check'])
 
     print "\nDone."
