@@ -36,8 +36,8 @@ def generateMVP(counter, stkcode):
     mvpDaysUp = 0
     eodlist = FifoDict()
     for i in range(S.MVP_DAYS):
-        # counter, date, open, high, low, close, volume, total vol, total price,
-        #   up from previous day, total days up, vol diff, price diff
+        #  names=['Name', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume',
+        #         'Total Vol', 'Total Price', 'DayB4 Motion', 'MOTION', 'PRICE', 'VOLUME'])
         eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0])
     lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0]
 
@@ -46,7 +46,7 @@ def generateMVP(counter, stkcode):
         for _ in range(S.MVP_DAYS):
             print eodlist.pop()
 
-    fh = open(S.DATA_DIR + 'MVP/mvp-' + counter + '.csv', "w")
+    fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "w")
     with open(S.DATA_DIR + counter + '.' + stkcode + '.csv', "rb") as fl:
         try:
             reader = csv.reader(fl, delimiter=',')
@@ -67,12 +67,12 @@ def generateMVP(counter, stkcode):
                 avePrice = float(eodpop[8]) / S.MVP_DAYS
                 volDiff = (float(volume) - aveVol) / aveVol
                 priceDiff = (float(pclose) - avePrice) / avePrice
-                priceDiff *= 20  # easier to view as value is below 1
+                # priceDiff *= 20  # easier to view as value is below 1
                 if S.DBG_ALL and dt.startswith('2018-07'):
                     print '\t', dt, aveVol, avePrice, volDiff, priceDiff
                 neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
                     stock, dt, popen, phigh, plow, pclose, volume,
-                    totalVol, totalPrice, dayUp, mvpDaysUp, volDiff, priceDiff)
+                    totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
                 if S.DBG_ALL:
                     print neweod
                 fh.write(neweod + '\n')
