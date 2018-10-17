@@ -173,7 +173,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
         else:
             print eod
 
-        mvp.generateMVP(shortname, stockCode)
+        mvp.updateMPV(shortname, eod)
 
     return eodlist
 
