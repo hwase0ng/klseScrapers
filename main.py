@@ -132,12 +132,12 @@ def checkLastTradingDay(lastdt):
     return None
 
 
-def backupKLse(tgtdir, prefix):
+def backupKLse(srcdir, tgtdir, prefix):
     if len(tgtdir) == 0 or not tgtdir.endswith('\\'):
         print "Skipped backing up data", tgtdir
         return
 
-    with cd(S.DATA_DIR):
+    with cd(srcdir):
         subprocess.call('pwd')
         bkfl = tgtdir + prefix + 'klse' + getToday() + '.tgz'
         print "Backing up", bkfl
@@ -201,7 +201,9 @@ def getCsvFiles(eodfile):
 
 def postUpdateProcessing():
     housekeeping(S.BKUP_DIR)
-    backupKLse(S.BKUP_DIR, "pst")
+    housekeeping(S.MVP_DIR, 30)
+    backupKLse(S.DATA_DIR, S.BKUP_DIR, "pst")
+    backupKLse(S.DATA_DIR + S.MVP_DIR, S.BKUP_DIR, "mvp")
 
     if len(S.MT4_DIR) == 0:
         return
