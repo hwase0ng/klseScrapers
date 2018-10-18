@@ -1,10 +1,11 @@
 '''
-Usage: main [-ckpwh] [COUNTER] ...
+Usage: main [-cfkpwh] [COUNTER] ...
 
 Arguments:
     COUNTER           Optional counters
 Options:
     -c,--check        Check processing mode
+    -f,--force        Force update when investing.com data is delayed
     -k,--klse         Download all KLSE counters
     -p,--portfolio    Select portfolio from config.json
     -w,--watchlist    Select watchlist from config.json
@@ -221,7 +222,7 @@ def postUpdateProcessing():
         print "Post-update Processing ... Done"
 
 
-def scrapeKlse(procmode):
+def scrapeKlse(procmode, force_update):
     '''
     Determine if can use latest price found in i3 stocks page
     Conditions:
@@ -230,7 +231,12 @@ def scrapeKlse(procmode):
          that of investing.com latest eod
     '''
     lastdt = getLastDate(S.DATA_DIR + 'PBBANK.1295.csv')
-    dates = checkLastTradingDay(lastdt)
+    if force_update:
+        dates = []
+        dates.append(lastdt)
+        dates.append(getToday('%Y-%m-%d'))
+    else:
+        dates = checkLastTradingDay(lastdt)
     if dates is None or (len(dates) == 1 and dates[0] == lastdt):
         if procmode:
             print "Post updating mode ON"
@@ -298,6 +304,6 @@ if __name__ == '__main__':
             print "Scraping i3 stocks listing ..."
             writeStocksListing(klse)
         else:
-            scrapeKlse(args['--check'])
+            scrapeKlse(args['--check'], args['--force'])
 
     print "\nDone."
