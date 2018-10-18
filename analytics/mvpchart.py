@@ -63,6 +63,7 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
         axes[3].axhline(25, color='k', linestyle='--')
     except Exception as e:
         # just print error and continue without required line in chart
+        print 'axhline'
         print e
 
     xytext_distance = [5, 15]
@@ -94,11 +95,30 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
                 strMotion += ">\n"
         group_motion = []
         strMotion = strMotion[2:] + ">"
-        xyx = mpvdate[:5] + strMotion[-10:-4]
-        xyy = int(strMotion[-3:-1])
-        axes[1].annotate(strMotion, size=8, xycoords='data', xy=(xyx, xyy),
-                         xytext=(10, 10), textcoords='offset points',
-                         arrowprops=dict(arrowstyle='-|>'))
+        # xyx = mpvdate[:5] + strMotion[-10:-4]
+        # xyy = int(strMotion[-3:-1])
+        if len(strMotion) < 11:
+            strM = strMotion
+        else:
+            strM = strMotion[-11:]
+        idxVstart = strM.index('<')
+        try:
+            idxVend = strM.index('.')
+        except Exception:
+            idxVend = len(strM) - 1
+        xyx = mpvdate[:5] + strM[idxVstart - 5: idxVstart]
+        xyy = int(strM[idxVstart + 1: idxVend])
+
+        xyt = xytext_distance[xytcount % 2]
+        xytcount += 1
+        try:
+            axes[1].annotate(strMotion, size=8, xycoords='data', xy=(xyx, xyy),
+                             xytext=(xyt, xyt), textcoords='offset points',
+                             arrowprops=dict(arrowstyle='-|>'))
+        except Exception as e:
+            print 'axes[1].annotate'
+            print e
+            pass
     group_volume = []
     for i in range(1, len(idxV)):
         j = i * -1
@@ -137,10 +157,15 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
 
         xyt = xytext_distance[xytcount % 2]
         xytcount += 1
-        axes[3].annotate(strVolume,  # mpvdate[5:] + "(" + str(vol) + ")",
-                         xycoords='data', xy=(xyx, xyy),  # xy=(mpvdate, vol),
-                         xytext=(xyt, xyt), textcoords='offset points',
-                         size=8, arrowprops=dict(arrowstyle='-|>'))
+        try:
+            axes[3].annotate(strVolume,  # mpvdate[5:] + "(" + str(vol) + ")",
+                             xycoords='data', xy=(xyx, xyy),  # xy=(mpvdate, vol),
+                             xytext=(xyt, xyt), textcoords='offset points',
+                             size=8, arrowprops=dict(arrowstyle='-|>'))
+        except Exception as e:
+            print 'axes[1].annotate'
+            print e
+            pass
     # plt.show()
     plt.savefig(fname + ".png")
     plt.close()
