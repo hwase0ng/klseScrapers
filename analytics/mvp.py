@@ -19,11 +19,11 @@ Price  - 20% up in 15 days
 
 from common import getCounters, loadCfg, formStocklist, FifoDict, loadKlseCounters
 from docopt import docopt
+from utils.fileutils import wc_line_count
+from mvpchart import mvpChart
 from pandas import read_csv
-from StringIO import StringIO
 import csv
 import settings as S
-import tailer as tl
 import traceback
 
 
@@ -49,58 +49,68 @@ def generateMPV(counter, stkcode):
         for _ in range(S.MVP_DAYS):
             print eodlist.pop()
 
-    fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "w")
-    with open(S.DATA_DIR + counter + '.' + stkcode + '.csv', "rb") as fl:
-        try:
-            reader = csv.reader(fl, delimiter=',')
-            for i, line in enumerate(reader):
-                stock, dt, popen, phigh, plow, pclose, volume = unpackEOD(*line)
-                if S.DBG_ALL:
-                    print '{}: {},{},{},{},{},{},{}'.format(
-                        i, stock, dt, popen, phigh, plow, pclose, volume)
-                if pclose >= popen and pclose >= lasteod[5]:
-                    dayUp = 1
-                else:
-                    dayUp = 0
-                eodpop = eodlist.pop()
-                mvpDaysUp = mvpDaysUp + dayUp - int(eodpop[-4])
-                totalPrice = totalPrice + float(pclose) - float(eodpop[5])
-                totalVol = totalVol + float(volume) - float(eodpop[6])
-                aveVol = float(eodpop[7]) / S.MVP_DAYS
-                avePrice = float(eodpop[8]) / S.MVP_DAYS
-                volDiff = (float(volume) - aveVol) / aveVol
-                priceDiff = (float(pclose) - avePrice) / avePrice
-                # priceDiff *= 20  # easier to view as value is below 1
-                if S.DBG_ALL and dt.startswith('2018-07'):
-                    print '\t', dt, aveVol, avePrice, volDiff, priceDiff
-                neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
-                    stock, dt, popen, phigh, plow, pclose, volume,
-                    totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
-                if S.DBG_ALL:
-                    print neweod
-                fh.write(neweod + '\n')
-                eodlist.append(neweod.split(','))
-                lasteod = line
-        except Exception:
-            print eodpop
-            traceback.print_exc()
-    fh.close()
+    try:
+        fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "w")
+        inputfl = S.DATA_DIR + counter + '.' + stkcode + '.csv'
+        with open(inputfl, "rb") as fl:
+            try:
+                reader = csv.reader(fl, delimiter=',')
+                for i, line in enumerate(reader):
+                    stock, dt, popen, phigh, plow, pclose, volume = unpackEOD(*line)
+                    if S.DBG_ALL:
+                        print '{}: {},{},{},{},{},{},{}'.format(
+                            i, stock, dt, popen, phigh, plow, pclose, volume)
+                    if pclose >= popen and pclose >= lasteod[5]:
+                        dayUp = 1
+                    else:
+                        dayUp = 0
+                    eodpop = eodlist.pop()
+                    mvpDaysUp = mvpDaysUp + dayUp - int(eodpop[-4])
+                    totalPrice = totalPrice + float(pclose) - float(eodpop[5])
+                    totalVol = totalVol + float(volume) - float(eodpop[6])
+                    aveVol = float(eodpop[7]) / S.MVP_DAYS
+                    avePrice = float(eodpop[8]) / S.MVP_DAYS
+                    volDiff = (float(volume) - aveVol) / aveVol
+                    priceDiff = (float(pclose) - avePrice) / avePrice
+                    # priceDiff *= 20  # easier to view as value is below 1
+                    if S.DBG_ALL and dt.startswith('2018-07'):
+                        print '\t', dt, aveVol, avePrice, volDiff, priceDiff
+                    neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
+                        stock, dt, popen, phigh, plow, pclose, volume,
+                        totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
+                    if S.DBG_ALL:
+                        print neweod
+                    if i > 30:  # first 15 records start with zeroes, skip 15x2=30 records
+                        fh.write(neweod + '\n')
+                        updateMpvSignals(stock, dt, mvpDaysUp, volDiff)
+                    eodlist.append(neweod.split(','))
+                    lasteod = line
+            except Exception:
+                print eodpop
+                traceback.print_exc()
+    except Exception:
+        traceback.print_exc()
+        print inputfl
+    finally:
+        fh.close()
 
 
 def updateMPV(counter, eod):
     fname = S.DATA_DIR + "mpv/mpv-" + counter
     csvfl = fname + ".csv"
-    fil = open(csvfl)
-    lastlines = tl.tail(fil, S.MVP_DAYS)
-    print lastlines
-    fil.close()
+    row_count = wc_line_count(csvfl)
+    if row_count <= 0:
+        return
+    if row_count < S.MVP_DAYS:
+        skiprow = 0
+    else:
+        skiprow = row_count - S.MVP_DAYS
 
-    df = read_csv(StringIO('\n'.join(lastlines)), sep=',',
+    df = read_csv(csvfl, sep=',', skiprows=skiprow,
                   header=None, index_col=False, parse_dates=['date'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
 
-    print df
     eoddata = eod.split(',')
     stock = eoddata[0]
     dt = eoddata[1]
@@ -113,7 +123,7 @@ def updateMPV(counter, eod):
         dayUp = 1
     else:
         dayUp = 0
-    mvpDaysUp = df[0]['M']
+    mvpDaysUp = df.iloc[0]['M']
     mvpDaysUp = mvpDaysUp + dayUp - int(df.iloc[0]['dayB4 motion'])
     totalPrice = float(df.iloc[-1]['total price']) + float(pclose) - float(df.iloc[0]['close'])
     totalVol = float(df.iloc[-1]['total vol']) + float(volume) - float(df.iloc[0]['volume'])
@@ -126,19 +136,29 @@ def updateMPV(counter, eod):
         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
     if S.DBG_ALL:
         print neweod
-    fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "a")
+    fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "ab")
     fh.write(neweod + '\n')
     fh.close()
 
-    if mvpDaysUp >= 10 or volDiff > 24:
-        trigger = ""
-        if mvpDaysUp >= 10:
-            trigger += ",M"
-        if volDiff >= 24:
-            trigger += ",V"
-        fh = open(S.DATA_DIR + 'mpv/mpv-' + dt + '.csv', "a")
-        fh.write(stock + trigger + '\n')
-        fh.close()
+    if updateMpvSignals(stock, dt, mvpDaysUp, volDiff):
+        mvpChart(stock)
+
+
+def updateMpvSignals(stock, dt, mvpDaysUp, volDiff):
+    if mvpDaysUp <= 9 and volDiff <= 24:
+        return False
+    trigger = ""
+    if mvpDaysUp > 9:
+        trigger += ",M"
+    if volDiff > 24:
+        trigger += ",V"
+    fh = open(S.DATA_DIR + 'mpv/mpv-signal-' + stock + '.csv', "ab")
+    fh.write(dt + trigger + '\n')
+    fh.close()
+    fh = open(S.DATA_DIR + 'mpv/mpv-signal-' + dt + '.csv', "ab")
+    fh.write(stock + trigger + '\n')
+    fh.close()
+    return True
 
 
 if __name__ == '__main__':
@@ -153,4 +173,7 @@ if __name__ == '__main__':
         S.DBG_YAHOO = True
         stocklist = loadKlseCounters(klse)
     for shortname in sorted(stocklist.iterkeys()):
+        if shortname in S.EXCLUDE_LIST:
+            print "INF:Skip: ", shortname
+            continue
         generateMPV(shortname, stocklist[shortname])
