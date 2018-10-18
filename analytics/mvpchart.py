@@ -27,86 +27,123 @@ def getMpvDate(dfdate):
     return mpvdt[0]
 
 
-def mvpChart(counter):
-        fname = S.DATA_DIR + "mpv/mpv-" + counter
-        csvfl = fname + ".csv"
-        print csvfl
-        # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
-        df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
-                      names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
-                             'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'],
-                      usecols=['date', 'close', 'M', 'P', 'V'])
-        if len(df.index) <= 0:
-            return
-        mpvdate = getMpvDate(df.iloc[-1]['date'])
-        idxM = df.index[df['M'] > 10]
-        idxV = df.index[df['V'] > 24]
-        if len(df.index) >= abs(chartDays):
-            firstidx = df.index.get_loc(df.iloc[chartDays].name)
-        else:
-            firstidx = 0
-        if S.DBG_ALL:
-            print(df.tail(10))
-            print type(mpvdate), mpvdate
-            print idxV[-5:]
-            print df.index.get_loc(df.iloc[chartDays].name)
+def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
+    print "Charting: ", counter
+    fname = S.DATA_DIR + "mpv/mpv-" + counter
+    csvfl = fname + ".csv"
+    # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
+    df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
+                  names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
+                         'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'],
+                  usecols=['date', 'close', 'M', 'P', 'V'])
+    if len(df.index) <= 0:
+        return
+    mpvdate = getMpvDate(df.iloc[-1]['date'])
+    idxM = df.index[df['M'] > 10]
+    idxV = df.index[df['V'] > 24]
+    if len(df.index) >= abs(chartDays):
+        firstidx = df.index.get_loc(df.iloc[chartDays].name)
+    else:
+        firstidx = 0
+    if S.DBG_ALL:
+        print(df.tail(10))
+        print type(mpvdate), mpvdate
+        print idxV[-5:]
+        print df.index.get_loc(df.iloc[chartDays].name)
 
-        axes = df[chartDays:].plot(x='date', figsize=(15, 7), subplots=True, grid=False,
-                                   title=mpvdate + ': MPV Chart of ' + counter)
-        ax1 = plt.gca().axes.get_xaxis()
-        axlabel = ax1.get_label()
-        axlabel.set_visible(False)
-        axes[1].axhline(10, color='k', linestyle='--')
+    axes = df[chartDays:].plot(x='date', figsize=(15, 7), subplots=True, grid=False,
+                               title=mpvdate + ': MPV Chart of ' + counter)
+    ax1 = plt.gca().axes.get_xaxis()
+    axlabel = ax1.get_label()
+    axlabel.set_visible(False)
+    try:
+        axes[1].axhline(10, color='r', linestyle='--')
+        axes[1].axhline(5, color='k', linestyle='--')
         axes[2].axhline(0, color='k', linestyle='--')
         axes[3].axhline(25, color='k', linestyle='--')
+    except Exception as e:
+        # just print error and continue without required line in chart
+        print e
 
-        group_motion = []
-        for i in range(1, len(idxM)):
-            j = i * -1
-            if i > len(df.index) or idxM[j] < firstidx:
-                break
-            mpvdate = getMpvDate(df.iloc[idxM[j]]['date'])
-            motion = df.iloc[idxM[j]]['M']
-            if S.DBG_ALL:
-                print j, mpvdate, motion
-            if i + 1 < len(idxM):
-                next_mpvdate = getMpvDate(df.iloc[idxM[j - 1]]['date'])
-                if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
-                    group_motion.append([mpvdate[5:], str(motion)])
-                    continue
-                else:
-                    group_motion.append([mpvdate[5:], str(motion)])
+    xytext_distance = [5, 15]
+    xytcount = 0
+    group_motion = []
+    for i in range(1, len(idxM)):
+        j = i * -1
+        if i > len(df.index) or idxM[j] < firstidx:
+            break
+        mpvdate = getMpvDate(df.iloc[idxM[j]]['date'])
+        motion = df.iloc[idxM[j]]['M']
+        if S.DBG_ALL:
+            print j, mpvdate, motion
+        if i + 1 < len(idxM):
+            next_mpvdate = getMpvDate(df.iloc[idxM[j - 1]]['date'])
+            if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
+                group_motion.append([mpvdate[5:], str(motion)])
+                continue
             else:
                 group_motion.append([mpvdate[5:], str(motion)])
+        else:
+            group_motion.append([mpvdate[5:], str(motion)])
 
-            strMotion = ""
-            group_motion.reverse()
-            for k in range(len(group_motion)):
-                strMotion += "> " + "<".join(group_motion[k])
-                if (k + 1) < len(group_motion) and (k + 1) % 3 == 0:
-                    strMotion += ">\n"
-            group_motion = []
-            strMotion = strMotion[2:] + ">"
-            xyx = mpvdate[:5] + strMotion[-10:-4]
-            xyy = int(strMotion[-3:-1])
-            axes[1].annotate(strMotion, size=8, xycoords='data', xy=(xyx, xyy),
-                             xytext=(10, 10), textcoords='offset points',
-                             arrowprops=dict(arrowstyle='-|>'))
-        for i in range(1, len(idxV)):
-            j = i * -1
-            if idxV[j] < firstidx:
-                break
-            mpvdate = getMpvDate(df.iloc[idxV[j]]['date'])
-            vol = df.iloc[idxV[j]]['V']
-            if S.DBG_ALL:
-                print j, mpvdate, vol
-            axes[3].annotate(mpvdate[5:] + "(" + str(vol) + ")",
-                             xycoords='data', xy=(mpvdate, vol),
-                             xytext=(10, 10), textcoords='offset points',
-                             arrowprops=dict(arrowstyle='-|>'))
-        # plt.show()
-        plt.savefig(fname + ".png")
-        plt.close()
+        strMotion = ""
+        group_motion.reverse()
+        for k in range(len(group_motion)):
+            strMotion += "> " + "<".join(group_motion[k])
+            if (k + 1) < len(group_motion) and (k + 1) % 3 == 0:
+                strMotion += ">\n"
+        group_motion = []
+        strMotion = strMotion[2:] + ">"
+        xyx = mpvdate[:5] + strMotion[-10:-4]
+        xyy = int(strMotion[-3:-1])
+        axes[1].annotate(strMotion, size=8, xycoords='data', xy=(xyx, xyy),
+                         xytext=(10, 10), textcoords='offset points',
+                         arrowprops=dict(arrowstyle='-|>'))
+    group_volume = []
+    for i in range(1, len(idxV)):
+        j = i * -1
+        if idxV[j] < firstidx:
+            break
+        mpvdate = getMpvDate(df.iloc[idxV[j]]['date'])
+        vol = df.iloc[idxV[j]]['V']
+        if S.DBG_ALL:
+            print j, mpvdate, vol
+        if i + 1 < len(idxV):
+            next_mpvdate = getMpvDate(df.iloc[idxV[j - 1]]['date'])
+            if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
+                group_volume.append([mpvdate[5:], str(vol)])
+                continue
+            else:
+                group_volume.append([mpvdate[5:], str(vol)])
+        else:
+            group_volume.append([mpvdate[5:], str(vol)])
+
+        strVolume = ""
+        group_volume.reverse()
+        for k in range(len(group_volume)):
+            strVolume += "> " + "<".join(group_volume[k])
+            if (k + 1) < len(group_volume) and (k + 1) % 2 == 0:
+                strVolume += ">\n"
+        group_volume = []
+        strVolume = strVolume[2:] + ">"
+        if len(strVolume) < 13:
+            strvol = strVolume
+        else:
+            strvol = strVolume[-13:]
+        idxVstart = strvol.index('<')
+        idxVend = strvol.index('.')
+        xyx = mpvdate[:5] + strvol[idxVstart - 5: idxVstart]
+        xyy = int(strvol[idxVstart + 1: idxVend])
+
+        xyt = xytext_distance[xytcount % 2]
+        xytcount += 1
+        axes[3].annotate(strVolume,  # mpvdate[5:] + "(" + str(vol) + ")",
+                         xycoords='data', xy=(xyx, xyy),  # xy=(mpvdate, vol),
+                         xytext=(xyt, xyt), textcoords='offset points',
+                         size=8, arrowprops=dict(arrowstyle='-|>'))
+    # plt.show()
+    plt.savefig(fname + ".png")
+    plt.close()
 
 
 if __name__ == '__main__':
@@ -118,14 +155,15 @@ if __name__ == '__main__':
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
     else:
-        S.DBG_YAHOO = True
         stocklist = loadKlseCounters(klse)
 
-    global chartDays
     if args['--chartdays']:
         chartDays = int(args['--chartdays']) * -1
     else:
         chartDays = S.MVP_CHART_DAYS * -1
 
     for shortname in sorted(stocklist.iterkeys()):
-        mvpChart(shortname)
+        if shortname in S.EXCLUDE_LIST:
+            print "INF:Skip: ", shortname
+            continue
+        mvpChart(shortname, chartDays)
