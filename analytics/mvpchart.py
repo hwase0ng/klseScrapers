@@ -4,7 +4,7 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
-    -c,--chartdays N  Days to display on chart
+    -c,--chartdays N  Days to display on chart (defaulted 200 in settings.py)
     -p,--portfolio    Select portfolio from config.json
     -w,--watchlist    Select watchlist from config.json
     -h,--help         This page
@@ -30,16 +30,21 @@ def getMpvDate(dfdate):
 def mvpChart(counter):
         fname = S.DATA_DIR + "mpv/mpv-" + counter
         csvfl = fname + ".csv"
+        print csvfl
         # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
         df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
                       names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                              'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'],
                       usecols=['date', 'close', 'M', 'P', 'V'])
-        # df.set_index('Date', drop=True, inplace=True)
+        if len(df.index) <= 0:
+            return
         mpvdate = getMpvDate(df.iloc[-1]['date'])
         idxM = df.index[df['M'] > 10]
         idxV = df.index[df['V'] > 24]
-        firstidx = df.index.get_loc(df.iloc[chartDays].name)
+        if len(df.index) >= abs(chartDays):
+            firstidx = df.index.get_loc(df.iloc[chartDays].name)
+        else:
+            firstidx = 0
         if S.DBG_ALL:
             print(df.tail(10))
             print type(mpvdate), mpvdate
@@ -58,7 +63,7 @@ def mvpChart(counter):
         group_motion = []
         for i in range(1, len(idxM)):
             j = i * -1
-            if idxM[j] < firstidx:
+            if i > len(df.index) or idxM[j] < firstidx:
                 break
             mpvdate = getMpvDate(df.iloc[idxM[j]]['date'])
             motion = df.iloc[idxM[j]]['M']
@@ -99,8 +104,8 @@ def mvpChart(counter):
                              xycoords='data', xy=(mpvdate, vol),
                              xytext=(10, 10), textcoords='offset points',
                              arrowprops=dict(arrowstyle='-|>'))
-        plt.show()
-        # plt.savefig(fname + ".png")
+        # plt.show()
+        plt.savefig(fname + ".png")
         plt.close()
 
 
