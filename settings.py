@@ -18,6 +18,7 @@ MONGOEOD = 'klseeod'
 MT4_DAYS = 2500
 MT4_DIR = ''
 MVP_DAYS = 15
+MVP_DIR = DATA_DIR + 'mpv'
 MVP_CHART_DAYS = 200  # Display last 200 trading days
 SHORTLISTED_FILE = ''
 I3_UID = ''
