@@ -19,6 +19,7 @@ from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from pandas import read_csv
 from matplotlib import pyplot as plt
+from mvp import getSkipRows
 import settings as S
 
 
@@ -27,32 +28,36 @@ def getMpvDate(dfdate):
     return mpvdt[0]
 
 
-def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
+def mvpChart(counter, chartDays=S.MVP_CHART_DAYS):
     print "Charting: ", counter
     fname = S.DATA_DIR + "mpv/mpv-" + counter
     csvfl = fname + ".csv"
+    skiprow = getSkipRows(csvfl, chartDays)
     # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
     df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
+                  skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
-                         'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'],
-                  usecols=['date', 'close', 'M', 'P', 'V'])
+                         'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
     if len(df.index) <= 0:
         return
     mpvdate = getMpvDate(df.iloc[-1]['date'])
     idxM = df.index[df['M'] > 10]
     idxV = df.index[df['V'] > 24]
+    '''
     if len(df.index) >= abs(chartDays):
         firstidx = df.index.get_loc(df.iloc[chartDays].name)
     else:
-        firstidx = 0
+    '''
+    firstidx = 0
     if S.DBG_ALL:
         print(df.tail(10))
         print type(mpvdate), mpvdate
         print idxV[-5:]
-        print df.index.get_loc(df.iloc[chartDays].name)
+        # print df.index.get_loc(df.iloc[chartDays].name)
 
-    axes = df[chartDays:].plot(x='date', figsize=(15, 7), subplots=True, grid=False,
-                               title=mpvdate + ': MPV Chart of ' + counter)
+    # axes = df[chartDays:].plot(x='date', figsize=(15, 7), subplots=True, grid=False,
+    axes = df.plot(x='date', figsize=(15, 7), subplots=True, grid=False,
+                   title=mpvdate + ': MPV Chart of ' + counter)
     ax1 = plt.gca().axes.get_xaxis()
     axlabel = ax1.get_label()
     axlabel.set_visible(False)
@@ -66,10 +71,8 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
         print 'axhline'
         print e
 
-    xytext_distance = [5, 15]
-    xytcount = 0
     group_motion = []
-    for i in range(1, len(idxM)):
+    for i in range(1, len(idxM) + 1):
         j = i * -1
         if i > len(df.index) or idxM[j] < firstidx:
             break
@@ -77,7 +80,7 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
         motion = df.iloc[idxM[j]]['M']
         if S.DBG_ALL:
             print j, mpvdate, motion
-        if i + 1 < len(idxM):
+        if i < len(idxM):
             next_mpvdate = getMpvDate(df.iloc[idxM[j - 1]]['date'])
             if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
                 group_motion.append([mpvdate[5:], str(motion)])
@@ -91,7 +94,7 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
         group_motion.reverse()
         for k in range(len(group_motion)):
             strMotion += "> " + "<".join(group_motion[k])
-            if (k + 1) < len(group_motion) and (k + 1) % 3 == 0:
+            if (k + 1) < len(group_motion) and (k + 1) % 2 == 0:
                 strMotion += ">\n"
         group_motion = []
         strMotion = strMotion[2:] + ">"
@@ -109,26 +112,25 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
         xyx = mpvdate[:5] + strM[idxVstart - 5: idxVstart]
         xyy = int(strM[idxVstart + 1: idxVend])
 
-        xyt = xytext_distance[xytcount % 2]
-        xytcount += 1
         try:
             axes[1].annotate(strMotion, size=8, xycoords='data', xy=(xyx, xyy),
-                             xytext=(xyt, xyt), textcoords='offset points',
+                             xytext=(10, 10), textcoords='offset points',
                              arrowprops=dict(arrowstyle='-|>'))
         except Exception as e:
             print 'axes[1].annotate'
             print e
             pass
     group_volume = []
-    for i in range(1, len(idxV)):
+    for i in range(1, len(idxV) + 1):
         j = i * -1
         if idxV[j] < firstidx:
             break
         mpvdate = getMpvDate(df.iloc[idxV[j]]['date'])
         vol = df.iloc[idxV[j]]['V']
+        vol = int(vol)
         if S.DBG_ALL:
             print j, mpvdate, vol
-        if i + 1 < len(idxV):
+        if i < len(idxV):
             next_mpvdate = getMpvDate(df.iloc[idxV[j - 1]]['date'])
             if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
                 group_volume.append([mpvdate[5:], str(vol)])
@@ -151,16 +153,14 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS * -1):
         else:
             strvol = strVolume[-13:]
         idxVstart = strvol.index('<')
-        idxVend = strvol.index('.')
+        idxVend = len(strvol) - 1
         xyx = mpvdate[:5] + strvol[idxVstart - 5: idxVstart]
         xyy = int(strvol[idxVstart + 1: idxVend])
 
-        xyt = xytext_distance[xytcount % 2]
-        xytcount += 1
         try:
             axes[3].annotate(strVolume,  # mpvdate[5:] + "(" + str(vol) + ")",
                              xycoords='data', xy=(xyx, xyy),  # xy=(mpvdate, vol),
-                             xytext=(xyt, xyt), textcoords='offset points',
+                             xytext=(10, 10), textcoords='offset points',
                              size=8, arrowprops=dict(arrowstyle='-|>'))
         except Exception as e:
             print 'axes[1].annotate'
@@ -183,9 +183,9 @@ if __name__ == '__main__':
         stocklist = loadKlseCounters(klse)
 
     if args['--chartdays']:
-        chartDays = int(args['--chartdays']) * -1
+        chartDays = int(args['--chartdays'])
     else:
-        chartDays = S.MVP_CHART_DAYS * -1
+        chartDays = S.MVP_CHART_DAYS
 
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:

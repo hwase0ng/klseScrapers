@@ -20,7 +20,6 @@ Price  - 20% up in 15 days
 from common import getCounters, loadCfg, formStocklist, FifoDict, loadKlseCounters
 from docopt import docopt
 from utils.fileutils import wc_line_count
-from mvpchart import mvpChart
 from pandas import read_csv
 import csv
 import settings as S
@@ -39,6 +38,7 @@ def generateMPV(counter, stkcode):
     mvpDaysUp = 0
     eodlist = FifoDict()
     for i in range(S.MVP_DAYS):
+        # Starts with 15 days of dummy record as base
         #  names=['Name', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume',
         #         'Total Vol', 'Total Price', 'DayB4 Motion', 'MOTION', 'PRICE', 'VOLUME'])
         eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0])
@@ -52,6 +52,10 @@ def generateMPV(counter, stkcode):
     try:
         fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "w")
         inputfl = S.DATA_DIR + counter + '.' + stkcode + '.csv'
+        row_count = wc_line_count(inputfl)
+        if row_count < S.MVP_DAYS * 2:
+            print "Skipped: ", row_count, ", ", inputfl
+            return
         with open(inputfl, "rb") as fl:
             try:
                 reader = csv.reader(fl, delimiter=',')
@@ -80,7 +84,7 @@ def generateMPV(counter, stkcode):
                         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
                     if S.DBG_ALL:
                         print neweod
-                    if i > 30:  # first 15 records start with zeroes, skip 15x2=30 records
+                    if i > S.MVP_DAYS:  # skip first 15 dummy records
                         fh.write(neweod + '\n')
                         updateMpvSignals(stock, dt, mvpDaysUp, volDiff)
                     eodlist.append(neweod.split(','))
@@ -95,16 +99,21 @@ def generateMPV(counter, stkcode):
         fh.close()
 
 
-def updateMPV(counter, eod):
-    fname = S.DATA_DIR + "mpv/mpv-" + counter
-    csvfl = fname + ".csv"
+def getSkipRows(csvfl, skipdays=S.MVP_DAYS):
     row_count = wc_line_count(csvfl)
     if row_count <= 0:
         return
-    if row_count < S.MVP_DAYS:
+    if row_count < skipdays:
         skiprow = 0
     else:
-        skiprow = row_count - S.MVP_DAYS
+        skiprow = row_count - skipdays
+    return skiprow
+
+
+def updateMPV(counter, eod):
+    fname = S.DATA_DIR + "mpv/mpv-" + counter
+    csvfl = fname + ".csv"
+    skiprow = getSkipRows(csvfl)
 
     df = read_csv(csvfl, sep=',', skiprows=skiprow,
                   header=None, index_col=False, parse_dates=['date'],
@@ -140,8 +149,7 @@ def updateMPV(counter, eod):
     fh.write(neweod + '\n')
     fh.close()
 
-    if updateMpvSignals(stock, dt, mvpDaysUp, volDiff):
-        mvpChart(stock)
+    return updateMpvSignals(stock, dt, mvpDaysUp, volDiff)
 
 
 def updateMpvSignals(stock, dt, mvpDaysUp, volDiff):
