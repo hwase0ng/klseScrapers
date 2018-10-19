@@ -32,6 +32,8 @@ def wc_line_count(filename):
                            stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT
                            ).communicate()[0]
+    if "No such file" in out:
+        return 0
     return int(out.partition(b' ')[0])
 
 
@@ -238,6 +240,7 @@ def loadDashOptions():
 
 
 if __name__ == '__main__':
+    print wc_line_count("nosuchfile.test")
     print findAny('AIRASIA', '../scrapers/i3investor/klse.txt')
     print getStockCode('AIRASIA', '../scrapers/i3investor/klse.txt')
     print getStockShortNameById('41661', '../scrapers/investingcom/klse.idmap')
