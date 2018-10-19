@@ -33,7 +33,7 @@ def wc_line_count(filename):
                            stderr=subprocess.STDOUT
                            ).communicate()[0]
     if "No such file" in out:
-        return 0
+        return -1
     return int(out.partition(b' ')[0])
 
 

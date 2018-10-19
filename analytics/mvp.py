@@ -102,7 +102,7 @@ def generateMPV(counter, stkcode):
 def getSkipRows(csvfl, skipdays=S.MVP_DAYS):
     row_count = wc_line_count(csvfl)
     if row_count <= 0:
-        return
+        return -1  # File not found
     if row_count < skipdays:
         skiprow = 0
     else:
@@ -114,6 +114,8 @@ def updateMPV(counter, eod):
     fname = S.DATA_DIR + "mpv/mpv-" + counter
     csvfl = fname + ".csv"
     skiprow = getSkipRows(csvfl)
+    if skiprow < 0:
+        return
 
     df = read_csv(csvfl, sep=',', skiprows=skiprow,
                   header=None, index_col=False, parse_dates=['date'],
