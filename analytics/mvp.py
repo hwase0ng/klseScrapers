@@ -19,6 +19,7 @@ Price  - 20% up in 15 days
 
 from common import getCounters, loadCfg, formStocklist, FifoDict, loadKlseCounters
 from docopt import docopt
+from utils.dateutils import getDaysBtwnDates, getToday
 from utils.fileutils import wc_line_count
 from pandas import read_csv
 import csv
@@ -86,7 +87,8 @@ def generateMPV(counter, stkcode):
                         print neweod
                     if i > S.MVP_DAYS:  # skip first 15 dummy records
                         fh.write(neweod + '\n')
-                        updateMpvSignals(stock, dt, mvpDaysUp, volDiff)
+                        if getDaysBtwnDates(dt, today) < S.MVP_DAYS:
+                            updateMpvSignals(stock, dt, mvpDaysUp, volDiff)
                     eodlist.append(neweod.split(','))
                     lasteod = line
             except Exception:
@@ -182,8 +184,9 @@ if __name__ == '__main__':
     cfg = loadCfg(S.DATA_DIR)
     stocks = getCounters(args['COUNTER'], args['--portfolio'], args['--watchlist'], False)
 
-    global klse
+    global klse, today
     klse = "scrapers/i3investor/klse.txt"
+    today = getToday('%Y-%m-%d')
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
     else:
