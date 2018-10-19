@@ -25,6 +25,8 @@ import csv
 import settings as S
 import traceback
 
+klse = "scrapers/i3investor/klse.txt"
+
 
 def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volume):
     return counter, dt, price_open, price_high, price_low, price_close, volume
@@ -101,20 +103,23 @@ def generateMPV(counter, stkcode):
 
 def getSkipRows(csvfl, skipdays=S.MVP_DAYS):
     row_count = wc_line_count(csvfl)
-    if row_count <= 0:
-        return -1  # File not found
+    if row_count < 0:
+        return -1, -1  # File not found
     if row_count < skipdays:
         skiprow = 0
     else:
         skiprow = row_count - skipdays
-    return skiprow
+    return skiprow, row_count
 
 
 def updateMPV(counter, eod):
     fname = S.DATA_DIR + "mpv/mpv-" + counter
     csvfl = fname + ".csv"
-    skiprow = getSkipRows(csvfl)
-    if skiprow < 0:
+    skiprow, row_count = getSkipRows(csvfl)
+    if row_count <= 0:
+        if row_count == 0:
+            stocklist = loadKlseCounters(klse)
+            generateMPV(counter, stocklist(counter))
         return
 
     df = read_csv(csvfl, sep=',', skiprows=skiprow,
@@ -174,8 +179,6 @@ def updateMpvSignals(stock, dt, mvpDaysUp, volDiff):
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
-    global klse
-    klse = "scrapers/i3investor/klse.txt"
     stocks = getCounters(args['COUNTER'], args['--portfolio'], args['--watchlist'], False)
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
