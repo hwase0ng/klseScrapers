@@ -32,7 +32,7 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS):
     print "Charting: ", counter
     fname = S.DATA_DIR + "mpv/mpv-" + counter
     csvfl = fname + ".csv"
-    skiprow = getSkipRows(csvfl, chartDays)
+    skiprow, _ = getSkipRows(csvfl, chartDays)
     if skiprow < 0:
         return
     # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
