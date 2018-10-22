@@ -201,7 +201,6 @@ def getCsvFiles(eodfile):
 
 def postUpdateProcessing():
     housekeeping(S.BKUP_DIR)
-    housekeeping(S.MVP_DIR, 30)
     backupKLse(S.DATA_DIR, S.BKUP_DIR, "pst")
     backupKLse(S.DATA_DIR + S.MVP_DIR, S.BKUP_DIR, "mvp")
 
