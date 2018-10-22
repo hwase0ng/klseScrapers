@@ -4,10 +4,11 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
-    -c,--chartdays N  Days to display on chart (defaulted 200 in settings.py)
-    -p,--portfolio    Select portfolio from config.json
-    -w,--watchlist    Select watchlist from config.json
-    -h,--help         This page
+    -c,--chartdays N    Days to display on chart (defaulted 200 in settings.py)
+    -d,--displaychart   Display chart, not save
+    -p,--portfolio      Select portfolio from config.json
+    -w,--watchlist      Select watchlist from config.json
+    -h,--help           This page
 
 Created on Oct 16, 2018
 
@@ -18,7 +19,7 @@ from common import getCounters, loadCfg, formStocklist, loadKlseCounters
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from pandas import read_csv
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, dates as mdates
 from mvp import getSkipRows
 import settings as S
 
@@ -28,7 +29,63 @@ def getMpvDate(dfdate):
     return mpvdt[0]
 
 
-def mvpChart(counter, chartDays=S.MVP_CHART_DAYS):
+def annotateMVP(df, axes, MVP, cond):
+    idxM = df.index[df[MVP] > cond]
+    group_mvp = []
+    for i in range(1, len(idxM) + 1):
+        j = i * -1
+        if i > len(df.index) or idxM[j] < 0:
+            break
+        mpvdate = getMpvDate(df.iloc[idxM[j]]['date'])
+        mv = df.iloc[idxM[j]][MVP]
+        mv = int(mv)
+        if S.DBG_ALL:
+            print j, mpvdate, mv
+        if i < len(idxM):
+            next_mpvdate = getMpvDate(df.iloc[idxM[j - 1]]['date'])
+            if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
+                group_mvp.append([mpvdate[5:], str(mv)])
+                continue
+            else:
+                group_mvp.append([mpvdate[5:], str(mv)])
+        else:
+            group_mvp.append([mpvdate[5:], str(mv)])
+
+        strMVP = ""
+        group_mvp.reverse()
+        for k in range(len(group_mvp)):
+            strMVP += "> " + "<".join(group_mvp[k])
+            if (k + 1) < len(group_mvp) and (k + 1) % 2 == 0:
+                strMVP += ">\n"
+        group_mvp = []
+        strMVP = "   " + strMVP[2:] + ">"
+        # xyx = mpvdate[:5] + strMVP[-10:-4]
+        # xyy = int(strMVP[-3:-1])
+        if len(strMVP) < 11:
+            strM = strMVP
+        else:
+            strM = strMVP[-11:]
+        idxStart = strM.index('<')
+        idxEnd = len(strM) - 1
+        '''
+        try:
+            idxEnd = strM.index('.')
+        except Exception:
+            idxEnd = len(strM) - 1
+        '''
+        xyx = mpvdate[:5] + strM[idxStart - 5: idxStart]
+        xyy = int(strM[idxStart + 1: idxEnd])
+
+        try:
+            axes.annotate(strMVP, size=8, xycoords='data', xy=(xyx, xyy),
+                          xytext=(10, 10), textcoords='offset points',
+                          arrowprops=dict(arrowstyle='-|>'))
+        except Exception as e:
+            print 'axes.annotate', MVP, cond
+            print e
+
+
+def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
     print "Charting: ", counter
     fname = S.DATA_DIR + "mpv/mpv-" + counter
     csvfl = fname + ".csv"
@@ -43,24 +100,21 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS):
     if len(df.index) <= 0:
         return
     mpvdate = getMpvDate(df.iloc[-1]['date'])
-    idxM = df.index[df['M'] > 10]
-    idxV = df.index[df['V'] > 24]
     '''
     if len(df.index) >= abs(chartDays):
         firstidx = df.index.get_loc(df.iloc[chartDays].name)
     else:
     '''
-    firstidx = 0
     if S.DBG_ALL:
         print(df.tail(10))
         print type(mpvdate), mpvdate
-        print idxV[-5:]
         # print df.index.get_loc(df.iloc[chartDays].name)
 
     # axes = df[chartDays:].plot(x='date', figsize=(15, 7), subplots=True, grid=False,
     axes = df.plot(x='date', figsize=(15, 7), subplots=True, grid=False,
                    title=mpvdate + ': MPV Chart of ' + counter)
     ax1 = plt.gca().axes.get_xaxis()
+    ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     axlabel = ax1.get_label()
     axlabel.set_visible(False)
     try:
@@ -73,55 +127,10 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS):
         print 'axhline'
         print e
 
-    group_motion = []
-    for i in range(1, len(idxM) + 1):
-        j = i * -1
-        if i > len(df.index) or idxM[j] < firstidx:
-            break
-        mpvdate = getMpvDate(df.iloc[idxM[j]]['date'])
-        motion = df.iloc[idxM[j]]['M']
-        if S.DBG_ALL:
-            print j, mpvdate, motion
-        if i < len(idxM):
-            next_mpvdate = getMpvDate(df.iloc[idxM[j - 1]]['date'])
-            if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
-                group_motion.append([mpvdate[5:], str(motion)])
-                continue
-            else:
-                group_motion.append([mpvdate[5:], str(motion)])
-        else:
-            group_motion.append([mpvdate[5:], str(motion)])
-
-        strMotion = ""
-        group_motion.reverse()
-        for k in range(len(group_motion)):
-            strMotion += "> " + "<".join(group_motion[k])
-            if (k + 1) < len(group_motion) and (k + 1) % 2 == 0:
-                strMotion += ">\n"
-        group_motion = []
-        strMotion = strMotion[2:] + ">"
-        # xyx = mpvdate[:5] + strMotion[-10:-4]
-        # xyy = int(strMotion[-3:-1])
-        if len(strMotion) < 11:
-            strM = strMotion
-        else:
-            strM = strMotion[-11:]
-        idxVstart = strM.index('<')
-        try:
-            idxVend = strM.index('.')
-        except Exception:
-            idxVend = len(strM) - 1
-        xyx = mpvdate[:5] + strM[idxVstart - 5: idxVstart]
-        xyy = int(strM[idxVstart + 1: idxVend])
-
-        try:
-            axes[1].annotate(strMotion, size=8, xycoords='data', xy=(xyx, xyy),
-                             xytext=(10, 10), textcoords='offset points',
-                             arrowprops=dict(arrowstyle='-|>'))
-        except Exception as e:
-            print 'axes[1].annotate'
-            print e
-            pass
+    annotateMVP(df, axes[1], "M", 10)
+    annotateMVP(df, axes[3], "V", 24)
+    '''
+    idxV = df.index[df['V'] > 24]
     group_volume = []
     for i in range(1, len(idxV) + 1):
         j = i * -1
@@ -168,8 +177,11 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS):
             print 'axes[1].annotate'
             print e
             pass
-    # plt.show()
-    plt.savefig(fname + ".png")
+    '''
+    if showchart:
+        plt.show()
+    else:
+        plt.savefig(fname + ".png")
     plt.close()
 
 
@@ -193,4 +205,4 @@ if __name__ == '__main__':
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
             continue
-        mvpChart(shortname, chartDays)
+        mvpChart(shortname, chartDays, args['--displaychart'])
