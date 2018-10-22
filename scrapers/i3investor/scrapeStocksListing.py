@@ -96,7 +96,7 @@ def unpackTD(shortname, longname, cap, price_open, price_range, price_close, cha
         price_open, prange[1], prange[0], price_close, volume
 
 
-def scrapeLatestPrice(soup):
+def scrapeLatestPrice(soup, checkLastTrading=""):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
         return None
@@ -120,6 +120,10 @@ def scrapeLatestPrice(soup):
                     print 'INF:Replacing stkcd:', stkcd
                     stkcd = stkcd.replace('iew/', '')
                     print 'INF:New stkcd:', stkcd
+                if len(checkLastTrading) > 0:
+                    if stkcd == str(checkLastTrading):
+                        return price_open, price_close, volume
+                    continue
                 i3eod[shortname + '.' + stkcd] = [
                     price_open, price_high, price_low, price_close, volume]
             else:

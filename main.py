@@ -19,9 +19,10 @@ Created on Apr 16, 2018
 
 import settings as S
 import pandas as pd
-from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, scrapeEOD, unpackEOD
+from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, \
+    scrapeRecentEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
-    writeLatestPrice
+    writeLatestPrice, scrapeLatestPrice, connectStocksListing
 from utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
@@ -59,7 +60,7 @@ def dbUpdateLatest(eodlist=''):
 
 
 def scrapeI3eod(sname, scode, lastdt):
-    eodStock = scrapeEOD(connectRecentPrices(scode), lastdt)
+    eodStock = scrapeRecentEOD(connectRecentPrices(scode), lastdt)
     if eodStock is None or not eodStock:
         print "ERR:No Result for ", sname, scode
         return None
@@ -118,7 +119,30 @@ def scrapeI3(stocklist):
     return eodlist
 
 
-def checkLastTradingDay(lastdt):
+def checkI3LastTradingDay(lastdt):
+    dt, popen, pclose, vol = scrapeRecentEOD(connectRecentPrices("1295"), lastdt, True)
+    popen2, pclose2, vol2 = scrapeLatestPrice(connectStocksListing("P"), "1295")
+    if S.DBG_ALL:
+        print dt, popen, pclose, vol, popen2, pclose2, vol2
+    if dt == lastdt:
+        dates = [dt]
+        if popen == popen2 and pclose == pclose2 and vol == vol2:
+            # Post processing mode on the following day
+            return [lastdt]
+        else:
+            # Use i3 latest price
+            dates.append(getToday('%Y-%m-%d'))
+        return dates
+    else:
+        if lastdt > dt:
+            # post processing mode on the same day
+            return [lastdt]
+
+    # lastdt < dt, Need to update multiple dates
+    return ['1', '2', '3']
+
+
+def checkInvComLastTradingDay(lastdt):
     idmap = loadIdMap('scrapers/investingcom/klse.idmap')
     eod = InvestingQuote(idmap, 'PBBANK', getDayBefore(lastdt))
     if isinstance(eod.response, unicode):
@@ -237,7 +261,11 @@ def scrapeKlse(procmode, force_update):
         dates.append(lastdt)
         dates.append(getToday('%Y-%m-%d'))
     else:
-        dates = checkLastTradingDay(lastdt)
+        if 1 == 1:
+            # use i3 instead of investing.com due to delayed updating of EOD since 4Q 2018
+            dates = checkI3LastTradingDay(lastdt)
+        else:
+            dates = checkInvComLastTradingDay(lastdt)
     if dates is None or (len(dates) == 1 and dates[0] == lastdt):
         if procmode:
             print "Post updating mode ON"

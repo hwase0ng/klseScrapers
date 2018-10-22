@@ -48,7 +48,7 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
     return dt, price_open, prange[1], prange[0], price_close, volume
 
 
-def scrapeEOD(soup, start):
+def scrapeRecentEOD(soup, start, checkLastTrading=False):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
         return None
@@ -63,6 +63,9 @@ def scrapeEOD(soup, start):
         eod = [x.text.strip() for x in td]
         if len(eod) == 6:
             dt, price_open, price_high, price_low, price_close, volume = unpackTD(*eod)
+            if checkLastTrading:
+                # a quick hack for now
+                return dt, price_open, price_close, volume
             if dt > start and int(volume.replace(',', '')) > 0:
                 i3eod[dt] = [price_open, price_high, price_low, price_close, volume]
             else:
@@ -84,7 +87,7 @@ def unpackEOD(popen, phigh, plow, pclose, pvol):
 if __name__ == '__main__':
     S.DBG_ALL = False
     START_DATE = "2018-03-28"
-    i3 = scrapeEOD(connectRecentPrices("6998"), START_DATE)
+    i3 = scrapeRecentEOD(connectRecentPrices("6998"), START_DATE)
     if i3 is not None:
         for key in sorted(i3.iterkeys()):
             print key + ',' + ','.join(map(str, unpackEOD(*(i3[key]))))
