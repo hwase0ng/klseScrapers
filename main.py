@@ -129,11 +129,11 @@ def checkI3LastTradingDay(lastdt):
         dates = [dt]
         if popen == popen2 and pclose == pclose2 and vol == vol2:
             # Post processing mode on the following day
-            return [lastdt]
+            pass
         else:
             now = datetime.now()
             # Use i3 latest price
-            if now.hour >= 18:
+            if now.hour >= 17:
                 # only download today's EOD if it is after 6pm local time
                 dates.append(getToday('%Y-%m-%d'))
         return dates
@@ -142,7 +142,7 @@ def checkI3LastTradingDay(lastdt):
             # post processing mode on the same day
             return [lastdt]
 
-    # lastdt < dt, Need to update multiple dates
+    # lastdt < dt, Need to update multiple dates, even for yesterday's EOD alone
     return ['1', '2', '3']
 
 
