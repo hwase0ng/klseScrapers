@@ -142,32 +142,42 @@ def unpackEOD(popen, phigh, plow, pclose, pvol):
         int(pvol.replace(',', ''))
 
 
-def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
+def i3ScrapeStocks(initials=""):
     print 'Scraping latest price from i3 ...'
-    initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    if len(initials) == 0:
+        initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     stocksListing = {}
     for initial in list(initials):
         eod = scrapeLatestPrice(connectStocksListing(initial))
         stocksListing.update(eod)
+    return stocksListing
 
+
+def unpackStockData(key, lastTradingDate, skey):
+    # key = L&G;.iew/3174
+    # IOError: [Errno 2] No such file or directory: u'.../data/L&G.iew/3174.csv'
+    if '.iew/' in key:
+        print 'INF:Replacing key:', key
+        key = key.replace('.iew/', '.')
+        print 'INF:New key:', key
+    key = key.replace(';', '')
+    stk = key.split('.')
+    shortname = stk[0].replace(';', '')
+    stockCode = stk[1]
+    eod = shortname + ',' + lastTradingDate + ',' + ','.join(
+        map(str, unpackEOD(*(skey))))
+    return eod, shortname, stockCode
+
+
+def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
+    stocksListing = i3ScrapeStocks()
     eodlist = []
 
     print ' Writing latest price from i3 ...'
     for key in sorted(stocksListing.iterkeys()):
-        # key = L&G;.iew/3174
-        # IOError: [Errno 2] No such file or directory: u'.../data/L&G.iew/3174.csv'
-        if '.iew/' in key:
-            print 'INF:Replacing key:', key
-            key = key.replace('.iew/', '.')
-            print 'INF:New key:', key
-        key = key.replace(';', '')
-        stk = key.split('.')
-        shortname = stk[0].replace(';', '')
-        stockCode = stk[1]
-        outfile = getDataDir(S.DATA_DIR) + shortname + '.' + stockCode + '.csv'
-        eod = shortname + ',' + lastTradingDate + ',' + ','.join(
-            map(str, unpackEOD(*(stocksListing[key]))))
+        eod, shortname, stockCode = unpackStockData(key, lastTradingDate, stocksListing[key])
         eodlist.append(eod)
+        outfile = getDataDir(S.DATA_DIR) + shortname + '.' + stockCode + '.csv'
         if writeEOD:
             try:
                 with open(outfile, "ab") as fh:
