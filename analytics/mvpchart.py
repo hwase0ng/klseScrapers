@@ -87,7 +87,8 @@ def annotateMVP(df, axes, MVP, cond):
 
 def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
     print "Charting: ", counter
-    fname = S.DATA_DIR + "mpv/mpv-" + counter
+    fname = S.DATA_DIR + S.MVP_DIR + counter
+    fname2 = S.DATA_DIR + S.MVP_DIR + "c" + counter
     csvfl = fname + ".csv"
     skiprow, _ = getSkipRows(csvfl, chartDays)
     if skiprow < 0:
@@ -123,65 +124,17 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
         axes[2].axhline(0, color='k', linestyle='--')
         axes[3].axhline(25, color='k', linestyle='--')
     except Exception as e:
-        # just print error and continue without required line in chart
+        # just print error and continue without the required line in chart
         print 'axhline'
         print e
 
     annotateMVP(df, axes[1], "M", 10)
     annotateMVP(df, axes[3], "V", 24)
-    '''
-    idxV = df.index[df['V'] > 24]
-    group_volume = []
-    for i in range(1, len(idxV) + 1):
-        j = i * -1
-        if idxV[j] < firstidx:
-            break
-        mpvdate = getMpvDate(df.iloc[idxV[j]]['date'])
-        vol = df.iloc[idxV[j]]['V']
-        vol = int(vol)
-        if S.DBG_ALL:
-            print j, mpvdate, vol
-        if i < len(idxV):
-            next_mpvdate = getMpvDate(df.iloc[idxV[j - 1]]['date'])
-            if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
-                group_volume.append([mpvdate[5:], str(vol)])
-                continue
-            else:
-                group_volume.append([mpvdate[5:], str(vol)])
-        else:
-            group_volume.append([mpvdate[5:], str(vol)])
 
-        strVolume = ""
-        group_volume.reverse()
-        for k in range(len(group_volume)):
-            strVolume += "> " + "<".join(group_volume[k])
-            if (k + 1) < len(group_volume) and (k + 1) % 2 == 0:
-                strVolume += ">\n"
-        group_volume = []
-        strVolume = strVolume[2:] + ">"
-        if len(strVolume) < 13:
-            strvol = strVolume
-        else:
-            strvol = strVolume[-13:]
-        idxVstart = strvol.index('<')
-        idxVend = len(strvol) - 1
-        xyx = mpvdate[:5] + strvol[idxVstart - 5: idxVstart]
-        xyy = int(strvol[idxVstart + 1: idxVend])
-
-        try:
-            axes[3].annotate(strVolume,  # mpvdate[5:] + "(" + str(vol) + ")",
-                             xycoords='data', xy=(xyx, xyy),  # xy=(mpvdate, vol),
-                             xytext=(10, 10), textcoords='offset points',
-                             size=8, arrowprops=dict(arrowstyle='-|>'))
-        except Exception as e:
-            print 'axes[1].annotate'
-            print e
-            pass
-    '''
     if showchart:
         plt.show()
     else:
-        plt.savefig(fname + ".png")
+        plt.savefig(fname2 + ".png")
     plt.close()
 
 
