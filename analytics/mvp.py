@@ -171,9 +171,9 @@ def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff):
     trigger = ""
     if mvpDaysUp > 9 and priceDiff > -0.05:
         trigger += ",M"
-    if volDiff > 24:
+    if volDiff > 24 and priceDiff > -0.05:
         trigger += ",V"
-    if len(trigger) == 0 and priceDiff > -0.05:
+    if len(trigger) == 0:
         return False
     fh = open(S.DATA_DIR + S.MVP_DIR + 'signal-' + stock + '.csv', "ab")
     fh.write(dt + trigger + '\n')
