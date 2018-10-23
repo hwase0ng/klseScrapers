@@ -4,6 +4,7 @@ Created on Dec 17, 2016
 @author: hwase0ng
 '''
 import settings as S
+from numpy import busday_count
 from matplotlib.dates import date2num
 from datetime import date, datetime, timedelta
 from utils.fileutils import tail
@@ -129,6 +130,15 @@ def change2IcomDateFmt(dt, fmt="%Y-%m-%d"):
         return ''
     newdt = datetime.strptime(dt, fmt).strftime('%m/%d/%Y')
     return newdt
+
+
+def getBusDaysBtwnDates(d1, d2):
+    year, month, day = (int(x) for x in d1.split('-'))
+    start = date(year, month, day)
+    year, month, day = (int(x) for x in d2.split('-'))
+    end = date(year, month, day)
+    days = busday_count(start, end)
+    return days
 
 
 def getDaysBtwnDates(d1, d2):
