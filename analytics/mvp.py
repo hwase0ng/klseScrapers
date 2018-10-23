@@ -1,10 +1,11 @@
 '''
-Usage: main [-pwh] [COUNTER] ...
+Usage: main [options] [COUNTER] ...
 
 Arguments:
     COUNTER           Optional counters
 Options:
     -p,--portfolio    Select portfolio from config.json
+    -u,--update       Update MVP instead of generate from scratch
     -w,--watchlist    Select watchlist from config.json
     -h,--help         This page
 
@@ -19,8 +20,8 @@ Price  - 20% up in 15 days
 
 from common import getCounters, loadCfg, formStocklist, FifoDict, loadKlseCounters
 from docopt import docopt
-from utils.dateutils import getDaysBtwnDates, getToday
-from utils.fileutils import wc_line_count
+from utils.dateutils import getDaysBtwnDates, getToday, getLastDate, getBusDaysBtwnDates
+from utils.fileutils import wc_line_count, tail2
 from pandas import read_csv
 import csv
 import settings as S
@@ -51,7 +52,7 @@ def generateMPV(counter, stkcode):
             print eodlist.pop()
 
     try:
-        fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "w")
+        fh = open(S.DATA_DIR + S.MVP_DIR + counter + '.csv', "wb")
         inputfl = S.DATA_DIR + counter + '.' + stkcode + '.csv'
         row_count = wc_line_count(inputfl)
         if row_count < S.MVP_DAYS * 2:
@@ -80,15 +81,15 @@ def generateMPV(counter, stkcode):
                     # priceDiff *= 20  # easier to view as value is below 1
                     if S.DBG_ALL and dt.startswith('2018-07'):
                         print '\t', dt, aveVol, avePrice, volDiff, priceDiff
-                    neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
+                    neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}\n'.format(
                         stock, dt, popen, phigh, plow, pclose, volume,
                         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
                     if S.DBG_ALL:
                         print neweod
                     if i > S.MVP_DAYS:  # skip first 15 dummy records
-                        fh.write(neweod + '\n')
+                        fh.write(neweod)
                         if getDaysBtwnDates(dt, today) < S.MVP_DAYS:
-                            updateMpvSignals(stock, dt, mvpDaysUp, volDiff)
+                            updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff)
                     eodlist.append(neweod.split(','))
                     lasteod = line
             except Exception:
@@ -113,7 +114,7 @@ def getSkipRows(csvfl, skipdays=S.MVP_DAYS):
 
 
 def updateMPV(counter, stkcode, eod):
-    fname = S.DATA_DIR + "mpv/mpv-" + counter
+    fname = S.DATA_DIR + S.MVP_DIR + counter
     csvfl = fname + ".csv"
     skiprow, row_count = getSkipRows(csvfl)
     if row_count <= 0:
@@ -125,14 +126,18 @@ def updateMPV(counter, stkcode, eod):
                 traceback.print_exc()
         return
 
-    df = read_csv(csvfl, sep=',', skiprows=skiprow,
-                  header=None, index_col=False, parse_dates=['date'],
+    df = read_csv(csvfl, sep=',', skiprows=skiprow, header=None, index_col=False,
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
 
+    if S.DBG_ALL:
+        print df.iloc[0]['date'], df.iloc[-1]['date']
     eoddata = eod.split(',')
     stock = eoddata[0]
     dt = eoddata[1]
+    if dt <= df.iloc[-1]['date']:
+        print "Wrong date:", dt, "is less than", df.iloc[-1]['date']
+        return
     popen = float(eoddata[2])
     phigh = float(eoddata[3])
     plow = float(eoddata[4])
@@ -142,7 +147,7 @@ def updateMPV(counter, stkcode, eod):
         dayUp = 1
     else:
         dayUp = 0
-    mvpDaysUp = df.iloc[0]['M']
+    mvpDaysUp = df.iloc[-1]['M']
     mvpDaysUp = mvpDaysUp + dayUp - int(df.iloc[0]['dayB4 motion'])
     totalPrice = float(df.iloc[-1]['total price']) + float(pclose) - float(df.iloc[0]['close'])
     totalVol = float(df.iloc[-1]['total vol']) + float(volume) - float(df.iloc[0]['volume'])
@@ -150,33 +155,48 @@ def updateMPV(counter, stkcode, eod):
     avePrice = float(df.iloc[0]['total price']) / S.MVP_DAYS
     volDiff = (float(volume) - aveVol) / aveVol
     priceDiff = (float(pclose) - avePrice) / avePrice
-    neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
-        stock, dt, popen, phigh, plow, pclose, volume,
+    neweod = '{},{},{:.4f},{:.4f},{:.4f},{:.4f},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
+        stock, dt, popen, phigh, plow, pclose, int(volume),
         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
     if S.DBG_ALL:
         print neweod
-    fh = open(S.DATA_DIR + 'mpv/mpv-' + counter + '.csv', "ab")
+    fh = open(S.DATA_DIR + S.MVP_DIR + counter + '.csv', "ab")
     fh.write(neweod + '\n')
     fh.close()
 
-    return updateMpvSignals(stock, dt, mvpDaysUp, volDiff)
+    return updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff)
 
 
-def updateMpvSignals(stock, dt, mvpDaysUp, volDiff):
+def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff):
     if mvpDaysUp <= 9 and volDiff <= 24:
         return False
     trigger = ""
-    if mvpDaysUp > 9:
+    if mvpDaysUp > 9 and priceDiff >= 0:
         trigger += ",M"
     if volDiff > 24:
         trigger += ",V"
-    fh = open(S.DATA_DIR + 'mpv/mpv-signal-' + stock + '.csv', "ab")
+    fh = open(S.DATA_DIR + S.MVP_DIR + 'signal-' + stock + '.csv', "ab")
     fh.write(dt + trigger + '\n')
     fh.close()
-    fh = open(S.DATA_DIR + 'mpv/mpv-signal-' + dt + '.csv', "ab")
+    fh = open(S.DATA_DIR + S.MVP_DIR + 'signal-' + dt + '.csv', "ab")
     fh.write(stock + trigger + '\n')
     fh.close()
     return True
+
+
+def mvpUpdateMPV(counter, scode):
+    inputfl = S.DATA_DIR + counter + "." + scode + ".csv"
+    lastdt = getLastDate(inputfl)
+    fname = S.DATA_DIR + S.MVP_DIR + counter
+    csvfl = fname + ".csv"
+    mvpdt = getLastDate(csvfl)
+    days = getBusDaysBtwnDates(mvpdt, lastdt)
+    if days <= 0:
+        print "Already latest: ", counter, lastdt
+        return None
+    lines = tail2(inputfl, days)
+    for eod in lines:
+        updateMPV(counter, scode, eod)
 
 
 if __name__ == '__main__':
@@ -196,4 +216,7 @@ if __name__ == '__main__':
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
             continue
-        generateMPV(shortname, stocklist[shortname])
+        if not args['--update']:
+            generateMPV(shortname, stocklist[shortname])
+        else:
+            mvpUpdateMPV(shortname, stocklist[shortname])
