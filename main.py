@@ -30,13 +30,14 @@ from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap,
     getCounters
 from utils.fileutils import cd, purgeOldFiles
 from scrapers.dbKlseEod import dbUpsertCounters, initKlseDB
+from docopt import docopt
+from datetime import datetime
 import os
 import subprocess
 import tarfile
 import glob
 import fileinput
 import csv
-from docopt import docopt
 
 
 def dbUpdateLatest(eodlist=''):
@@ -130,8 +131,11 @@ def checkI3LastTradingDay(lastdt):
             # Post processing mode on the following day
             return [lastdt]
         else:
+            now = datetime.now()
             # Use i3 latest price
-            dates.append(getToday('%Y-%m-%d'))
+            if now.hour >= 18:
+                # only download today's EOD if it is after 6pm local time
+                dates.append(getToday('%Y-%m-%d'))
         return dates
     else:
         if lastdt > dt:
