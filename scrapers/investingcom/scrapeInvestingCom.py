@@ -17,7 +17,8 @@ import numpy as np
 import datetime
 import math
 from scrapers.investingcom.scrapeStocksListing import writeStocksListing
-from utils.dateutils import getLastDate, getToday
+from utils.dateutils import getLastDate, getToday, getDaysBtwnDates,\
+    getDayOffset, getNextDay
 from scrapers.yahoo.yahoo import getYahooCookie, YahooQuote
 
 sys.path.append('../../')
@@ -114,7 +115,10 @@ class Quote(object):
                 Convert k to 1000 and m to 1000000
                 Important: Can only support max 5 months of EOD to convert
                 '''
-                df["Volume"] = pd.eval(df["Vol."].replace(mp.keys(), mp.values(), regex=True).str.replace(r'[^\d\.\*]+', ''))
+                try:
+                    df["Volume"] = pd.eval(df["Vol."].replace(mp.keys(), mp.values(), regex=True).str.replace(r'[^\d\.\*]+', ''))
+                except Exception:
+                    df['Volume'] = df["Vol."]
 
             df.drop('Price', axis=1, inplace=True)
             df.drop('Change %', axis=1, inplace=True)
@@ -195,7 +199,7 @@ def unpackEOD(sname, sdate, popen, phigh, plow, pclose, pvol):
     return sname, sdate, \
         "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), \
         "{:.4f}".format(float(plow)), "{:.4f}".format(float(pclose)), \
-        int(str(pvol).replace('-', '0'))
+        int(str(int(pvol)).replace('-', '0'))
 
 
 def scrapeKlseRelated(klsemap, WRITE_CSV=True):
@@ -220,30 +224,40 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
         enddt = getToday('%Y-%m-%d')
         print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
             shortname, stock_code, lastdt, enddt)
-        eod = InvestingQuote(idmap, shortname, lastdt, enddt)
-        if S.DBG_ALL:
-            for item in eod:
-                print item
-        if len(eod.getCsvErr()) > 0:
-            print eod.getCsvErr()
-        elif isinstance(eod.response, unicode):
-            dfEod = eod.to_df()
-            if isinstance(dfEod, pd.DataFrame):
-                if S.DBG_ICOM:
-                    print dfEod[:5]
-                if WRITE_CSV:
-                    dfEod.index.name = 'index'
-                    dfEod.to_csv(TMP_FILE, index=False, header=False)
-                dates = pd.to_datetime(dfEod["Date"], format='%Y%m%d')
-                dfEod["Date"] = dates.dt.strftime('%Y-%m-%d').tolist()
-                elist = dfEod.values.tolist()[0]
-                eodlist.append(','.join(map(str, unpackEOD(*elist))))
+        while True:
+            startdt = lastdt
+            if getDaysBtwnDates(lastdt, enddt) > 30 * 3:  # do 3 months at a time
+                stopdt = getDayOffset(startdt, 30 * 3)
+                lastdt = getNextDay(stopdt)
             else:
-                print "ERR:" + dfEod + ": " + shortname + "," + lastdt
-                rtn_code = -2
+                stopdt = enddt
+            eod = InvestingQuote(idmap, shortname, startdt, stopdt)
+            if S.DBG_ALL:
+                for item in eod:
+                    print item
+            if len(eod.getCsvErr()) > 0:
+                print eod.getCsvErr()
+            elif isinstance(eod.response, unicode):
+                dfEod = eod.to_df()
+                if isinstance(dfEod, pd.DataFrame):
+                    if S.DBG_ICOM:
+                        print dfEod[:5]
+                    if WRITE_CSV:
+                        dfEod.index.name = 'index'
+                        dfEod.to_csv(TMP_FILE, index=False, header=False)
+                    dates = pd.to_datetime(dfEod["Date"], format='%Y%m%d')
+                    dfEod["Date"] = dates.dt.strftime('%Y-%m-%d').tolist()
+                    elist = dfEod.values.tolist()[0]
+                    eodlist.append(','.join(map(str, unpackEOD(*elist))))
+                else:
+                    print "ERR:" + dfEod + ": " + shortname + "," + lastdt
+                    rtn_code = -2
 
-        if WRITE_CSV:
-            appendCsv(rtn_code, OUTPUT_FILE)
+            if WRITE_CSV:
+                appendCsv(rtn_code, OUTPUT_FILE)
+
+            if stopdt == enddt:
+                break
 
     return eodlist
 
@@ -284,6 +298,8 @@ if __name__ == '__main__':
     S.DBG_ICOM = False
     WRITE_CSV = True
     S.RESUME_FILE = True
+
+    # scrapeKlseRelated('klse.idmap', False)
 
     '''
     stocks = 'ALAQAR,AMFIRST,ARREIT,ATRIUM,AXREIT,CAP,CLIQ,CLOUD,CSL,FOCUSP,GDB,GFM,GNB,HLCAP,ICAP,JMEDU,KINSTEL,MSPORTS,NPS,PARLO,PERDANA,PETONE,PINEAPP,QES,RALCO,SONA,TIMWELL,TWRREIT,WEGMANS,WINTONI,XINQUAN'
