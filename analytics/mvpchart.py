@@ -30,59 +30,57 @@ def getMpvDate(dfdate):
 
 
 def annotateMVP(df, axes, MVP, cond):
-    idxM = df.index[df[MVP] > cond]
+    idxMV = df.index[df[MVP] > cond]
     group_mvp = []
-    for i in range(1, len(idxM) + 1):
+    dHigh = ""
+    mvHigh = 0
+    for i in range(1, len(idxMV) + 1):
         j = i * -1
-        if i > len(df.index) or idxM[j] < 0:
+        if i > len(df.index) or idxMV[j] < 0:
             break
-        mpvdate = getMpvDate(df.iloc[idxM[j]]['date'])
-        mv = df.iloc[idxM[j]][MVP]
+        mpvdate = getMpvDate(df.iloc[idxMV[j]]['date'])
+        mv = df.iloc[idxMV[j]][MVP]
         mv = int(mv)
         if S.DBG_ALL:
             print j, mpvdate, mv
-        if i < len(idxM):
-            next_mpvdate = getMpvDate(df.iloc[idxM[j - 1]]['date'])
-            if getDaysBtwnDates(next_mpvdate, mpvdate) < 5:
-                group_mvp.append([mpvdate[5:], str(mv)])
-                continue
-            else:
-                group_mvp.append([mpvdate[5:], str(mv)])
-        else:
+        if i <= len(idxMV):
+            group_mvp.append([mpvdate[5:], str(mv)])
+            if mv > mvHigh:
+                mvHigh = mv
+                dHigh = mpvdate
+                mid = len(group_mvp) - 1
+            if i < len(idxMV):
+                next_mpvdate = getMpvDate(df.iloc[idxMV[j - 1]]['date'])
+                if getDaysBtwnDates(next_mpvdate, mpvdate) < 8:
+                    continue
+        if len(group_mvp) == 0:
+            mvHigh = mv
+            dHigh = mpvdate
             group_mvp.append([mpvdate[5:], str(mv)])
 
         strMVP = ""
-        group_mvp.reverse()
-        for k in range(len(group_mvp)):
-            strMVP += "> " + "<".join(group_mvp[k])
-            if (k + 1) < len(group_mvp) and (k + 1) % 2 == 0:
-                strMVP += ">\n"
-        group_mvp = []
-        strMVP = "   " + strMVP[2:] + ">"
-        # xyx = mpvdate[:5] + strMVP[-10:-4]
-        # xyy = int(strMVP[-3:-1])
-        if len(strMVP) < 11:
-            strM = strMVP
+        if len(group_mvp) > 4:
+            strMVP = "<".join(group_mvp[-1]) + "> " + \
+                "<".join(group_mvp[mid]) + "> " + "<".join(group_mvp[0]) + ">"
         else:
-            strM = strMVP[-11:]
-        idxStart = strM.index('<')
-        idxEnd = len(strM) - 1
-        '''
-        try:
-            idxEnd = strM.index('.')
-        except Exception:
-            idxEnd = len(strM) - 1
-        '''
-        xyx = mpvdate[:5] + strM[idxStart - 5: idxStart]
-        xyy = int(strM[idxStart + 1: idxEnd])
+            group_mvp.reverse()
+            for k in range(len(group_mvp)):
+                strMVP += "> " + "<".join(group_mvp[k])
+                if (k + 1) < len(group_mvp) and (k + 1) % 2 == 0:
+                    strMVP += ">\n"
+            strMVP = "   " + strMVP[2:] + ">"
+        group_mvp = []
 
         try:
-            axes.annotate(strMVP, size=8, xycoords='data', xy=(xyx, xyy),
+            axes.annotate(strMVP, size=8, xycoords='data', xy=(dHigh, mvHigh),
                           xytext=(10, 10), textcoords='offset points',
                           arrowprops=dict(arrowstyle='-|>'))
         except Exception as e:
             print 'axes.annotate', MVP, cond
             print e
+        finally:
+            dHigh = ""
+            mvHigh = 0
 
 
 def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
