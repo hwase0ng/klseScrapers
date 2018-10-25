@@ -199,7 +199,7 @@ def unpackEOD(sname, sdate, popen, phigh, plow, pclose, pvol):
     return sname, sdate, \
         "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), \
         "{:.4f}".format(float(plow)), "{:.4f}".format(float(pclose)), \
-        int(str(int(pvol)).replace('-', '0'))
+        "{:.1f}".format(float(str(pvol).replace('-', '0')))
 
 
 def scrapeKlseRelated(klsemap, WRITE_CSV=True):
