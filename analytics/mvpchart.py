@@ -18,11 +18,12 @@ Created on Oct 16, 2018
 from common import getCounters, loadCfg, formStocklist, loadKlseCounters
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
-from pandas import read_csv
 from matplotlib import pyplot as plt, dates as mdates
 from mvp import getSkipRows
-import numpy as np
+from pandas import read_csv
 from peakutils import peak
+import numpy as np
+import operator
 import settings as S
 
 
@@ -108,10 +109,12 @@ def dfFromCsv(counter, chartDays=S.MVP_CHART_DAYS):
 
 
 def indpeaks(vector, threshold=0.1, dist=5):
+    if S.DBG_ALL:
+        print threshold, max(vector), threshold / max(vector), vector[0], vector[0] * -1
     pIndexes = peak.indexes(np.array(vector),
                             thres=threshold / max(vector), min_dist=dist)
     nIndexes = peak.indexes(np.array(vector * -1),
-                            thres=threshold / max(vector), min_dist=dist)
+                            thres=threshold, min_dist=dist)
     return pIndexes, nIndexes
 
 
@@ -119,13 +122,19 @@ def findpeaks(df, mh, ph, vh):
     cIndexesP, cIndexesN = indpeaks(df['close'])
     mIndexesP, mIndexesN = indpeaks(df['M'])
     pIndexesP, pIndexesN = indpeaks(df['P'], ph * -1)
-    vIndexesP, vIndexesN = indpeaks(df['V'])
+    vIndexesP, vIndexesN = indpeaks(df['V'], float(vh / 5) if vh > 20 else float(vh / 3))
     if S.DBG_ALL:
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
         print('M Peaks are: %s, %s' % (mIndexesP, mIndexesN))
         print('P Peaks are: %s, %s' % (pIndexesP, pIndexesN))
         print('V Peaks are: %s, %s' % (vIndexesP, vIndexesN))
-    return cIndexesP, cIndexesN, mIndexesP, mIndexesN, pIndexesP, pIndexesN, vIndexesP, vIndexesN
+    cmpvIndexesP = {'C': cIndexesP, 'M': mIndexesP, 'P': pIndexesP, 'V': vIndexesP}
+    cmpvIndexesN = {'C': cIndexesN, 'M': mIndexesN, 'P': pIndexesN, 'V': vIndexesN}
+    clenP, mlenP, plenP, vlenP = len(cIndexesP), len(mIndexesP), len(pIndexesP), len(vIndexesP)
+    clenN, mlenN, plenN, vlenN = len(cIndexesN), len(mIndexesN), len(pIndexesN), len(vIndexesN)
+    cmpvCountP = {'C': clenP, 'M': mlenP, 'P': plenP, 'V': vlenP}
+    cmpvCountN = {'C': clenN, 'M': mlenN, 'P': plenN, 'V': vlenN}
+    return cmpvIndexesP, cmpvIndexesN, cmpvCountP, cmpvCountN
 
 
 def locatepeaks(datesVector, cmpvVector, indexes):
@@ -139,7 +148,15 @@ def locatepeaks(datesVector, cmpvVector, indexes):
     return x, y
 
 
-def plotpeaks(df, ax, ciP, ciN, miP, miN, piP, piN, viP, viN, plotp=True):
+def plotpeaks(df, ax, cIP, cIN, cCP, cCN, plotp=True):
+    ciP = cIP['C']
+    ciN = cIN['C']
+    miP = cIP['M']
+    miN = cIN['M']
+    piP = cIP['P']
+    piN = cIN['P']
+    viP = cIP['V']
+    viN = cIN['V']
     cxp, cyp = locatepeaks(df['date'], df['close'], ciP)
     cxn, cyn = locatepeaks(df['date'], df['close'], ciN)
     mxp, myp = locatepeaks(df['date'], df['M'], miP)
@@ -167,7 +184,100 @@ def plotpeaks(df, ax, ciP, ciN, miP, miN, piP, piN, viP, viN, plotp=True):
         if vxn is not None:
             ax[3].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
 
-    return cxp, cyp, cxn, cyn, mxp, myp, myp, myn, pxp, pyp, pxn, pyn, vxp, vyp, vyp, vyn
+    return cIP, cIN, cCP, cCN, \
+        cxp, cyp, cxn, cyn, mxp, myp, mxn, myn, \
+        pxp, pyp, pxn, pyn, vxp, vyp, vxn, vyn
+
+
+def formCmpvlines(cindexes, ccount):
+    cmpvlist = sorted(ccount.items(), key=operator.itemgetter(1), reverse=True)
+    cmpvlines = {}
+    for i in range(len(cmpvlist) - 1):
+        for j in range(i + 1, len(cmpvlist) - 1):
+            if S.DBG_ALL:
+                print i, j, cmpvlist[i][0], cmpvlist[j][0]
+            cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = \
+                np.in1d(cindexes[cmpvlist[i][0]], cindexes[cmpvlist[j][0]])
+    '''
+    Sample cmpvlines:
+    'CP': array([ False, False, False, False, False, False, False, False, True, False, False,  True, False]),
+    'CM': array([ False, False, False, False, False,  True, False, False, True, False, False, False, False]),
+    'PM': array([ False,  True, False, False, False,  True, False, False])}
+    '''
+    return cmpvlines
+
+
+def markPoint(k, pos, cx, cy, mx, my, px, py, vx, vy):
+    p = [cx[pos], cy[pos]] if k == 'C' else \
+        [mx[pos], my[pos]] if k == 'M' else \
+        [px[pos], py[pos]] if k == 'P' else \
+        [vx[pos], vy[pos]]
+    return p
+
+
+def plotlines(axes, cmpvlines, cx, cy, mx, my, px, py, vx, vy, color):
+    cmpv = {'C': 0, 'M': 1, 'P': 2, 'V': 3}
+    for k, v in cmpvlines.iteritems():
+        if sum(val for val in v) < 2:
+            continue
+        p1, p2 = [], []
+        items = np.nonzero(v)[0]
+        for val in items:
+            p1.append(markPoint(k[0], val, cx, cy, mx, my, px, py, vx, vy))
+            val = cx.index(p1[-1][0]) if k[1] == 'C' else \
+                mx.index(p1[-1][0]) if k[1] == 'M' else \
+                px.index(p1[-1][0]) if k[1] == 'P' else \
+                vx.index(p1[-1][0])
+            if val < 0:
+                print "Error:", p1[-1][0]
+                return False
+            p2.append(markPoint(k[1], val, cx, cy, mx, my, px, py, vx, vy))
+        p3 = np.transpose(np.asarray(p1, dtype=object))
+        p4 = np.transpose(np.asarray(p2, dtype=object))
+        p1x = list(p3[0])
+        p2x = list(p4[0])
+        p1y = list(p3[1])
+        p2y = list(p4[1])
+        d1 = list(np.ediff1d(p1y))
+        d2 = list(np.ediff1d(p2y))
+        for i in xrange(len(d1) - 1, 0, -1):
+            # start from the back
+            if (d1[i] > 0 and d2[i] < 0) or \
+               (d1[i] < 0 and d2[i] > 0):
+                # divergence detected
+                if color == 'r':
+                    lstyle = "-" if d1[i] > 0 else "--"
+                else:
+                    lstyle = "--" if d1[i] > 0 else "-"
+                axes[cmpv[k[0]]].annotate("", xy=(p1x[i], p1y[i]),
+                                          xycoords='data',
+                                          xytext=(p1x[i + 1], p1y[i + 1]),
+                                          arrowprops=dict(arrowstyle="-", color=color,
+                                                          linestyle=lstyle,
+                                                          connectionstyle="arc3,rad=0."),
+                                          )
+                axes[cmpv[k[1]]].annotate("", xy=(p2x[i], p2y[i]),
+                                          xycoords='data',
+                                          xytext=(p2x[i + 1], p2y[i + 1]),
+                                          arrowprops=dict(arrowstyle="-", color=color,
+                                                          linestyle=lstyle,
+                                                          connectionstyle="arc3,rad=0."),
+                                          )
+                '''
+                axes[cmpv[k[0]]].plot([p1x[i], p1x[i + 1]],
+                                      [p1y[i], p1y[i + 1]])
+                axes[cmpv[k[1]]].plot([p2x[i], p2x[i + 1]],
+                                      [p2y[i], p2y[i + 1]])
+                '''
+
+
+def line_divergence(axes, cIP, cIN, cCP, cCN,
+                    cxp, cyp, cxn, cyn, mxp, myp, mxn, myn,
+                    pxp, pyp, pxn, pyn, vxp, vyp, vxn, vyn):
+    cmpvlinesP = formCmpvlines(cIP, cCP)
+    cmpvlinesN = formCmpvlines(cIN, cCN)
+    plotlines(axes, cmpvlinesP, cxp, cyp, mxp, myp, pxp, pyp, vxp, vyp, 'r')
+    plotlines(axes, cmpvlinesN, cxn, cyn, mxn, myn, pxn, pyn, vxn, vyn, 'g')
 
 
 def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
@@ -196,10 +306,21 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
     axlabel.set_visible(False)
 
     mHigh = annotateMVP(df, axes[1], "M", 10)
+    if mHigh == 0:
+        mHigh = df.iloc[df['M'].idxmax()]['M']
     vHigh = annotateMVP(df, axes[3], "V", 24)
+    if vHigh == 0:
+        vHigh = df.iloc[df['V'].idxmax()]['V']
     pHigh = df.iloc[df['P'].idxmax()]['P']
     try:
-        plotpeaks(df, axes, *findpeaks(df, mHigh, pHigh, vHigh))
+        line_divergence(axes,
+                        *plotpeaks(df, axes,
+                                   *findpeaks(df, mHigh, pHigh, vHigh)))
+    except Exception as e:
+        # just print error and continue without the required line in chart
+        print 'line divergence exception:'
+        print e
+    try:
         if mHigh > 6:
             axes[1].axhline(10, color='r', linestyle='--')
         else:
@@ -210,7 +331,7 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
             axes[3].axhline(25, color='k', linestyle='--')
     except Exception as e:
         # just print error and continue without the required line in chart
-        print 'axhline'
+        print 'axhline exception:'
         print e
 
     if showchart:
