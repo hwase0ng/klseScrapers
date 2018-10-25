@@ -21,6 +21,8 @@ from docopt import docopt
 from pandas import read_csv
 from matplotlib import pyplot as plt, dates as mdates
 from mvp import getSkipRows
+import numpy as np
+from peakutils import peak
 import settings as S
 
 
@@ -31,9 +33,12 @@ def getMpvDate(dfdate):
 
 def annotateMVP(df, axes, MVP, cond):
     idxMV = df.index[df[MVP] > cond]
+    if len(idxMV) == 0:
+        return 0
     group_mvp = []
     dHigh = ""
     mvHigh = 0
+    mvHighest = 0
     for i in range(1, len(idxMV) + 1):
         j = i * -1
         if i > len(df.index) or idxMV[j] < 0:
@@ -79,25 +84,98 @@ def annotateMVP(df, axes, MVP, cond):
             print 'axes.annotate', MVP, cond
             print e
         finally:
+            if mvHigh > mvHighest:
+                mvHighest = mvHigh
             dHigh = ""
             mvHigh = 0
 
+    return mvHighest
 
-def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
-    print "Charting: ", counter
+
+def dfFromCsv(counter, chartDays=S.MVP_CHART_DAYS):
     fname = S.DATA_DIR + S.MVP_DIR + counter
     fname2 = S.DATA_DIR + S.MVP_DIR + "c" + counter
     csvfl = fname + ".csv"
     skiprow, _ = getSkipRows(csvfl, chartDays)
     if skiprow < 0:
-        return
+        return None, skiprow, None
     # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
     df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
                   skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
-    if len(df.index) <= 0:
+    return df, skiprow, fname2
+
+
+def indpeaks(vector, threshold=0.1, dist=5):
+    pIndexes = peak.indexes(np.array(vector),
+                            thres=threshold / max(vector), min_dist=dist)
+    nIndexes = peak.indexes(np.array(vector * -1),
+                            thres=threshold / max(vector), min_dist=dist)
+    return pIndexes, nIndexes
+
+
+def findpeaks(df, mh, ph, vh):
+    cIndexesP, cIndexesN = indpeaks(df['close'])
+    mIndexesP, mIndexesN = indpeaks(df['M'])
+    pIndexesP, pIndexesN = indpeaks(df['P'], ph * -1)
+    vIndexesP, vIndexesN = indpeaks(df['V'])
+    if S.DBG_ALL:
+        print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
+        print('M Peaks are: %s, %s' % (mIndexesP, mIndexesN))
+        print('P Peaks are: %s, %s' % (pIndexesP, pIndexesN))
+        print('V Peaks are: %s, %s' % (vIndexesP, vIndexesN))
+    return cIndexesP, cIndexesN, mIndexesP, mIndexesN, pIndexesP, pIndexesN, vIndexesP, vIndexesN
+
+
+def locatepeaks(datesVector, cmpvVector, indexes):
+    if len(indexes) <= 0:
+        return None, None
+    x = []
+    y = []
+    for i in indexes:
+        x.append(getMpvDate(datesVector[i]))
+        y.append(cmpvVector[i])
+    return x, y
+
+
+def plotpeaks(df, ax, ciP, ciN, miP, miN, piP, piN, viP, viN, plotp=True):
+    cxp, cyp = locatepeaks(df['date'], df['close'], ciP)
+    cxn, cyn = locatepeaks(df['date'], df['close'], ciN)
+    mxp, myp = locatepeaks(df['date'], df['M'], miP)
+    mxn, myn = locatepeaks(df['date'], df['M'], miN)
+    pxp, pyp = locatepeaks(df['date'], df['P'], piP)
+    pxn, pyn = locatepeaks(df['date'], df['P'], piN)
+    vxp, vyp = locatepeaks(df['date'], df['V'], viP)
+    vxn, vyn = locatepeaks(df['date'], df['V'], viN)
+
+    if plotp:
+        if cxp is not None:
+            ax[0].scatter(x=cxp, y=cyp, marker='.', c='r', edgecolor='b')
+        if cxn is not None:
+            ax[0].scatter(x=cxn, y=cyn, marker='.', c='b', edgecolor='r')
+        if mxp is not None:
+            ax[1].scatter(x=mxp, y=myp, marker='.', c='r', edgecolor='b')
+        if mxn is not None:
+            ax[1].scatter(x=mxn, y=myn, marker='.', c='b', edgecolor='r')
+        if pxp is not None:
+            ax[2].scatter(x=pxp, y=pyp, marker='.', c='r', edgecolor='b')
+        if pxn is not None:
+            ax[2].scatter(x=pxn, y=pyn, marker='.', c='b', edgecolor='r')
+        if vxp is not None:
+            ax[3].scatter(x=vxp, y=vyp, marker='.', c='r', edgecolor='b')
+        if vxn is not None:
+            ax[3].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
+
+    return cxp, cyp, cxn, cyn, mxp, myp, myp, myn, pxp, pyp, pxn, pyn, vxp, vyp, vyp, vyn
+
+
+def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
+    df, skiprow, fname2 = dfFromCsv(counter, chartDays)
+    if skiprow < 0 or len(df.index) <= 0:
+        print "No chart for ", counter, skiprow
         return
+    print "Charting: ", counter
     mpvdate = getMpvDate(df.iloc[-1]['date'])
     '''
     if len(df.index) >= abs(chartDays):
@@ -116,18 +194,24 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
     ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     axlabel = ax1.get_label()
     axlabel.set_visible(False)
+
+    mHigh = annotateMVP(df, axes[1], "M", 10)
+    vHigh = annotateMVP(df, axes[3], "V", 24)
+    pHigh = df.iloc[df['P'].idxmax()]['P']
     try:
-        axes[1].axhline(10, color='r', linestyle='--')
+        plotpeaks(df, axes, *findpeaks(df, mHigh, pHigh, vHigh))
+        if mHigh > 6:
+            axes[1].axhline(10, color='r', linestyle='--')
+        else:
+            axes[1].axhline(-5, color='r', linestyle='--')
         axes[1].axhline(5, color='k', linestyle='--')
         axes[2].axhline(0, color='k', linestyle='--')
-        axes[3].axhline(25, color='k', linestyle='--')
+        if vHigh > 20:
+            axes[3].axhline(25, color='k', linestyle='--')
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'axhline'
         print e
-
-    annotateMVP(df, axes[1], "M", 10)
-    annotateMVP(df, axes[3], "V", 24)
 
     if showchart:
         plt.show()
