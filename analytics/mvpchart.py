@@ -139,16 +139,18 @@ def findpeaks(df, mh, ph, vh):
 
 def locatepeaks(datesVector, cmpvVector, indexes):
     if len(indexes) <= 0:
-        return None, None
-    x = []
-    y = []
-    for i in indexes:
-        x.append(getMpvDate(datesVector[i]))
-        y.append(cmpvVector[i])
-    return x, y
+        return None, None, None, None
+    x, y = [], []
+    posindex, dateindex = {}, {}
+    for i, index in enumerate(indexes):
+        x.append(getMpvDate(datesVector[index]))
+        y.append(cmpvVector[index])
+        posindex[i] = [index, x[-1], y[-1]]
+        dateindex[x[-1]] = y[-1]
+    return x, y, posindex, dateindex
 
 
-def plotpeaks(df, ax, cIP, cIN, cCP, cCN, plotp=True):
+def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     ciP = cIP['C']
     ciN = cIN['C']
     miP = cIP['M']
@@ -157,16 +159,28 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN, plotp=True):
     piN = cIN['P']
     viP = cIP['V']
     viN = cIN['V']
-    cxp, cyp = locatepeaks(df['date'], df['close'], ciP)
-    cxn, cyn = locatepeaks(df['date'], df['close'], ciN)
-    mxp, myp = locatepeaks(df['date'], df['M'], miP)
-    mxn, myn = locatepeaks(df['date'], df['M'], miN)
-    pxp, pyp = locatepeaks(df['date'], df['P'], piP)
-    pxn, pyn = locatepeaks(df['date'], df['P'], piN)
-    vxp, vyp = locatepeaks(df['date'], df['V'], viP)
-    vxn, vyn = locatepeaks(df['date'], df['V'], viN)
+    cxp, cyp, ciP, dciP = locatepeaks(df['date'], df['close'], ciP)
+    cxn, cyn, ciN, dciN = locatepeaks(df['date'], df['close'], ciN)
+    mxp, myp, miP, dmiP = locatepeaks(df['date'], df['M'], miP)
+    mxn, myn, miN, dmiN = locatepeaks(df['date'], df['M'], miN)
+    pxp, pyp, piP, dpiP = locatepeaks(df['date'], df['P'], piP)
+    pxn, pyn, piN, dpiN = locatepeaks(df['date'], df['P'], piN)
+    vxp, vyp, viP, dviP = locatepeaks(df['date'], df['V'], viP)
+    vxn, vyn, viN, dviN = locatepeaks(df['date'], df['V'], viN)
 
-    if plotp:
+    # Nested dictionary structure:
+    #   cIP = {'C': {0: [pos1, xdate1, yval1], 1: [pos2, xdate2, yval2]}, ....
+    #          'M': {0: [pos1, xdate1, yval1], 1: [pos2, xdate2, yval2]}, ....
+    #          'V': {0: [pos1, xdate1, yval1], 1: [pos2, xdate2, yval2]}, ....
+    #          'P': {0: [pos1, xdate1, yval1], 1: [pos2, xdate2, yval2]}, ....
+    #  dcIP = {'C': {xdate1: yval1, xdate2: yval2, ...
+    #          'M': {xdate1: yval1, xdate2: yval2, ...
+    cIP = {'C': ciP, 'M': miP, 'P': piP, 'V': viP}
+    cIN = {'C': ciN, 'M': miN, 'P': piN, 'V': viN}
+    dcIP = {'C': dciP, 'M': dmiP, 'P': dpiP, 'V': dviP}
+    dcIN = {'C': dciN, 'M': dmiN, 'P': dpiN, 'V': dviN}
+
+    if S.MVP_PLOT_PEAKS:
         if cxp is not None:
             ax[0].scatter(x=cxp, y=cyp, marker='.', c='r', edgecolor='b')
         if cxn is not None:
@@ -184,9 +198,7 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN, plotp=True):
         if vxn is not None:
             ax[3].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
 
-    return cIP, cIN, cCP, cCN, \
-        cxp, cyp, cxn, cyn, mxp, myp, mxn, myn, \
-        pxp, pyp, pxn, pyn, vxp, vyp, vxn, vyn
+    return cIP, cIN, dcIP, dcIN, cCP, cCN
 
 
 def formCmpvlines(cindexes, ccount):
@@ -196,8 +208,15 @@ def formCmpvlines(cindexes, ccount):
         for j in range(i + 1, len(cmpvlist) - 1):
             if S.DBG_ALL:
                 print i, j, cmpvlist[i][0], cmpvlist[j][0]
-            cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = \
-                np.in1d(cindexes[cmpvlist[i][0]], cindexes[cmpvlist[j][0]])
+            list1, list2 = [], []
+            cmpv = cindexes[cmpvlist[i][0]]
+            # v = [pos, date, yval], v[0] yields pos
+            for _, v in cmpv.iteritems():
+                list1.append(v[0])
+            cmpv = cindexes[cmpvlist[j][0]]
+            for _, v in cmpv.iteritems():
+                list2.append(v[0])
+            cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = np.in1d(list1, list2)
     '''
     Sample cmpvlines:
     'CP': array([ False, False, False, False, False, False, False, False, True, False, False,  True, False]),
@@ -207,59 +226,73 @@ def formCmpvlines(cindexes, ccount):
     return cmpvlines
 
 
-def markPoint(k, pos, cx, cy, mx, my, px, py, vx, vy):
-    p = [cx[pos], cy[pos]] if k == 'C' else \
-        [mx[pos], my[pos]] if k == 'M' else \
-        [px[pos], py[pos]] if k == 'P' else \
-        [vx[pos], vy[pos]]
-    return p
-
-
-def plotlines(axes, cmpvlines, cx, cy, mx, my, px, py, vx, vy, color):
+def plotlines(axes, cmpvlines, pindexes, dindexes, peaks):
     cmpv = {'C': 0, 'M': 1, 'P': 2, 'V': 3}
+    colormap = {'C': 'b', 'M': 'orange', 'P': 'g', 'V': 'r'}
     for k, v in cmpvlines.iteritems():
         if sum(val for val in v) < 2:
+            # no lines to draw if less than 2 matching points
             continue
         p1, p2 = [], []
-        items = np.nonzero(v)[0]
+        items = np.nonzero(v)[0]  # filters for all the Trues
         for val in items:
-            p1.append(markPoint(k[0], val, cx, cy, mx, my, px, py, vx, vy))
-            val = cx.index(p1[-1][0]) if k[1] == 'C' else \
-                mx.index(p1[-1][0]) if k[1] == 'M' else \
-                px.index(p1[-1][0]) if k[1] == 'P' else \
-                vx.index(p1[-1][0])
-            if val < 0:
-                print "Error:", p1[-1][0]
-                return False
-            p2.append(markPoint(k[1], val, cx, cy, mx, my, px, py, vx, vy))
+            item = pindexes[k[0]][val]
+            xdate, yval = item[1], item[2]
+            p1.append([xdate, yval])
+            # p2's position is identified using p1's date value
+            p2.append([xdate, dindexes[k[1]][xdate]])
         p3 = np.transpose(np.asarray(p1, dtype=object))
         p4 = np.transpose(np.asarray(p2, dtype=object))
-        p1x = list(p3[0])
-        p2x = list(p4[0])
-        p1y = list(p3[1])
-        p2y = list(p4[1])
+        p1x, p1y = list(p3[0]), list(p3[1])
+        p2x, p2y = list(p4[0]), list(p4[1])
+        # compute the difference between neighboring y elements
         d1 = list(np.ediff1d(p1y))
         d2 = list(np.ediff1d(p2y))
+        # new list for quick comparison between points
+        xlist1, xlist2 = {}, {}
+        ylist1, ylist2 = [], []
+        for k2, v2 in pindexes[k[0]].iteritems():
+            xlist1[v2[1]] = k2
+            ylist1.append(v2[2])
+        for k2, v2 in pindexes[k[1]].iteritems():
+            xlist2[v2[1]] = k2
+            ylist2.append(v2[2])
         for i in xrange(len(d1) - 1, 0, -1):
             # start from the back
             if (d1[i] > 0 and d2[i] < 0) or \
                (d1[i] < 0 and d2[i] > 0):
-                # divergence detected
-                if color == 'r':
+                '''
+                divergence detected, filters non-sensible divergence
+                   e.g. points too far apart,
+                        too many higher/lower peaks in between points
+                '''
+                date1, date2 = p1x[i], p1x[i + 1]
+                y1, y2 = p1y[i], p1y[i + 1]
+                point1, point2 = xlist1[date1], xlist1[date2]
+                y = np.array(ylist1[point1:point2])
+                if S.DBG_ALL:
+                    print date1, date2, min(y1, y2), max(y1, y2), y, peaks
+                if peaks:
+                    count = y[y > min(y1, y2)]
+                    if len(count) > S.MVP_DIVERGENCE_COUNT:
+                        continue
                     lstyle = "-" if d1[i] > 0 else "--"
                 else:
+                    count = y[y < max(y1, y2)]
+                    if len(count) > S.MVP_DIVERGENCE_COUNT:
+                        continue
                     lstyle = "--" if d1[i] > 0 else "-"
-                axes[cmpv[k[0]]].annotate("", xy=(p1x[i], p1y[i]),
-                                          xycoords='data',
-                                          xytext=(p1x[i + 1], p1y[i + 1]),
-                                          arrowprops=dict(arrowstyle="-", color=color,
+                axes[cmpv[k[0]]].annotate("", xy=(date1, y1), xycoords='data',
+                                          xytext=(date2, y2),
+                                          arrowprops=dict(arrowstyle="-", color=colormap[k[1]],
                                                           linestyle=lstyle,
                                                           connectionstyle="arc3,rad=0."),
                                           )
-                axes[cmpv[k[1]]].annotate("", xy=(p2x[i], p2y[i]),
-                                          xycoords='data',
-                                          xytext=(p2x[i + 1], p2y[i + 1]),
-                                          arrowprops=dict(arrowstyle="-", color=color,
+                date1, date2 = p2x[i], p2x[i + 1]
+                y1, y2 = p2y[i], p2y[i + 1]
+                axes[cmpv[k[1]]].annotate("", xy=(date1, y1), xycoords='data',
+                                          xytext=(date2, y2),
+                                          arrowprops=dict(arrowstyle="-", color=colormap[k[0]],
                                                           linestyle=lstyle,
                                                           connectionstyle="arc3,rad=0."),
                                           )
@@ -271,13 +304,11 @@ def plotlines(axes, cmpvlines, cx, cy, mx, my, px, py, vx, vy, color):
                 '''
 
 
-def line_divergence(axes, cIP, cIN, cCP, cCN,
-                    cxp, cyp, cxn, cyn, mxp, myp, mxn, myn,
-                    pxp, pyp, pxn, pyn, vxp, vyp, vxn, vyn):
+def line_divergence(axes, cIP, cIN, dcIP, dcIN, cCP, cCN):
     cmpvlinesP = formCmpvlines(cIP, cCP)
     cmpvlinesN = formCmpvlines(cIN, cCN)
-    plotlines(axes, cmpvlinesP, cxp, cyp, mxp, myp, pxp, pyp, vxp, vyp, 'r')
-    plotlines(axes, cmpvlinesN, cxn, cyn, mxn, myn, pxn, pyn, vxn, vyn, 'g')
+    plotlines(axes, cmpvlinesP, cIP, dcIP, True)
+    plotlines(axes, cmpvlinesN, cIN, dcIN, False)
 
 
 def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
