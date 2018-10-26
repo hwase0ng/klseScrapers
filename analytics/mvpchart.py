@@ -6,6 +6,7 @@ Arguments:
 Options:
     -c,--chartdays N    Days to display on chart (defaulted 200 in settings.py)
     -d,--displaychart   Display chart, not save
+    -k,--klse           Select KLSE related from settings.py
     -p,--portfolio      Select portfolio from config.json
     -w,--watchlist      Select watchlist from config.json
     -h,--help           This page
@@ -228,7 +229,7 @@ def formCmpvlines(cindexes, ccount):
 
 def plotlines(axes, cmpvlines, pindexes, dindexes, peaks):
     cmpv = {'C': 0, 'M': 1, 'P': 2, 'V': 3}
-    colormap = {'C': 'b', 'M': 'orange', 'P': 'g', 'V': 'r'}
+    colormap = {'C': 'b', 'M': 'darkorange', 'P': 'g', 'V': 'r'}
     for k, v in cmpvlines.iteritems():
         if sum(val for val in v) < 2:
             # no lines to draw if less than 2 matching points
@@ -309,6 +310,12 @@ def line_divergence(axes, cIP, cIN, dcIP, dcIN, cCP, cCN):
     cmpvlinesN = formCmpvlines(cIN, cCN)
     plotlines(axes, cmpvlinesP, cIP, dcIP, True)
     plotlines(axes, cmpvlinesN, cIN, dcIN, False)
+    del cIP
+    del cIN
+    del dcIP
+    del dcIN
+    del cCP
+    del cCN
 
 
 def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
@@ -377,7 +384,8 @@ if __name__ == '__main__':
     cfg = loadCfg(S.DATA_DIR)
     global klse
     klse = "scrapers/i3investor/klse.txt"
-    stocks = getCounters(args['COUNTER'], args['--portfolio'], args['--watchlist'], False)
+    stocks = getCounters(args['COUNTER'], args['--klse'],
+                         args['--portfolio'], args['--watchlist'], False)
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
     else:

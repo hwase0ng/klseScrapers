@@ -105,6 +105,15 @@ def loadMap(klsemap, sep=","):
     return ID_MAPPING
 
 
+def loadKlseRelated():
+    stocklist = {}
+    counters = S.KLSE_RELATED.split(',')
+    for counter in counters:
+        counter = counter.split('.')
+        stocklist[counter[0]] = counter[1]
+    return stocklist
+
+
 def loadKlseCounters(infile):
     stocklist = {}
     with open(infile) as f:
@@ -192,10 +201,17 @@ def getMt4StartDate():
     return mt4Start
 
 
-def getCounters(counterlist, pf, wl, verbose=True):
+def getCounters(counterlist, klse, pf, wl, verbose=True):
     counters = ''
+    if klse:
+        slist = loadKlseRelated()
+        clist = list(slist.keys())
+        counters = ','.join(clist)
     if pf:
-        counters = S.I3_HOLDINGS
+        if len(counters) > 0:
+            counters += ',' + S.I3_HOLDINGS
+        else:
+            counters = S.I3_HOLDINGS
     if wl and len(S.I3_WATCHLIST) > 0:
         if len(counters) > 0:
             counters += ',' + S.I3_WATCHLIST

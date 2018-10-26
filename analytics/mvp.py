@@ -4,6 +4,7 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Optional counters
 Options:
+    -k,--klse         Select KLSE related from settings.py
     -p,--portfolio    Select portfolio from config.json
     -u,--update       Update MVP instead of generate from scratch
     -w,--watchlist    Select watchlist from config.json
@@ -20,7 +21,7 @@ Price  - 20% up in 15 days
 
 from common import getCounters, loadCfg, formStocklist, FifoDict, loadKlseCounters
 from docopt import docopt
-from utils.dateutils import getDaysBtwnDates, getToday, getLastDate, getBusDaysBtwnDates
+from utils.dateutils import getToday, getLastDate, getBusDaysBtwnDates
 from utils.fileutils import wc_line_count, tail2
 from pandas import read_csv
 import csv
@@ -29,6 +30,8 @@ import traceback
 
 
 def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volume):
+    if volume == "-":
+        volume = 0
     return counter, dt, price_open, price_high, price_low, price_close, volume
 
 
@@ -88,11 +91,12 @@ def generateMPV(counter, stkcode):
                         print neweod
                     if i > S.MVP_DAYS:  # skip first 15 dummy records
                         fh.write(neweod)
-                        if getDaysBtwnDates(dt, today) < S.MVP_DAYS:
-                            updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff)
+                        if getBusDaysBtwnDates(dt, today) < S.MVP_DAYS:
+                            updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice)
                     eodlist.append(neweod.split(','))
                     lasteod = line
             except Exception:
+                print line
                 print eodpop
                 traceback.print_exc()
     except Exception:
@@ -164,14 +168,14 @@ def updateMPV(counter, stkcode, eod):
     fh.write(neweod + '\n')
     fh.close()
 
-    return updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff)
+    return updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice)
 
 
-def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff):
+def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice):
     trigger = ""
-    if mvpDaysUp > 9 and priceDiff > -0.05:
+    if mvpDaysUp > 9 and priceDiff > -0.05 and avePrice < -0.05:
         trigger += ",M"
-    if volDiff > 24 and priceDiff > -0.05:
+    if volDiff > 24 and priceDiff > -0.05 and avePrice < -0.05:
         trigger += ",V"
     if len(trigger) == 0:
         return False
@@ -202,7 +206,8 @@ def mvpUpdateMPV(counter, scode):
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
-    stocks = getCounters(args['COUNTER'], args['--portfolio'], args['--watchlist'], False)
+    stocks = getCounters(args['COUNTER'], args['--klse'],
+                         args['--portfolio'], args['--watchlist'], False)
 
     global klse, today
     klse = "scrapers/i3investor/klse.txt"

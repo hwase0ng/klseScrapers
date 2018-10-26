@@ -325,7 +325,8 @@ if __name__ == '__main__':
     '''
     global klse
     klse = "scrapers/i3investor/klse.txt"
-    stocks = getCounters(args['COUNTER'], args['--portfolio'], args['--watchlist'], False)
+    stocks = getCounters(args['COUNTER'], args['--klse'],
+                         args['--portfolio'], args['--watchlist'], False)
     S.DBG_ALL = False
     S.RESUME_FILE = True
 
