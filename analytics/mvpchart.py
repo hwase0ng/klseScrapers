@@ -270,17 +270,20 @@ def plotlines(axes, cmpvlines, pindexes, dindexes, peaks):
                 date1, date2 = p1x[i], p1x[i + 1]
                 y1, y2 = p1y[i], p1y[i + 1]
                 point1, point2 = xlist1[date1], xlist1[date2]
-                y = np.array(ylist1[point1:point2])
+                c1y = np.array(ylist1[point1:point2])
+                c2y = np.array(ylist2[point1:point2])
                 if S.DBG_ALL:
-                    print date1, date2, min(y1, y2), max(y1, y2), y, peaks
+                    print date1, date2, min(y1, y2), max(y1, y2), c1y, peaks
                 if peaks:
-                    count = y[y > min(y1, y2)]
-                    if len(count) > S.MVP_DIVERGENCE_COUNT:
+                    c1count = c1y[c1y > min(y1, y2)]
+                    c2count = c2y[c2y > min(y1, y2)]
+                    if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_COUNT:
                         continue
                     lstyle = "-" if d1[i] > 0 else "--"
                 else:
-                    count = y[y < max(y1, y2)]
-                    if len(count) > S.MVP_DIVERGENCE_COUNT:
+                    c1count = c1y[c1y < max(y1, y2)]
+                    c2count = c2y[c2y < max(y1, y2)]
+                    if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_COUNT:
                         continue
                     lstyle = "--" if d1[i] > 0 else "-"
                 axes[cmpv[k[0]]].annotate("", xy=(date1, y1), xycoords='data',
