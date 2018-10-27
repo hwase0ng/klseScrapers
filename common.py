@@ -56,7 +56,7 @@ def loadSetting(c):
             S.DATA_DIR = datadir
         S.MVP_CHART_DAYS = c["main"]["MVP_CHART_DAYS"]
         S.MVP_DIVERGENCE_BLOCKING_COUNT = c["main"]["MVP_DIVERGENCE_BLOCKING_COUNT"]
-        S.MVP_DIVERGENCE_MATCH_TOLERANCE = c["main"]["MVP_DIVERGENCE_TOLERANCE_MATCH"]
+        S.MVP_DIVERGENCE_MATCH_TOLERANCE = c["main"]["MVP_DIVERGENCE_MATCH_TOLERANCE"]
         S.MVP_PLOT_PEAKS = c["toggle"]["MVP_PLOT_PEAKS"]
     except Exception:
         pass
