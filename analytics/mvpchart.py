@@ -96,7 +96,6 @@ def annotateMVP(df, axes, MVP, cond):
 
 def dfFromCsv(counter, chartDays=S.MVP_CHART_DAYS):
     fname = S.DATA_DIR + S.MVP_DIR + counter
-    fname2 = S.DATA_DIR + S.MVP_DIR + "c" + counter
     csvfl = fname + ".csv"
     skiprow, _ = getSkipRows(csvfl, chartDays)
     if skiprow < 0:
@@ -106,7 +105,7 @@ def dfFromCsv(counter, chartDays=S.MVP_CHART_DAYS):
                   skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
-    return df, skiprow, fname2
+    return df, skiprow, fname + ".png"
 
 
 def indpeaks(vector, threshold=0.1, dist=5):
@@ -322,7 +321,7 @@ def line_divergence(axes, cIP, cIN, dcIP, dcIN, cCP, cCN):
 
 
 def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
-    df, skiprow, fname2 = dfFromCsv(counter, chartDays)
+    df, skiprow, fname = dfFromCsv(counter, chartDays)
     if skiprow < 0 or len(df.index) <= 0:
         print "No chart for ", counter, skiprow
         return
@@ -378,7 +377,7 @@ def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
     if showchart:
         plt.show()
     else:
-        plt.savefig(fname2 + ".png")
+        plt.savefig(fname)
     plt.close()
 
 
