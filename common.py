@@ -55,7 +55,8 @@ def loadSetting(c):
         if len(datadir) > 0 and datadir.endswith('/'):
             S.DATA_DIR = datadir
         S.MVP_CHART_DAYS = c["main"]["MVP_CHART_DAYS"]
-        S.MVP_DIVERGENCE_COUNT = c["main"]["MVP_DIVERGENCE_COUNT"]
+        S.MVP_DIVERGENCE_BLOCKING_COUNT = c["main"]["MVP_DIVERGENCE_BLOCKING_COUNT"]
+        S.MVP_DIVERGENCE_MATCH_TOLERANCE = c["main"]["MVP_DIVERGENCE_TOLERANCE_MATCH"]
         S.MVP_PLOT_PEAKS = c["toggle"]["MVP_PLOT_PEAKS"]
     except Exception:
         pass
@@ -236,6 +237,32 @@ def getCounters(counterlist, klse, pf, wl, verbose=True):
     if verbose:
         print " INF:Counter is empty"
     return counters
+
+
+def match_approximate(a, b, approx=3):
+    c, d = [], []
+    bEnd = False
+    bfifo = FifoDict()
+    for i in b:
+        bfifo.append(i)
+    y = 0
+    for x in a:
+        if bEnd:
+            continue
+        while True:
+            if y == 0 or x - y > approx:
+                try:
+                    y = bfifo.pop()
+                except KeyError:
+                    bEnd = True
+                    break
+            if abs(x - y) <= approx:
+                c.append(x)
+                d.append(y)
+                break
+            if y > x:
+                break
+    return [c, d]
 
 
 if __name__ == '__main__':
