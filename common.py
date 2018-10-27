@@ -54,6 +54,9 @@ def loadSetting(c):
         datadir = c["main"]["DATA_DIR"]
         if len(datadir) > 0 and datadir.endswith('/'):
             S.DATA_DIR = datadir
+        S.MVP_CHART_DAYS = c["main"]["MVP_CHART_DAYS"]
+        S.MVP_DIVERGENCE_COUNT = c["main"]["MVP_DIVERGENCE_COUNT"]
+        S.MVP_PLOT_PEAKS = c["toggle"]["MVP_PLOT_PEAKS"]
     except Exception:
         pass
     S.I3_UID = c["i3"]["UID"]
@@ -138,8 +141,11 @@ def formStocklist(stocks, infile):
     imap = loadMap(infile, ',')
     for shortname in stocks:
         # stock_code = getStockCode(shortname, infile)
-        stock_code = imap[shortname]
-        stocklist[shortname] = stock_code
+        try:
+            stock_code = imap[shortname]
+            stocklist[shortname] = stock_code
+        except KeyError:
+            print "Missing entry:", shortname
 
     return stocklist
 
