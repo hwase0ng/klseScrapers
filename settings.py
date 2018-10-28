@@ -31,6 +31,9 @@ I3_PWD = ''
 I3_KLSE_URL = ''
 I3_PORTFOLIO_URL = ''
 I3_HOLDINGS = ''
+I3_DIVIDEND = ''
+I3_MOMENTUM = ''
+I3_MVP = ''
 I3_WATCHLIST = ''
 HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
