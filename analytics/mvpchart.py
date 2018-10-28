@@ -4,19 +4,21 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
-    -c,--chartdays N    Days to display on chart (defaulted 200 in settings.py)
-    -d,--displaychart   Display chart, not save
-    -k,--klse           Select KLSE related from settings.py
-    -p,--portfolio      Select portfolio from config.json
-    -w,--watchlist      Select watchlist from config.json
-    -h,--help           This page
+    -c,--chartdays=<cd>   Days to display on chart [default: 200]
+    -d,--displaychart     Display chart, not save
+    -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
+    -b,--blocking=<bc>    Set MVP blocking count value [default: 5]
+    -f,--filter           Switch OFF MVP Divergence Matching filter
+    -t,--tolerance=<mt>   Set MVP matching tolerance value [default: 3]
+    -p,--plotpeaks        Switch ON plotting peaks
+    -h,--help             This page
 
 Created on Oct 16, 2018
 
 @author: hwase0ng
 '''
 
-from common import getCounters, loadCfg, formStocklist, loadKlseCounters, match_approximate
+from common import retrieveCounters, loadCfg, formStocklist, loadKlseCounters, match_approximate2
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
@@ -108,20 +110,23 @@ def dfFromCsv(counter, chartDays=S.MVP_CHART_DAYS):
     return df, skiprow, fname + ".png"
 
 
-def indpeaks(vector, threshold=0.1, dist=5):
+def indpeaks(vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
     if S.DBG_ALL:
-        print threshold, max(vector), threshold / max(vector), vector[0], vector[0] * -1
+        print threshold, max(vector), float(threshold / max(vector)), vector[0], vector[0] * -1
     pIndexes = peak.indexes(np.array(vector),
                             thres=threshold / max(vector), min_dist=dist)
     nIndexes = peak.indexes(np.array(vector * -1),
-                            thres=threshold, min_dist=dist)
+                            thres=threshold * factor, min_dist=dist)
+    if S.MVP_DIVERGENCE_MATCH_FILTER:
+        newIndex = match_approximate2(pIndexes, nIndexes, 1, True)
+        pIndexes, nIndexes = newIndex[0], newIndex[1]
     return pIndexes, nIndexes
 
 
 def findpeaks(df, mh, ph, vh):
-    cIndexesP, cIndexesN = indpeaks(df['close'])
-    mIndexesP, mIndexesN = indpeaks(df['M'])
-    pIndexesP, pIndexesN = indpeaks(df['P'], ph * -1)
+    cIndexesP, cIndexesN = indpeaks(df['close'], 0.1)
+    mIndexesP, mIndexesN = indpeaks(df['M'], 6.5, 5, -1)
+    pIndexesP, pIndexesN = indpeaks(df['P'], ph * 0.01)
     vIndexesP, vIndexesN = indpeaks(df['V'], float(vh / 5) if vh > 20 else float(vh / 3))
     if S.DBG_ALL:
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
@@ -139,26 +144,22 @@ def findpeaks(df, mh, ph, vh):
 
 def locatepeaks(datesVector, cmpvVector, indexes):
     if len(indexes) <= 0:
-        return None, None, None
+        return None, None, None, None
     x, y = [], []
-    posindex = {}
     '''
-    # Nested dictionary structure (obsoleted):
-    #   cIP = {'C': {0: [pos1, xdate1, yval1], 1: [pos2, xdate2, yval2]}, ....
-    #          'M': {0: [pos1, xdate1, yval1], 1: [pos2, xdate2, yval2]}, ....
-    #  dcIP = {'C': {xdate1: yval1, xdate2: yval2, ...
-    #          'M': {xdate1: yval1, xdate2: yval2, ...
+    # Nested dictionary structure:
+    # 1. Position indexes:
+    #    posindex = {pos1: [xdate1, yval1], pos2: [xdate2, yval2], .... }
+    # 2. Sequence indexes:
+    #    seqindex = {0: [xdate1, yval1], 1: [xdate2, yval2], ... }
+    '''
+    posindex, seqindex = {}, {}
     for i, index in enumerate(indexes):
         x.append(getMpvDate(datesVector[index]))
         y.append(cmpvVector[index])
-        posindex[i] = [index, x[-1], y[-1]]
-        dateindex[x[-1]] = y[-1]
-    '''
-    for index in indexes:
-        x.append(getMpvDate(datesVector[index]))
-        y.append(cmpvVector[index])
         posindex[index] = [x[-1], y[-1]]
-    return x, y, posindex
+        seqindex[i] = [getMpvDate(datesVector[index]), cmpvVector[index]]
+    return x, y, posindex, seqindex
 
 
 def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
@@ -170,22 +171,23 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     piN = cIN['P']
     viP = cIP['V']
     viN = cIN['V']
-    cxp, cyp, ciP = locatepeaks(df['date'], df['close'], ciP)
-    cxn, cyn, ciN = locatepeaks(df['date'], df['close'], ciN)
-    mxp, myp, miP = locatepeaks(df['date'], df['M'], miP)
-    mxn, myn, miN = locatepeaks(df['date'], df['M'], miN)
-    pxp, pyp, piP = locatepeaks(df['date'], df['P'], piP)
-    pxn, pyn, piN = locatepeaks(df['date'], df['P'], piN)
-    vxp, vyp, viP = locatepeaks(df['date'], df['V'], viP)
-    vxn, vyn, viN = locatepeaks(df['date'], df['V'], viN)
+    cxp, cyp, ciP, sciP = locatepeaks(df['date'], df['close'], ciP)
+    cxn, cyn, ciN, sciN = locatepeaks(df['date'], df['close'], ciN)
+    mxp, myp, miP, smiP = locatepeaks(df['date'], df['M'], miP)
+    mxn, myn, miN, smiN = locatepeaks(df['date'], df['M'], miN)
+    pxp, pyp, piP, spiP = locatepeaks(df['date'], df['P'], piP)
+    pxn, pyn, piN, spiN = locatepeaks(df['date'], df['P'], piN)
+    vxp, vyp, viP, sviP = locatepeaks(df['date'], df['V'], viP)
+    vxn, vyn, viN, sviN = locatepeaks(df['date'], df['V'], viN)
 
     # Nested dictionary structure:
-    #   cIP = {'C': {pos1: [xdate1, yval1], pos2: [xdate2, yval2], ....
-    #          'M': {pos1: [xdate1, yval1], pos2: [xdate2, yval2], ....
+    #   cIP = {'C': [[{pos1: [xdate1, yval1], pos2: [xdate2, yval2], ... ],
+    #                [{0: [xdate1, yval1], 1: [xdate2, yval2], ... ]]}
+    #          'M': [{pos1: [xdate1, yval1], pos2: [xdate2, yval2], ....
     #          'V': ...
     #          'P': ...
-    cIP = {'C': ciP, 'M': miP, 'P': piP, 'V': viP}
-    cIN = {'C': ciN, 'M': miN, 'P': piN, 'V': viN}
+    cIP = {'C': [ciP, sciP], 'M': [miP, smiP], 'P': [piP, spiP], 'V': [viP, sviP]}
+    cIN = {'C': [ciN, sciN], 'M': [miN, smiN], 'P': [piN, spiN], 'V': [viN, sviN]}
 
     if S.MVP_PLOT_PEAKS:
         if cxp is not None:
@@ -215,11 +217,11 @@ def formCmpvlines(cindexes, ccount):
         for j in range(i + 1, len(cmpvlist) - 1):
             if S.DBG_ALL:
                 print i, j, cmpvlist[i][0], cmpvlist[j][0]
-            cmpv = cindexes[cmpvlist[i][0]]
+            cmpv = cindexes[cmpvlist[i][0]][0]
             poslist1 = list(cmpv.keys())
-            cmpv = cindexes[cmpvlist[j][0]]
+            cmpv = cindexes[cmpvlist[j][0]][0]
             poslist2 = list(cmpv.keys())
-            cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = match_approximate(
+            cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = match_approximate2(
                 sorted(poslist1), sorted(poslist2), S.MVP_DIVERGENCE_MATCH_TOLERANCE)
     '''
     cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = \
@@ -251,10 +253,12 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
             p2.append([xdate, dindexes[k[1]][xdate]])
         '''
         for i, pos in enumerate(c1):
-            item = pindexes[k[0]][pos]
+            # parsing chart1 position index
+            item = pindexes[k[0]][0][pos]
             xdate, yval = item[0], item[1]
             p1.append([xdate, yval])
-            item = pindexes[k[1]][c2[i]]
+            # parsing chart2 position index
+            item = pindexes[k[1]][0][c2[i]]
             xdate, yval = item[0], item[1]
             p2.append([xdate, yval])
         p3 = np.transpose(np.asarray(p1, dtype=object))
@@ -267,10 +271,14 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
         # new list for quick comparison between points
         xlist1, xlist2 = {}, {}
         ylist1, ylist2 = [], []
-        for k2, v2 in pindexes[k[0]].iteritems():
+        for k2, v2 in pindexes[k[0]][1].iteritems():
+            # parsing chart1 sequence index
+            # k2 = seq, v2 = [date, pos]
             xlist1[v2[0]] = k2
             ylist1.append(v2[1])
-        for k2, v2 in pindexes[k[1]].iteritems():
+        for k2, v2 in pindexes[k[1]][1].iteritems():
+            # parsing chart2 sequence index
+            # k2 = seq, v2 = [date, pos]
             xlist2[v2[0]] = k2
             ylist2.append(v2[1])
         for i in xrange(len(d1) - 1, 0, -1):
@@ -282,35 +290,37 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                    e.g. points too far apart,
                         too many higher/lower peaks in between points
                 '''
-                date1, date2 = p1x[i], p1x[i + 1]
-                y1, y2 = p1y[i], p1y[i + 1]
-                point1, point2 = xlist1[date1], xlist1[date2]
+                p1date1, p1date2 = p1x[i], p1x[i + 1]
+                p1y1, p1y2 = p1y[i], p1y[i + 1]
+                point1, point2 = xlist1[p1date1], xlist1[p1date2]
                 c1y = np.array(ylist1[point1:point2])
+
+                p2date1, p2date2 = p2x[i], p2x[i + 1]
+                p2y1, p2y2 = p2y[i], p2y[i + 1]
+                point1, point2 = xlist2[p2date1], xlist2[p2date2]
                 c2y = np.array(ylist2[point1:point2])
                 if S.DBG_ALL:
-                    print date1, date2, min(y1, y2), max(y1, y2), c1y, peaks
+                    print p1date1, p1date2, min(p1y1, p1y2), max(p1y1, p1y2), c1y, peaks
                 if peaks:
-                    c1count = c1y[c1y > min(y1, y2)]
-                    c2count = c2y[c2y > min(y1, y2)]
+                    c1count = c1y[c1y > min(p1y1, p1y2)]
+                    c2count = c2y[c2y > min(p2y1, p2y2)]
                     if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_BLOCKING_COUNT:
                         continue
                     lstyle = ":" if d1[i] > 0 else "--"
                 else:
-                    c1count = c1y[c1y < max(y1, y2)]
-                    c2count = c2y[c2y < max(y1, y2)]
+                    c1count = c1y[c1y < max(p1y1, p1y2)]
+                    c2count = c2y[c2y < max(p2y1, p2y2)]
                     if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_BLOCKING_COUNT:
                         continue
                     lstyle = "--" if d1[i] > 0 else ":"
-                axes[cmpv[k[0]]].annotate("", xy=(date1, y1), xycoords='data',
-                                          xytext=(date2, y2),
+                axes[cmpv[k[0]]].annotate("", xy=(p1date1, p1y1), xycoords='data',
+                                          xytext=(p1date2, p1y2),
                                           arrowprops=dict(arrowstyle="-", color=colormap[k[1]],
                                                           linestyle=lstyle,
                                                           connectionstyle="arc3,rad=0."),
                                           )
-                date1, date2 = p2x[i], p2x[i + 1]
-                y1, y2 = p2y[i], p2y[i + 1]
-                axes[cmpv[k[1]]].annotate("", xy=(date1, y1), xycoords='data',
-                                          xytext=(date2, y2),
+                axes[cmpv[k[1]]].annotate("", xy=(p2date1, p2y1), xycoords='data',
+                                          xytext=(p2date2, p2y2),
                                           arrowprops=dict(arrowstyle="-", color=colormap[k[0]],
                                                           linestyle=lstyle,
                                                           connectionstyle="arc3,rad=0."),
@@ -400,12 +410,23 @@ if __name__ == '__main__':
     cfg = loadCfg(S.DATA_DIR)
     global klse
     klse = "scrapers/i3investor/klse.txt"
-    stocks = getCounters(args['COUNTER'], args['--klse'],
-                         args['--portfolio'], args['--watchlist'], False)
+    if args['COUNTER']:
+        stocks = args['COUNTER'][0].upper()
+    else:
+        stocks = retrieveCounters(args['--list'])
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
     else:
         stocklist = loadKlseCounters(klse)
+
+    if args['--filter']:
+        S.MVP_DIVERGENCE_MATCH_FILTER = False
+    if args['--plotpeaks']:
+        S.MVP_PLOT_PEAKS = True
+    if args['--blocking']:
+        S.MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking'])
+    if args['--tolerance']:
+        S.MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--tolerance'])
 
     if args['--chartdays']:
         chartDays = int(args['--chartdays'])
