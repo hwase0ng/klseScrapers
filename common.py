@@ -57,7 +57,6 @@ def loadSetting(c):
         S.MVP_CHART_DAYS = c["main"]["MVP_CHART_DAYS"]
         S.MVP_DIVERGENCE_BLOCKING_COUNT = c["main"]["MVP_DIVERGENCE_BLOCKING_COUNT"]
         S.MVP_DIVERGENCE_MATCH_TOLERANCE = c["main"]["MVP_DIVERGENCE_MATCH_TOLERANCE"]
-        S.MVP_PLOT_PEAKS = c["toggle"]["MVP_PLOT_PEAKS"]
     except Exception:
         pass
     S.I3_UID = c["i3"]["UID"]
@@ -65,6 +64,9 @@ def loadSetting(c):
     S.I3_KLSE_URL = c["i3"]["KLSE_URL"]
     S.I3_HOLDINGS = c["i3"]["HOLDINGS"]
     S.I3_WATCHLIST = c["i3"]["WATCHLIST"]
+    S.I3_MVP = c["i3"]["MVP"]
+    S.I3_MOMENTUM = c["i3"]["MOMENTUM"]
+    S.I3_DIVIDEND = c["i3"]["DIVIDEND"]
     S.I3_PORTFOLIO_URL = S.I3_KLSE_URL + c["i3"]["PORTFOLIO_URL"]
 
 
@@ -208,6 +210,23 @@ def getMt4StartDate():
     return mt4Start
 
 
+def retrieveCounters(clist):
+    counters = []
+    if 'd' in clist:
+        counters += S.I3_DIVIDEND.split(',')
+    if 'h' in clist:
+        counters += S.I3_HOLDINGS.split(',')
+    if 'k' in clist:
+        counters += S.KLSE_RELATED.split(',')
+    if 'm' in clist:
+        counters += S.I3_MVP.split(',')
+    if 'w' in clist:
+        counters += S.I3_WATCHLIST.split(',')
+    if 'M' in clist:
+        counters += S.I3_MOMENTUM.split(',')
+    return ",".join(counters)
+
+
 def getCounters(counterlist, klse, pf, wl, verbose=True):
     counters = ''
     if klse:
@@ -239,7 +258,7 @@ def getCounters(counterlist, klse, pf, wl, verbose=True):
     return counters
 
 
-def match_approximate(a, b, approx=3):
+def match_approximate(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE):
     c, d = [], []
     bEnd = False
     bfifo = FifoDict()
@@ -263,6 +282,55 @@ def match_approximate(a, b, approx=3):
             if y > x:
                 break
     return [c, d]
+
+
+# Credit to the following implementation goes to Matt Messersmith:
+#   https://stackoverflow.com/questions/53022670/how-to-compare-2-sorted-numeric-lists-in-python-where-each-corresponding-element
+def match_approximate2(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE, invert=False):
+    a_ind, b_ind = 0, 0
+    resulta, resultb = [], []
+    while a_ind < len(a) and b_ind < len(b):
+        aItem, bItem = a[a_ind], b[b_ind]
+        if abs(aItem - bItem) <= approx:
+            if not invert:
+                resulta.append(aItem)
+                resultb.append(bItem)
+            a_ind += 1
+            b_ind += 1
+            continue
+        if aItem < bItem:
+            if invert:
+                resulta.append(aItem)
+            a_ind += 1
+        else:
+            if invert:
+                resultb.append(bItem)
+            b_ind += 1
+
+    '''
+    def match_last_element(a, a_ind, last_elt_of_b, resulta, resultb):
+        while a_ind != len(a):
+            if abs(a[a_ind] - last_elt_of_b) <= approx:
+                resulta.append(a[a_ind])
+                resultb.append(b[b_ind])
+                a_ind += 1
+            else:
+                break
+
+    if a_ind != len(a):
+        match_last_element(a, a_ind, b[-1], resulta, resultb)
+    else:
+        match_last_element(b, b_ind, a[-1], resulta, resultb)
+    '''
+    if invert:
+        while a_ind != len(a):
+            resulta.append(a[a_ind])
+            a_ind += 1
+        while b_ind != len(b):
+            resulta.append(b[b_ind])
+            b_ind += 1
+
+    return [resulta, resultb]
 
 
 if __name__ == '__main__':
