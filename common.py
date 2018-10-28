@@ -213,6 +213,8 @@ def getMt4StartDate():
 def retrieveCounters(clist):
     if clist is None or not len(clist):
         return ''
+    if "dhkmwM" not in clist:
+        clist = "m"
     counters = []
     if 'd' in clist:
         counters += S.I3_DIVIDEND.split(',')
