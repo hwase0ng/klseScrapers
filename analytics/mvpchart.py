@@ -347,7 +347,7 @@ def line_divergence(axes, cIP, cIN, cCP, cCN):
     del cCN
 
 
-def mvpChart(counter, chartDays, showchart=False):
+def mvpChart(counter, scode, chartDays, showchart=False):
     df, skiprow, fname = dfFromCsv(counter, chartDays)
     if skiprow < 0 or len(df.index) <= 0:
         print "No chart for ", counter, skiprow
@@ -366,9 +366,10 @@ def mvpChart(counter, chartDays, showchart=False):
 
     axes = df.plot(x='date', figsize=(15, 7), subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
     # Disguise axis X label as title to save on chart space
-    axes[3].set_xlabel(mpvdate + ": MPV Chart of " + counter, fontsize=12)
+    axes[3].set_xlabel("MPV Chart of " + counter + "." + scode + ": " + mpvdate, fontsize=12)
     ax1 = plt.gca().axes.get_xaxis()
     ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    ax1.set_label_coords(0.84, -0.7)
     '''
     axlabel = ax1.get_label()
     axlabel.set_visible(False)
@@ -450,4 +451,4 @@ if __name__ == '__main__':
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
             continue
-        mvpChart(shortname, chartDays, args['--displaychart'])
+        mvpChart(shortname, stocklist[shortname], chartDays, args['--displaychart'])
