@@ -10,7 +10,7 @@ from BeautifulSoup import BeautifulSoup
 from utils.dateutils import getToday
 from common import getDataDir
 from analytics.mvp import updateMPV
-from analytics.mvpchart import mvpChart
+from analytics.mvpchart import mvpChart, mvpSynopsis
 
 I3STOCKSURL = 'https://klse.i3investor.com/jsp/stocks.jsp?g=S&m=int&s='
 
@@ -189,7 +189,8 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
             print eod
 
         if updateMPV(shortname, stockCode, eod):
-            mvpChart(shortname)
+            mvpChart(shortname, stockCode)
+            mvpSynopsis(shortname, stockCode)
 
     return eodlist
 

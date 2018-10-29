@@ -9,6 +9,7 @@ Options:
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>    Set MVP blocking count value [default: 1]
     -f,--filter           Switch ON MVP Divergence Matching filter [default: False]
+    -s,--synopsis         Synopsis of MVP
     -t,--tolerance=<mt>   Set MVP matching tolerance value [default: 3]
     -p,--plotpeaks        Switch ON plotting peaks
     -D,--peaksdist=<pd>   Peaks distance [default: 20]
@@ -24,7 +25,7 @@ from common import retrieveCounters, loadCfg, formStocklist, \
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
-from pandas import read_csv
+from pandas import read_csv, Grouper
 from peakutils import peak
 import numpy as np
 import operator
@@ -47,7 +48,7 @@ def dfLoadMPV(counter, chartDays):
                   skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
-    return df, skiprow, fname + ".png"
+    return df, skiprow, fname
 
 
 def annotateMVP(df, axes, MVP, cond):
@@ -347,7 +348,7 @@ def line_divergence(axes, cIP, cIN, cCP, cCN):
     del cCN
 
 
-def mvpChart(counter, scode, chartDays, showchart=False):
+def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     df, skiprow, fname = dfLoadMPV(counter, chartDays)
     if skiprow < 0 or len(df.index) <= 0:
         print "No chart for ", counter, skiprow
@@ -408,7 +409,51 @@ def mvpChart(counter, scode, chartDays, showchart=False):
     if showchart:
         plt.show()
     else:
-        plt.savefig(fname)
+        plt.savefig(fname + ".png")
+    plt.close()
+
+
+def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
+    df, _, fname = dfLoadMPV(counter, chartDays)
+    dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
+    dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
+    dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+    mpvdate = getMpvDate(df.iloc[-1]['date'])
+
+    title = "MPV Groups of " + counter + "." + scode + ": " + mpvdate
+    fig, axes = plt.subplots(4, 3, figsize=(15, 7), sharex=True, num=title)
+    fig.suptitle(title)
+    fig.canvas.set_window_title(title)
+    dfw['close'].plot(ax=axes[0, 0], color='b')
+    dff['close'].plot(ax=axes[0, 1], color='b')
+    dfm['close'].plot(ax=axes[0, 2], color='b', label='C')
+    dfw['M'].plot(ax=axes[1, 0], color='orange')
+    dff['M'].plot(ax=axes[1, 1], color='orange')
+    dfm['M'].plot(ax=axes[1, 2], color='orange', label='M')
+    dfw['V'].plot(ax=axes[2, 0], color='g')
+    dff['V'].plot(ax=axes[2, 1], color='g')
+    dfm['V'].plot(ax=axes[2, 2], color='g', label='P')
+    dfw['P'].plot(ax=axes[3, 0], color='r')
+    dff['P'].plot(ax=axes[3, 1], color='r')
+    dfm['P'].plot(ax=axes[3, 2], color='r', label='V')
+
+    for i in range(3):
+        for j in range(4):
+            axes[j, i].xaxis.grid(True)
+
+    axes[0, 2].legend(loc="upper right")
+    axes[1, 2].legend(loc="upper right")
+    axes[2, 2].legend(loc="upper right")
+    axes[3, 2].legend(loc="upper right")
+    axes[3, 0].set_xlabel("Week")
+    axes[3, 1].set_xlabel("Forthnight")
+    axes[3, 2].set_xlabel("Month")
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    if showchart:
+        plt.show()
+    else:
+        plt.savefig(fname + "-synopsis.png")
     plt.close()
 
 
@@ -452,4 +497,7 @@ if __name__ == '__main__':
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
             continue
-        mvpChart(shortname, stocklist[shortname], chartDays, args['--displaychart'])
+        if args['--synopsis']:
+            mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--displaychart'])
+        else:
+            mvpChart(shortname, stocklist[shortname], chartDays, args['--displaychart'])

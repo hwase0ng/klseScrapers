@@ -20,7 +20,7 @@ Price  - 20% up in 15 days
 from common import retrieveCounters, loadCfg, formStocklist, FifoDict, \
     loadKlseCounters, getSkipRows
 from docopt import docopt
-from mvpchart import mvpChart
+from mvpchart import mvpChart, mvpSynopsis
 from utils.dateutils import getToday, getLastDate, getBusDaysBtwnDates
 from utils.fileutils import wc_line_count, tail2
 from pandas import read_csv
@@ -201,7 +201,8 @@ def mvpUpdateMPV(counter, scode):
     lines = tail2(inputfl, days)
     for eod in lines:
         if updateMPV(counter, scode, eod):
-            mvpChart(shortname)
+            mvpChart(counter, scode)
+            mvpSynopsis(counter, scode)
 
 
 if __name__ == '__main__':
