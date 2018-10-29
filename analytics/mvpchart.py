@@ -111,24 +111,22 @@ def annotateMVP(df, axes, MVP, cond):
     return mvHighest
 
 
-def indpeaks(vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
-    if S.DBG_ALL:
-        print threshold, max(vector), float(threshold / max(vector)), vector[0], vector[0] * -1
+def indpeaks(cmpv, vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
     pIndexes = peak.indexes(np.array(vector),
                             thres=threshold / max(vector), min_dist=dist)
     nIndexes = peak.indexes(np.array(vector * -1),
                             thres=threshold * factor, min_dist=dist)
     if S.MVP_DIVERGENCE_MATCH_FILTER:
-        newIndex = match_approximate2(pIndexes, nIndexes, 1, True)
+        newIndex = match_approximate2(pIndexes, nIndexes, 1, True, vector, cmpv)
         pIndexes, nIndexes = newIndex[0], newIndex[1]
     return pIndexes, nIndexes
 
 
 def findpeaks(df, mh, ph, vh):
-    cIndexesP, cIndexesN = indpeaks(df['close'], 0.5)
-    mIndexesP, mIndexesN = indpeaks(df['M'], 0.2, 5, -1)
-    pIndexesP, pIndexesN = indpeaks(df['P'], ph * 0.01)
-    vIndexesP, vIndexesN = indpeaks(df['V'], float(vh / 50) if vh > 20 else float(vh / 30))
+    cIndexesP, cIndexesN = indpeaks('C', df['close'], 0.2)
+    mIndexesP, mIndexesN = indpeaks('M', df['M'], mh / 100, S.MVP_PEAKS_DISTANCE, -1)
+    pIndexesP, pIndexesN = indpeaks('P', df['P'], ph * 0.01)
+    vIndexesP, vIndexesN = indpeaks('V', df['V'], float(vh / 50) if vh > 20 else float(vh / 30))
     if S.DBG_ALL:
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
         print('M Peaks are: %s, %s' % (mIndexesP, mIndexesN))
@@ -368,7 +366,7 @@ def mvpChart(counter, chartDays, showchart=False):
 
     axes = df.plot(x='date', figsize=(15, 7), subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
     # Disguise axis X label as title to save on chart space
-    axes[3].set_xlabel(mpvdate + ": MPV Chart of " + counter)
+    axes[3].set_xlabel(mpvdate + ": MPV Chart of " + counter, fontsize=12)
     ax1 = plt.gca().axes.get_xaxis()
     ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     '''

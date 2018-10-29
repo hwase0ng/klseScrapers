@@ -290,7 +290,7 @@ def match_approximate(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE):
 
 # Credit to the following implementation goes to Matt Messersmith:
 #   https://stackoverflow.com/questions/53022670/how-to-compare-2-sorted-numeric-lists-in-python-where-each-corresponding-element
-def match_approximate2(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE, invert=False):
+def match_approximate2(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE, invert=False, vector=None, cmpv=None):
     a_ind, b_ind = 0, 0
     resulta, resultb = [], []
     while a_ind < len(a) and b_ind < len(b):
@@ -299,17 +299,16 @@ def match_approximate2(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE, invert=Fal
             if not invert:
                 resulta.append(aItem)
                 resultb.append(bItem)
-            '''
             else:
-                start, end = aItem - 5, bItem + 5
-                if start < 0:
-                    start = 0
-                if len(vector) - 1:
-                    end = len(vector) - 1
-                maxrange = max(vector[start], vector[end])
-                minrange = min(vector[start], vector[end])
-                print "Invert filters:", aItem, bItem, vector[aItem], vector[bItem]
-            '''
+                yrange = max(vector) - min(vector)
+                ydist = abs(vector[aItem] - vector[bItem])
+                if ydist > yrange / 10:
+                    resulta.append(aItem)
+                    resultb.append(bItem)
+                else:
+                    if S.DBG_ALL:
+                        print "Invert filters:", cmpv, aItem, bItem, \
+                            vector[aItem], vector[bItem], yrange, ydist
             a_ind += 1
             b_ind += 1
             continue
