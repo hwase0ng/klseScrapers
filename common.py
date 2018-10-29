@@ -4,6 +4,7 @@ Created on Apr 27, 2018
 @author: hwase0ng
 '''
 from utils.dateutils import getToday, getDayOffset
+from utils.fileutils import wc_line_count
 import csv
 import json
 import sys
