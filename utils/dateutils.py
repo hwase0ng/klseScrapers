@@ -85,8 +85,8 @@ def getLastDate(fn):
         lastdt = S.ABS_START
         return lastdt
 
-    if len(t[0]) == 0:
-        return ''
+    if len(t) == 0:
+        return None
     else:
         if isinstance(t, basestring):
             # using tail
