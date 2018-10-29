@@ -4,11 +4,9 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Optional counters
 Options:
-    -k,--klse         Select KLSE related from settings.py
-    -p,--portfolio    Select portfolio from config.json
-    -u,--update       Update MVP instead of generate from scratch
-    -w,--watchlist    Select watchlist from config.json
-    -h,--help         This page
+    -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
+    -u,--update           Update MVP instead of generate from scratch
+    -h,--help             This page
 
 Created on Oct 14, 2018
 
@@ -19,8 +17,10 @@ Price  - 20% up in 15 days
 @author: hwase0ng
 '''
 
-from common import getCounters, loadCfg, formStocklist, FifoDict, loadKlseCounters
+from common import retrieveCounters, loadCfg, formStocklist, FifoDict, \
+    loadKlseCounters, getSkipRows
 from docopt import docopt
+from mvpchart import mvpChart
 from utils.dateutils import getToday, getLastDate, getBusDaysBtwnDates
 from utils.fileutils import wc_line_count, tail2
 from pandas import read_csv
@@ -106,46 +106,43 @@ def generateMPV(counter, stkcode):
         fh.close()
 
 
-def getSkipRows(csvfl, skipdays=S.MVP_DAYS):
-    row_count = wc_line_count(csvfl)
-    if row_count < 0:
-        return -1, -1  # File not found
-    if row_count < skipdays:
-        skiprow = 0
-    else:
-        skiprow = row_count - skipdays
-    return skiprow, row_count
-
-
-def updateMPV(counter, stkcode, eod):
+def dfLoadMPV(counter, stkcode, genMPV=False):
     fname = S.DATA_DIR + S.MVP_DIR + counter
     csvfl = fname + ".csv"
     skiprow, row_count = getSkipRows(csvfl)
     if row_count <= 0:
-        if row_count == 0:
+        if genMPV and row_count == 0:
             try:
                 generateMPV(counter, stkcode)
             except Exception:
                 print counter
                 traceback.print_exc()
-        return
+        return None
 
     df = read_csv(csvfl, sep=',', skiprows=skiprow, header=None, index_col=False,
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
-
     if S.DBG_ALL:
         print df.iloc[0]['date'], df.iloc[-1]['date']
+    return df
+
+
+def updateMPV(counter, stkcode, eod):
+    df = dfLoadMPV(counter, stkcode, True)
+    if df is None:
+        return False
     eoddata = eod.split(',')
     stock = eoddata[0]
     dt = eoddata[1]
     if dt <= df.iloc[-1]['date']:
         print "Wrong date:", dt, "is less than", df.iloc[-1]['date']
-        return
+        return False
     popen = float(eoddata[2])
     phigh = float(eoddata[3])
     plow = float(eoddata[4])
     pclose = float(eoddata[5])
+    if "-" in eoddata[6]:
+        eoddata[6] = 0.0
     volume = float(eoddata[6])
     if pclose >= popen and pclose >= df.iloc[-1]['close']:
         dayUp = 1
@@ -194,24 +191,30 @@ def mvpUpdateMPV(counter, scode):
     fname = S.DATA_DIR + S.MVP_DIR + counter
     csvfl = fname + ".csv"
     mvpdt = getLastDate(csvfl)
+    if mvpdt is None:
+        print "Skip empty file:", counter
+        return False
     days = getBusDaysBtwnDates(mvpdt, lastdt)
     if days <= 0:
         print "Already latest: ", counter, lastdt
-        return None
+        return False
     lines = tail2(inputfl, days)
     for eod in lines:
-        updateMPV(counter, scode, eod)
+        if updateMPV(counter, scode, eod):
+            mvpChart(shortname)
 
 
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
-    stocks = getCounters(args['COUNTER'], args['--klse'],
-                         args['--portfolio'], args['--watchlist'], False)
 
     global klse, today
-    klse = "scrapers/i3investor/klse.txt"
     today = getToday('%Y-%m-%d')
+    klse = "scrapers/i3investor/klse.txt"
+    if args['COUNTER']:
+        stocks = args['COUNTER'][0].upper()
+    else:
+        stocks = retrieveCounters(args['--list'])
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
     else:
