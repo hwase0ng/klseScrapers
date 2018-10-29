@@ -145,7 +145,9 @@ def formStocklist(stocks, infile):
             stock_code = imap[shortname]
             stocklist[shortname] = stock_code
         except KeyError:
-            print "Missing entry:", shortname
+            print "Applied hack for missing entry:", shortname
+            # Hack to bypass restriction on KLSE counters
+            stocklist[shortname] = "0"
 
     return stocklist
 
