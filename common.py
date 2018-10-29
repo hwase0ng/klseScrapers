@@ -54,9 +54,6 @@ def loadSetting(c):
         datadir = c["main"]["DATA_DIR"]
         if len(datadir) > 0 and datadir.endswith('/'):
             S.DATA_DIR = datadir
-        S.MVP_CHART_DAYS = c["main"]["MVP_CHART_DAYS"]
-        S.MVP_DIVERGENCE_BLOCKING_COUNT = c["main"]["MVP_DIVERGENCE_BLOCKING_COUNT"]
-        S.MVP_DIVERGENCE_MATCH_TOLERANCE = c["main"]["MVP_DIVERGENCE_MATCH_TOLERANCE"]
     except Exception:
         pass
     S.I3_UID = c["i3"]["UID"]
@@ -299,6 +296,8 @@ def match_approximate2(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE, invert=Fal
             if not invert:
                 resulta.append(aItem)
                 resultb.append(bItem)
+            else:
+                print "Invert filters:", aItem, bItem
             a_ind += 1
             b_ind += 1
             continue

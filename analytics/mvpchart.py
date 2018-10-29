@@ -11,6 +11,7 @@ Options:
     -f,--filter           Switch OFF MVP Divergence Matching filter
     -t,--tolerance=<mt>   Set MVP matching tolerance value [default: 3]
     -p,--plotpeaks        Switch ON plotting peaks
+    -D,--peaksdist=<pd>   Peaks distance [default: 5]
     -h,--help             This page
 
 Created on Oct 16, 2018
@@ -96,7 +97,7 @@ def annotateMVP(df, axes, MVP, cond):
     return mvHighest
 
 
-def dfFromCsv(counter, chartDays=S.MVP_CHART_DAYS):
+def dfFromCsv(counter, chartDays):
     fname = S.DATA_DIR + S.MVP_DIR + counter
     csvfl = fname + ".csv"
     skiprow, _ = getSkipRows(csvfl, chartDays)
@@ -344,7 +345,7 @@ def line_divergence(axes, cIP, cIN, cCP, cCN):
     del cCN
 
 
-def mvpChart(counter, chartDays=S.MVP_CHART_DAYS, showchart=False):
+def mvpChart(counter, chartDays, showchart=False):
     df, skiprow, fname = dfFromCsv(counter, chartDays)
     if skiprow < 0 or len(df.index) <= 0:
         print "No chart for ", counter, skiprow
@@ -426,12 +427,12 @@ if __name__ == '__main__':
     if args['--blocking']:
         S.MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking'])
     if args['--tolerance']:
-        S.MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--tolerance'])
+        S.MVP_DIVERGENCE_MATCH_TOLERANCE = int(args['--tolerance'])
+    if args['--peaksdist']:
+        S.MVP_PEAKS_DISTANCE = int(args['--peaksdist'])
 
     if args['--chartdays']:
         chartDays = int(args['--chartdays'])
-    else:
-        chartDays = S.MVP_CHART_DAYS
 
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:
