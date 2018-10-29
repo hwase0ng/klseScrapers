@@ -210,7 +210,10 @@ def getMt4StartDate():
 def retrieveCounters(clist):
     if clist is None or not len(clist):
         return ''
-    if "dhkmwM" not in clist:
+    valids = "dhkmwM"
+    if not any((c in clist) for c in valids):
+        print clist, "is not one of", valids
+        print "defaulting to m for MVP"
         clist = "m"
     counters = []
     if 'd' in clist:
