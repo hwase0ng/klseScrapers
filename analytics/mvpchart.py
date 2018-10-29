@@ -7,11 +7,11 @@ Options:
     -c,--chartdays=<cd>   Days to display on chart [default: 200]
     -d,--displaychart     Display chart, not save
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
-    -b,--blocking=<bc>    Set MVP blocking count value [default: 5]
-    -f,--filter           Switch OFF MVP Divergence Matching filter
+    -b,--blocking=<bc>    Set MVP blocking count value [default: 1]
+    -f,--filter           Switch ON MVP Divergence Matching filter [default: False]
     -t,--tolerance=<mt>   Set MVP matching tolerance value [default: 3]
     -p,--plotpeaks        Switch ON plotting peaks
-    -D,--peaksdist=<pd>   Peaks distance [default: 5]
+    -D,--peaksdist=<pd>   Peaks distance [default: 20]
     -h,--help             This page
 
 Created on Oct 16, 2018
@@ -34,6 +34,20 @@ import settings as S
 def getMpvDate(dfdate):
     mpvdt = str(dfdate.to_pydatetime()).split()
     return mpvdt[0]
+
+
+def dfFromCsv(counter, chartDays):
+    fname = S.DATA_DIR + S.MVP_DIR + counter
+    csvfl = fname + ".csv"
+    skiprow, _ = getSkipRows(csvfl, chartDays)
+    if skiprow < 0:
+        return None, skiprow, None
+    # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
+    df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
+                  skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
+                  names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
+                         'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
+    return df, skiprow, fname + ".png"
 
 
 def annotateMVP(df, axes, MVP, cond):
@@ -97,20 +111,6 @@ def annotateMVP(df, axes, MVP, cond):
     return mvHighest
 
 
-def dfFromCsv(counter, chartDays):
-    fname = S.DATA_DIR + S.MVP_DIR + counter
-    csvfl = fname + ".csv"
-    skiprow, _ = getSkipRows(csvfl, chartDays)
-    if skiprow < 0:
-        return None, skiprow, None
-    # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
-    df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
-                  skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
-                  names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
-                         'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
-    return df, skiprow, fname + ".png"
-
-
 def indpeaks(vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
     if S.DBG_ALL:
         print threshold, max(vector), float(threshold / max(vector)), vector[0], vector[0] * -1
@@ -125,10 +125,10 @@ def indpeaks(vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
 
 
 def findpeaks(df, mh, ph, vh):
-    cIndexesP, cIndexesN = indpeaks(df['close'], 0.1)
-    mIndexesP, mIndexesN = indpeaks(df['M'], 6.5, 5, -1)
+    cIndexesP, cIndexesN = indpeaks(df['close'], 0.5)
+    mIndexesP, mIndexesN = indpeaks(df['M'], 0.2, 5, -1)
     pIndexesP, pIndexesN = indpeaks(df['P'], ph * 0.01)
-    vIndexesP, vIndexesN = indpeaks(df['V'], float(vh / 5) if vh > 20 else float(vh / 3))
+    vIndexesP, vIndexesN = indpeaks(df['V'], float(vh / 50) if vh > 20 else float(vh / 30))
     if S.DBG_ALL:
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
         print('M Peaks are: %s, %s' % (mIndexesP, mIndexesN))
@@ -409,30 +409,38 @@ def mvpChart(counter, chartDays, showchart=False):
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
-    global klse
-    klse = "scrapers/i3investor/klse.txt"
-    if args['COUNTER']:
-        stocks = args['COUNTER'][0].upper()
-    else:
-        stocks = retrieveCounters(args['--list'])
-    if len(stocks):
-        stocklist = formStocklist(stocks, klse)
-    else:
-        stocklist = loadKlseCounters(klse)
-
     if args['--filter']:
-        S.MVP_DIVERGENCE_MATCH_FILTER = False
+        S.MVP_DIVERGENCE_MATCH_FILTER = True
     if args['--plotpeaks']:
-        S.MVP_PLOT_PEAKS = True
+        S.MVP_PLOT_PEAKS = False
     if args['--blocking']:
         S.MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking'])
     if args['--tolerance']:
         S.MVP_DIVERGENCE_MATCH_TOLERANCE = int(args['--tolerance'])
     if args['--peaksdist']:
         S.MVP_PEAKS_DISTANCE = int(args['--peaksdist'])
-
     if args['--chartdays']:
         chartDays = int(args['--chartdays'])
+
+    global klse
+    klse = "scrapers/i3investor/klse.txt"
+    if args['COUNTER']:
+        stocks = args['COUNTER'][0].upper()
+    else:
+        stocks = retrieveCounters(args['--list'])
+
+    if len(stocks):
+        stocklist = formStocklist(stocks, klse)
+        if not len(stocklist):
+            # Hack to bypass restriction on KLSE counters
+            if len(stocks) == 1:
+                stocklist[stocks] = 0
+            else:
+                stocks = stocks.split(',')
+                for stock in stocks:
+                    stocklist[stock] = 0
+    else:
+        stocklist = loadKlseCounters(klse)
 
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:

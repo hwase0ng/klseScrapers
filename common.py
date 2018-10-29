@@ -299,8 +299,17 @@ def match_approximate2(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE, invert=Fal
             if not invert:
                 resulta.append(aItem)
                 resultb.append(bItem)
+            '''
             else:
-                print "Invert filters:", aItem, bItem
+                start, end = aItem - 5, bItem + 5
+                if start < 0:
+                    start = 0
+                if len(vector) - 1:
+                    end = len(vector) - 1
+                maxrange = max(vector[start], vector[end])
+                minrange = min(vector[start], vector[end])
+                print "Invert filters:", aItem, bItem, vector[aItem], vector[bItem]
+            '''
             a_ind += 1
             b_ind += 1
             continue
