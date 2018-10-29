@@ -17,6 +17,7 @@ MONGODB = 'klsedb'
 MONGOEOD = 'klseeod'
 MT4_DAYS = 2500
 MT4_DIR = ''
+MVP_CHART_DAYS = 200
 MVP_DAYS = 15
 MVP_DIR = 'mpv/'
 MVP_PLOT_PEAKS = True
