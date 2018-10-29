@@ -264,6 +264,17 @@ def getCounters(counterlist, klse, pf, wl, verbose=True):
     return counters
 
 
+def getSkipRows(csvfl, skipdays=S.MVP_DAYS):
+    row_count = wc_line_count(csvfl)
+    if row_count < 0:
+        return -1, -1  # File not found
+    if row_count < skipdays:
+        skiprow = 0
+    else:
+        skiprow = row_count - skipdays
+    return skiprow, row_count
+
+
 def match_approximate(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE):
     c, d = [], []
     bEnd = False
