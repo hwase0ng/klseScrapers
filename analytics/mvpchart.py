@@ -19,11 +19,11 @@ Created on Oct 16, 2018
 @author: hwase0ng
 '''
 
-from common import retrieveCounters, loadCfg, formStocklist, loadKlseCounters, match_approximate2
+from common import retrieveCounters, loadCfg, formStocklist, \
+    loadKlseCounters, match_approximate2, getSkipRows
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
-from mvp import getSkipRows
 from pandas import read_csv
 from peakutils import peak
 import numpy as np
