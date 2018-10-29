@@ -36,7 +36,7 @@ def getMpvDate(dfdate):
     return mpvdt[0]
 
 
-def dfFromCsv(counter, chartDays):
+def dfLoadMPV(counter, chartDays):
     fname = S.DATA_DIR + S.MVP_DIR + counter
     csvfl = fname + ".csv"
     skiprow, _ = getSkipRows(csvfl, chartDays)
@@ -348,7 +348,7 @@ def line_divergence(axes, cIP, cIN, cCP, cCN):
 
 
 def mvpChart(counter, scode, chartDays, showchart=False):
-    df, skiprow, fname = dfFromCsv(counter, chartDays)
+    df, skiprow, fname = dfLoadMPV(counter, chartDays)
     if skiprow < 0 or len(df.index) <= 0:
         print "No chart for ", counter, skiprow
         return
@@ -404,6 +404,7 @@ def mvpChart(counter, scode, chartDays, showchart=False):
         print 'axhline exception:'
         print e
 
+    plt.tight_layout()
     if showchart:
         plt.show()
     else:
