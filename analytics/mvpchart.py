@@ -306,12 +306,16 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                     c1count = c1y[c1y > min(p1y1, p1y2)]
                     c2count = c2y[c2y > min(p2y1, p2y2)]
                     if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_BLOCKING_COUNT:
+                        if S.DBG_ALL:
+                            print max(len(c1count), len(c2count)), c1y, c2y
                         continue
                     lstyle = ":" if d1[i] > 0 else "--"
                 else:
                     c1count = c1y[c1y < max(p1y1, p1y2)]
                     c2count = c2y[c2y < max(p2y1, p2y2)]
                     if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_BLOCKING_COUNT:
+                        if S.DBG_ALL:
+                            print max(len(c1count), len(c2count)), c1y, c2y
                         continue
                     lstyle = "--" if d1[i] > 0 else ":"
                 axes[cmpv[k[0]]].annotate("", xy=(p1date1, p1y1), xycoords='data',
@@ -362,13 +366,15 @@ def mvpChart(counter, chartDays, showchart=False):
         print type(mpvdate), mpvdate
         # print df.index.get_loc(df.iloc[chartDays].name)
 
-    # axes = df[chartDays:].plot(x='date', figsize=(15, 7), subplots=True, grid=False,
-    axes = df.plot(x='date', figsize=(15, 7), subplots=True, grid=False,
-                   title=mpvdate + ': MPV Chart of ' + counter)
+    axes = df.plot(x='date', figsize=(15, 7), subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
+    # Disguise axis X label as title to save on chart space
+    axes[3].set_xlabel(mpvdate + ": MPV Chart of " + counter)
     ax1 = plt.gca().axes.get_xaxis()
     ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    '''
     axlabel = ax1.get_label()
     axlabel.set_visible(False)
+    '''
 
     mHigh = annotateMVP(df, axes[1], "M", 10)
     if mHigh == 0:
