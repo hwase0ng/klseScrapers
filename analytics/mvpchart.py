@@ -25,11 +25,12 @@ from common import retrieveCounters, loadCfg, formStocklist, \
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
-from pandas import read_csv, Grouper
+from pandas import read_csv, Grouper, DataFrame, datetools
 from peakutils import peak
 import numpy as np
 import operator
 import settings as S
+import traceback
 
 
 def getMpvDate(dfdate):
@@ -44,7 +45,7 @@ def dfLoadMPV(counter, chartDays):
     if skiprow < 0:
         return None, skiprow, None
     # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
-    df = read_csv(csvfl, sep=',', header=None, index_col=False, parse_dates=['date'],
+    df = read_csv(csvfl, sep=',', header=None, parse_dates=['date'],
                   skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
@@ -52,6 +53,8 @@ def dfLoadMPV(counter, chartDays):
 
 
 def annotateMVP(df, axes, MVP, cond):
+    if synopsis:
+        df = df.reset_index()
     idxMV = df.index[df[MVP] > cond]
     if len(idxMV) == 0:
         return 0
@@ -109,10 +112,14 @@ def annotateMVP(df, axes, MVP, cond):
             dHigh = ""
             mvHigh = 0
 
+    if mvHighest == 0:
+        mvHighest = df.iloc[df[MVP].idxmax()][MVP]
     return mvHighest
 
 
 def indpeaks(cmpv, vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
+    if synopsis:
+        dist = 3
     pIndexes = peak.indexes(np.array(vector),
                             thres=threshold / max(vector), min_dist=dist)
     nIndexes = peak.indexes(np.array(vector * -1),
@@ -124,10 +131,12 @@ def indpeaks(cmpv, vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
 
 
 def findpeaks(df, mh, ph, vh):
+    if synopsis:
+        df = df.reset_index()
     cIndexesP, cIndexesN = indpeaks('C', df['close'], 0.2)
     mIndexesP, mIndexesN = indpeaks('M', df['M'], mh / 100, S.MVP_PEAKS_DISTANCE, -1)
     pIndexesP, pIndexesN = indpeaks('P', df['P'], ph * 0.01)
-    vIndexesP, vIndexesN = indpeaks('V', df['V'], float(vh / 50) if vh > 20 else float(vh / 30))
+    vIndexesP, vIndexesN = indpeaks('V', df['V'], float(vh / 20) if vh > 20 else float(vh / 10))
     if S.DBG_ALL:
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
         print('M Peaks are: %s, %s' % (mIndexesP, mIndexesN))
@@ -163,14 +172,12 @@ def locatepeaks(datesVector, cmpvVector, indexes):
 
 
 def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
-    ciP = cIP['C']
-    ciN = cIN['C']
-    miP = cIP['M']
-    miN = cIN['M']
-    piP = cIP['P']
-    piN = cIN['P']
-    viP = cIP['V']
-    viN = cIN['V']
+    ciP, ciN = cIP['C'], cIN['C']
+    miP, miN = cIP['M'], cIN['M']
+    piP, piN = cIP['P'], cIN['P']
+    viP, viN = cIP['V'], cIN['V']
+    if synopsis:
+        df = df.reset_index()
     cxp, cyp, ciP, sciP = locatepeaks(df['date'], df['close'], ciP)
     cxn, cyn, ciN, sciN = locatepeaks(df['date'], df['close'], ciN)
     mxp, myp, miP, smiP = locatepeaks(df['date'], df['M'], miP)
@@ -377,11 +384,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     '''
 
     mHigh = annotateMVP(df, axes[1], "M", 10)
-    if mHigh == 0:
-        mHigh = df.iloc[df['M'].idxmax()]['M']
     vHigh = annotateMVP(df, axes[3], "V", 24)
-    if vHigh == 0:
-        vHigh = df.iloc[df['V'].idxmax()]['V']
     pHigh = df.iloc[df['P'].idxmax()]['P']
     try:
         line_divergence(axes,
@@ -418,28 +421,43 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
     dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
     dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+
+    if S.DBG_ALL:
+        print len(dfw), len(dff), len(dfm)
+        print dfw[-3:]
+        print dff[-3:]
+        print dfm[-3:]
+
+    '''
+    # when near to month end, dfw and dff will have last record crossing to new month
+    # and causing dfm to be out of alignment in subplot
+    lastdfm = dfm.index[len(dfm) - 1]
+    lastdff = dff.index[len(dff) - 1]
+    lastdfw = dfw.index[len(dfw) - 1]
+    if lastdfw > lastdfm or lastdff > lastdfm:
+        new_date = datetools.to_datetime('2018-11-30')
+        newrow = DataFrame(dfm[-1:].values, index=[new_date], columns=dfm.columns)
+        dfm = dfm.append(newrow)
+        print dfm[-3:]
+    '''
+
+    dflist = {}
+    dflist[0] = dfw.fillna(0)
+    dflist[1] = dff.fillna(0)
+    dflist[2] = dfm.fillna(0)
+
     mpvdate = getMpvDate(df.iloc[-1]['date'])
 
-    title = "MPV Groups of " + counter + "." + scode + ": " + mpvdate
-    fig, axes = plt.subplots(4, 3, figsize=(15, 7), sharex=True, num=title)
+    title = "MPV Synopsis of " + counter + " (" + scode + "): " + \
+        mpvdate + " (" + str(chartDays) + " days)"
+    fig, axes = plt.subplots(4, 3, figsize=(15, 7), sharex=False, num=title)
     fig.suptitle(title)
     fig.canvas.set_window_title(title)
-    dfw['close'].plot(ax=axes[0, 0], color='b')
-    dff['close'].plot(ax=axes[0, 1], color='b')
-    dfm['close'].plot(ax=axes[0, 2], color='b', label='C')
-    dfw['M'].plot(ax=axes[1, 0], color='orange')
-    dff['M'].plot(ax=axes[1, 1], color='orange')
-    dfm['M'].plot(ax=axes[1, 2], color='orange', label='M')
-    dfw['V'].plot(ax=axes[2, 0], color='g')
-    dff['V'].plot(ax=axes[2, 1], color='g')
-    dfm['V'].plot(ax=axes[2, 2], color='g', label='P')
-    dfw['P'].plot(ax=axes[3, 0], color='r')
-    dff['P'].plot(ax=axes[3, 1], color='r')
-    dfm['P'].plot(ax=axes[3, 2], color='r', label='V')
-
     for i in range(3):
-        for j in range(4):
-            axes[j, i].xaxis.grid(True)
+        dflist[i]['close'].plot(ax=axes[0, i], color='b', label='C')
+        dflist[i]['M'].plot(ax=axes[1, i], color='orange', label='M')
+        dflist[i]['P'].plot(ax=axes[2, i], color='g', label='P')
+        dflist[i]['V'].plot(ax=axes[3, i], color='r', label='V')
 
     axes[0, 2].legend(loc="upper right")
     axes[1, 2].legend(loc="upper right")
@@ -448,6 +466,61 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     axes[3, 0].set_xlabel("Week")
     axes[3, 1].set_xlabel("Forthnight")
     axes[3, 2].set_xlabel("Month")
+
+    '''
+    mHigh = annotateMVP(dfw, axes[1, 1], "M", 7)
+    vHigh = annotateMVP(dfw, axes[3, 1], "V", 20)
+    pHigh = dfw.loc[dfw['P'].idxmax()]['P']
+    '''
+    try:
+        for i in range(3):
+            ax = {}
+            for j in range(4):
+                if j != 3:
+                    axlabel = axes[j, i].get_xaxis()
+                    axlabel.set_visible(False)
+                '''
+                axes[j, i].xaxis.grid(True)
+
+                mHigh = annotateMVP(dflist[i], axes[j, i], "M", 7)
+                vHigh = annotateMVP(dflist[i], axes[j, i], "V", 20)
+                pHigh = dflist[i].loc[dflist[i]['P'].idxmax()]['P']
+
+                # ax[0] = axes[0, 0], axes[0, 1], axes[0, 2]
+                # ax[1] = axes[1, 0], axes[1, 1], axes[1, 2]
+                # ax[2] = axes[2, 0], axes[2, 1], axes[2, 2]
+                # ax[3] = axes[3, 0], axes[3, 1], axes[3, 2]
+                '''
+                ax[j] = axes[j, i]
+
+            mHigh = dflist[i].loc[dflist[i]['M'].idxmax()]['M']
+            pHigh = dflist[i].loc[dflist[i]['P'].idxmax()]['P']
+            vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
+
+            line_divergence(ax,
+                            *plotpeaks(dflist[i], ax,
+                                       *findpeaks(dflist[i], mHigh, pHigh, vHigh)))
+    except Exception as e:
+        # just print error and continue without the required line in chart
+        print 'line divergence exception:', i
+        print e
+    try:
+        for i in range(3):
+            axes[1, i].axhline(5, color='k', linestyle=':')
+            if mHigh > 6:
+                axes[1, i].axhline(10, color='r', linestyle=':')
+            if pHigh > 4:
+                axes[1, i].axhline(5, color='k', linestyle=':')
+                if pHigh > 10:
+                    axes[1, i].axhline(10, color='r', linestyle=':')
+            if vHigh < 0.5:
+                axes[3, i].axhline(0, color='k', linestyle=':')
+            elif vHigh > 20:
+                axes[3, i].axhline(25, color='k', linestyle=':')
+    except Exception as e:
+        # just print error and continue without the required line in chart
+        print 'axhline exception:'
+        print e
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     if showchart:
@@ -458,12 +531,15 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 
 
 if __name__ == '__main__':
+    global klse, synopsis
+    klse = "scrapers/i3investor/klse.txt"
+
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
-    if args['--filter']:
-        S.MVP_DIVERGENCE_MATCH_FILTER = True
-    if args['--plotpeaks']:
-        S.MVP_PLOT_PEAKS = False
+
+    S.MVP_DIVERGENCE_MATCH_FILTER = True if args['--filter'] else False
+    S.MVP_PLOT_PEAKS = False if args['--plotpeaks'] else True
+    synopsis = True if args['--synopsis'] else False
     if args['--blocking']:
         S.MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking'])
     if args['--tolerance']:
@@ -473,8 +549,6 @@ if __name__ == '__main__':
     if args['--chartdays']:
         chartDays = int(args['--chartdays'])
 
-    global klse
-    klse = "scrapers/i3investor/klse.txt"
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
     else:
@@ -497,7 +571,10 @@ if __name__ == '__main__':
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
             continue
-        if args['--synopsis']:
-            mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--displaychart'])
-        else:
-            mvpChart(shortname, stocklist[shortname], chartDays, args['--displaychart'])
+        try:
+            if synopsis:
+                mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--displaychart'])
+            else:
+                mvpChart(shortname, stocklist[shortname], chartDays, args['--displaychart'])
+        except Exception:
+            traceback.print_exc()
