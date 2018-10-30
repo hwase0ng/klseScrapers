@@ -35,7 +35,7 @@ def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volum
     return counter, dt, price_open, price_high, price_low, price_close, volume
 
 
-def generateMPV(counter, stkcode):
+def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
     if S.DBG_YAHOO:
         print shortname, stkcode
     totalVol = 0.0
@@ -209,8 +209,7 @@ if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
 
-    global klse, today
-    today = getToday('%Y-%m-%d')
+    global klse
     klse = "scrapers/i3investor/klse.txt"
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
