@@ -417,10 +417,15 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 
 
 def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
-    df, _, fname = dfLoadMPV(counter, chartDays)
-    dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
-    dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
-    dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+    try:
+        df, _, fname = dfLoadMPV(counter, chartDays)
+        dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
+        dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
+        dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+    except Exception as e:
+        print "Dataframe exception: ", counter, fname
+        print e
+        return
 
     if S.DBG_ALL:
         print len(dfw), len(dff), len(dfm)
