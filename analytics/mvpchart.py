@@ -12,7 +12,8 @@ Options:
     -s,--synopsis         Synopsis of MVP
     -t,--tolerance=<mt>   Set MVP matching tolerance value [default: 3]
     -p,--plotpeaks        Switch ON plotting peaks
-    -D,--peaksdist=<pd>   Peaks distance [default: 20]
+    -D,--peaksdist=<pd>   Peaks distance [default: -1]
+    -T,--threshold=<pt>   Peaks threshold [default: -1]
     -h,--help             This page
 
 Created on Oct 16, 2018
@@ -25,7 +26,7 @@ from common import retrieveCounters, loadCfg, formStocklist, \
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
-from pandas import read_csv, Grouper, DataFrame, datetools
+from pandas import read_csv, Grouper
 from peakutils import peak
 import numpy as np
 import operator
@@ -53,7 +54,7 @@ def dfLoadMPV(counter, chartDays):
 
 
 def annotateMVP(df, axes, MVP, cond):
-    if synopsis:
+    if SYNOPSIS:
         df = df.reset_index()
     idxMV = df.index[df[MVP] > cond]
     if len(idxMV) == 0:
@@ -117,27 +118,45 @@ def annotateMVP(df, axes, MVP, cond):
     return mvHighest
 
 
-def indpeaks(cmpv, vector, threshold=0.1, dist=S.MVP_PEAKS_DISTANCE, factor=1):
-    if synopsis:
-        dist = 3
+def indpeaks(cmpv, vector, threshold, dist, factor=1):
     pIndexes = peak.indexes(np.array(vector),
                             thres=threshold / max(vector), min_dist=dist)
     nIndexes = peak.indexes(np.array(vector * -1),
                             thres=threshold * factor, min_dist=dist)
-    if S.MVP_DIVERGENCE_MATCH_FILTER:
+    if MVP_DIVERGENCE_MATCH_FILTER:
         newIndex = match_approximate2(pIndexes, nIndexes, 1, True, vector, cmpv)
         pIndexes, nIndexes = newIndex[0], newIndex[1]
     return pIndexes, nIndexes
 
 
-def findpeaks(df, mh, ph, vh):
-    if synopsis:
+def findpeaks(df, mpvHL, dwfm=-1):
+    if SYNOPSIS:
         df = df.reset_index()
-    cIndexesP, cIndexesN = indpeaks('C', df['close'], 0.2)
-    mIndexesP, mIndexesN = indpeaks('M', df['M'], mh / 100, S.MVP_PEAKS_DISTANCE, -1)
-    pIndexesP, pIndexesN = indpeaks('P', df['P'], ph * 0.01)
-    vIndexesP, vIndexesN = indpeaks('V', df['V'], float(vh / 20) if vh > 20 else float(vh / 10))
+    cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow = mpvHL
+    # -1 = day chart, 0 = weekly, 1 = forth nightly, 2 = monthly
+    if MVP_PEAKS_DISTANCE > 0:
+        pdist = MVP_PEAKS_DISTANCE
+    else:
+        pdist = 3 if dwfm < 0 else \
+            5 if dwfm == 0 else \
+            4 if dwfm == 1 else \
+            2
+    if MVP_PEAKS_THRESHOLD > 0:
+        cpt = MVP_PEAKS_THRESHOLD
+        mpt = MVP_PEAKS_THRESHOLD
+        ppt = MVP_PEAKS_THRESHOLD
+        vpt = MVP_PEAKS_THRESHOLD
+    else:
+        cpt = ((cHigh - cLow) / 2) / 10
+        mpt = ((mHigh - mLow) / 2) / 50
+        ppt = ((pHigh - pLow) / 2) / 100
+        vpt = ((vHigh - vLow) / 2) / 20
+    cIndexesP, cIndexesN = indpeaks('C', df['close'], cpt, pdist, -1)
+    mIndexesP, mIndexesN = indpeaks('M', df['M'], mpt, pdist, 1 if mLow > 0 else -1)
+    pIndexesP, pIndexesN = indpeaks('P', df['P'], mpt, pdist, 1 if pLow > 0 else -1)
+    vIndexesP, vIndexesN = indpeaks('V', df['V'], mpt, pdist)
     if S.DBG_ALL:
+        print pdist, cpt, mpt, ppt, vpt
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
         print('M Peaks are: %s, %s' % (mIndexesP, mIndexesN))
         print('P Peaks are: %s, %s' % (pIndexesP, pIndexesN))
@@ -176,7 +195,7 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     miP, miN = cIP['M'], cIN['M']
     piP, piN = cIP['P'], cIN['P']
     viP, viN = cIP['V'], cIN['V']
-    if synopsis:
+    if SYNOPSIS:
         df = df.reset_index()
     cxp, cyp, ciP, sciP = locatepeaks(df['date'], df['close'], ciP)
     cxn, cyn, ciN, sciN = locatepeaks(df['date'], df['close'], ciN)
@@ -196,7 +215,7 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     cIP = {'C': [ciP, sciP], 'M': [miP, smiP], 'P': [piP, spiP], 'V': [viP, sviP]}
     cIN = {'C': [ciN, sciN], 'M': [miN, smiN], 'P': [piN, spiN], 'V': [viN, sviN]}
 
-    if S.MVP_PLOT_PEAKS:
+    if MVP_PLOT_PEAKS:
         if cxp is not None:
             ax[0].scatter(x=cxp, y=cyp, marker='.', c='r', edgecolor='b')
         if cxn is not None:
@@ -229,7 +248,7 @@ def formCmpvlines(cindexes, ccount):
             cmpv = cindexes[cmpvlist[j][0]][0]
             poslist2 = list(cmpv.keys())
             cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = match_approximate2(
-                sorted(poslist1), sorted(poslist2), S.MVP_DIVERGENCE_MATCH_TOLERANCE)
+                sorted(poslist1), sorted(poslist2), MVP_DIVERGENCE_MATCH_TOLERANCE)
     '''
     cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = \
         np.in1d(cmpvindexes[cmpvlist[i][0]], cmpvindexes[cmpvlist[j][0]])
@@ -311,7 +330,7 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                 if peaks:
                     c1count = c1y[c1y > min(p1y1, p1y2)]
                     c2count = c2y[c2y > min(p2y1, p2y2)]
-                    if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_BLOCKING_COUNT:
+                    if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
                         if S.DBG_ALL:
                             print max(len(c1count), len(c2count)), c1y, c2y
                         continue
@@ -319,7 +338,7 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                 else:
                     c1count = c1y[c1y < max(p1y1, p1y2)]
                     c2count = c2y[c2y < max(p2y1, p2y2)]
-                    if max(len(c1count), len(c2count)) > S.MVP_DIVERGENCE_BLOCKING_COUNT:
+                    if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
                         if S.DBG_ALL:
                             print max(len(c1count), len(c2count)), c1y, c2y
                         continue
@@ -384,12 +403,16 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     '''
 
     mHigh = annotateMVP(df, axes[1], "M", 10)
+    mLow = df.iloc[df['M'].idxmin()]['M']
     vHigh = annotateMVP(df, axes[3], "V", 24)
+    vLow = df.iloc[df['V'].idxmin()]['V']
     pHigh = df.iloc[df['P'].idxmax()]['P']
+    pLow = df.iloc[df['P'].idxmin()]['P']
+    cHigh = df.iloc[df['close'].idxmax()]['close']
+    cLow = df.iloc[df['close'].idxmin()]['close']
+    mpvHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
     try:
-        line_divergence(axes,
-                        *plotpeaks(df, axes,
-                                   *findpeaks(df, mHigh, pHigh, vHigh)))
+        line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, mpvHL)))
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'line divergence exception:'
@@ -434,8 +457,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         print dfm[-3:]
 
     '''
-    # when near to month end, dfw and dff will have last record crossing to new month
-    # and causing dfm to be out of alignment in subplot
+    # sharex is causing the MONTH column to be out of alignment
+    # Adding/removing records does not help to rectify this issue
     lastdfm = dfm.index[len(dfm) - 1]
     lastdff = dff.index[len(dff) - 1]
     lastdfw = dfw.index[len(dfw) - 1]
@@ -456,6 +479,21 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     title = "MPV Synopsis of " + counter + " (" + scode + "): " + \
         mpvdate + " (" + str(chartDays) + " days)"
     fig, axes = plt.subplots(4, 3, figsize=(15, 7), sharex=False, num=title)
+
+    '''
+    # sharex is causing the MONTH column to be out of alignment
+    # Adding/removing records does not help to rectify this issue
+    # Keeping here for the pandas row append reference
+    lastdfm = dfm.index[len(dfm) - 1]
+    lastdff = dff.index[len(dff) - 1]
+    lastdfw = dfw.index[len(dfw) - 1]
+    if lastdfw > lastdfm or lastdff > lastdfm:
+        new_date = datetools.to_datetime('2018-11-30')
+        newrow = DataFrame(dfm[-1:].values, index=[new_date], columns=dfm.columns)
+        dfm = dfm.append(newrow)
+        print dfm[-3:]
+    '''
+
     fig.suptitle(title)
     fig.canvas.set_window_title(title)
     for i in range(3):
@@ -464,10 +502,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         dflist[i]['P'].plot(ax=axes[2, i], color='g', label='P')
         dflist[i]['V'].plot(ax=axes[3, i], color='r', label='V')
 
-    axes[0, 2].legend(loc="upper right")
-    axes[1, 2].legend(loc="upper right")
-    axes[2, 2].legend(loc="upper right")
-    axes[3, 2].legend(loc="upper right")
+    axes[0, 2].legend(loc="upper left")
+    axes[1, 2].legend(loc="upper left")
+    axes[2, 2].legend(loc="upper left")
+    axes[3, 2].legend(loc="upper left")
     axes[3, 0].set_xlabel("Week")
     axes[3, 1].set_xlabel("Forthnight")
     axes[3, 2].set_xlabel("Month")
@@ -498,13 +536,18 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
                 '''
                 ax[j] = axes[j, i]
 
+            cHigh = dflist[i].loc[dflist[i]['close'].idxmax()]['close']
+            cLow = dflist[i].loc[dflist[i]['close'].idxmin()]['close']
             mHigh = dflist[i].loc[dflist[i]['M'].idxmax()]['M']
+            mLow = dflist[i].loc[dflist[i]['M'].idxmin()]['M']
             pHigh = dflist[i].loc[dflist[i]['P'].idxmax()]['P']
+            pLow = dflist[i].loc[dflist[i]['P'].idxmin()]['P']
             vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
+            vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
-            line_divergence(ax,
-                            *plotpeaks(dflist[i], ax,
-                                       *findpeaks(dflist[i], mHigh, pHigh, vHigh)))
+            mpvHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
+            line_divergence(ax, *plotpeaks(dflist[i], ax,
+                                           *findpeaks(dflist[i], mpvHL, i)))
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'line divergence exception:', i
@@ -536,23 +579,24 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 
 
 if __name__ == '__main__':
-    global klse, synopsis
+    global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD, MVP_DIVERGENCE_MATCH_FILTER
+    global klse, SYNOPSIS
     klse = "scrapers/i3investor/klse.txt"
 
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
 
-    S.MVP_DIVERGENCE_MATCH_FILTER = True if args['--filter'] else False
-    S.MVP_PLOT_PEAKS = False if args['--plotpeaks'] else True
-    synopsis = True if args['--synopsis'] else False
-    if args['--blocking']:
-        S.MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking'])
-    if args['--tolerance']:
-        S.MVP_DIVERGENCE_MATCH_TOLERANCE = int(args['--tolerance'])
-    if args['--peaksdist']:
-        S.MVP_PEAKS_DISTANCE = int(args['--peaksdist'])
-    if args['--chartdays']:
-        chartDays = int(args['--chartdays'])
+    MVP_PLOT_PEAKS = False if args['--plotpeaks'] else True
+    MVP_PEAKS_DISTANCE = -1 if not args['--peaksdist'] else float(args['--peaksdist'])
+    MVP_PEAKS_THRESHOLD = -1 if not args['--threshold'] else float(args['--threshold'])
+    MVP_DIVERGENCE_MATCH_FILTER = True if args['--filter'] else False
+    MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking']) if args['--blocking'] else 1
+    MVP_DIVERGENCE_MATCH_TOLERANCE = int(args['--tolerance']) if args['--tolerance'] else 3
+    chartDays = int(args['--chartdays']) if args['--chartdays'] else S.MVP_CHART_DAYS
+    SYNOPSIS = True if args['--synopsis'] else False
+    if SYNOPSIS and chartDays == S.MVP_CHART_DAYS:
+        # daily charting is defaulted to 200, add 100 for synopsis charting
+        chartDays += 100
 
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
@@ -577,7 +621,7 @@ if __name__ == '__main__':
             print "INF:Skip: ", shortname
             continue
         try:
-            if synopsis:
+            if SYNOPSIS:
                 mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--displaychart'])
             else:
                 mvpChart(shortname, stocklist[shortname], chartDays, args['--displaychart'])

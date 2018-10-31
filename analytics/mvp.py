@@ -165,7 +165,8 @@ def updateMPV(counter, stkcode, eod):
     fh.write(neweod + '\n')
     fh.close()
 
-    return updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice)
+    # return updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice)
+    return True
 
 
 def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice):
