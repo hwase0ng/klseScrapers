@@ -4,6 +4,7 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Optional counters
 Options:
+    -d,--debug            Enable debug mode [default: False]
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -u,--update           Update MVP instead of generate from scratch
     -h,--help             This page
@@ -20,7 +21,7 @@ Price  - 20% up in 15 days
 from common import retrieveCounters, loadCfg, formStocklist, FifoDict, \
     loadKlseCounters, getSkipRows
 from docopt import docopt
-from mvpchart import mvpChart, mvpSynopsis
+from mvpchart import mvpChart, mvpSynopsis, globals_from_args
 from utils.dateutils import getToday, getLastDate, getBusDaysBtwnDates
 from utils.fileutils import wc_line_count, tail2
 from pandas import read_csv
@@ -36,7 +37,7 @@ def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volum
 
 
 def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
-    if S.DBG_YAHOO:
+    if DBG_ALL:
         print shortname, stkcode
     totalVol = 0.0
     totalPrice = 0.0
@@ -49,8 +50,8 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
         eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0])
     lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0]
 
-    S.DBG_ALL = False
-    if S.DBG_ALL:
+    DBG_ALL = False
+    if DBG_ALL:
         for _ in range(S.MVP_DAYS):
             print eodlist.pop()
 
@@ -66,7 +67,7 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
                 reader = csv.reader(fl, delimiter=',')
                 for i, line in enumerate(reader):
                     stock, dt, popen, phigh, plow, pclose, volume = unpackEOD(*line)
-                    if S.DBG_ALL:
+                    if DBG_ALL:
                         print '{}: {},{},{},{},{},{},{}'.format(
                             i, stock, dt, popen, phigh, plow, pclose, volume)
                     if pclose >= popen and pclose >= lasteod[5]:
@@ -82,12 +83,12 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
                     volDiff = (float(volume) - aveVol) / aveVol
                     priceDiff = (float(pclose) - avePrice) / avePrice
                     # priceDiff *= 20  # easier to view as value is below 1
-                    if S.DBG_ALL and dt.startswith('2018-07'):
+                    if DBG_ALL and dt.startswith('2018-07'):
                         print '\t', dt, aveVol, avePrice, volDiff, priceDiff
                     neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}\n'.format(
                         stock, dt, popen, phigh, plow, pclose, volume,
                         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
-                    if S.DBG_ALL:
+                    if DBG_ALL:
                         print neweod
                     if i > S.MVP_DAYS:  # skip first 15 dummy records
                         fh.write(neweod)
@@ -122,7 +123,7 @@ def dfLoadMPV(counter, stkcode, genMPV=False):
     df = read_csv(csvfl, sep=',', skiprows=skiprow, header=None, index_col=False,
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
-    if S.DBG_ALL:
+    if DBG_ALL:
         print df.iloc[0]['date'], df.iloc[-1]['date']
     return df
 
@@ -159,7 +160,7 @@ def updateMPV(counter, stkcode, eod):
     neweod = '{},{},{:.4f},{:.4f},{:.4f},{:.4f},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
         stock, dt, popen, phigh, plow, pclose, int(volume),
         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
-    if S.DBG_ALL:
+    if DBG_ALL:
         print neweod
     fh = open(S.DATA_DIR + S.MVP_DIR + counter + '.csv', "ab")
     fh.write(neweod + '\n')
@@ -186,6 +187,22 @@ def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice):
     return True
 
 
+def load_mvp_args(synopsis=False):
+    params = {}
+    params['--debug'] = False
+    params['--plotpeaks'] = True
+    params['--peaksdist'] = -1
+    params['--threshold'] = -1
+    params['--filter'] = False
+    params['--blocking'] = 1
+    params['--tolerance'] = 3
+    params['--synopsis'] = synopsis
+    params['--chartdays'] = S.MVP_CHART_DAYS
+    params['--list'] = ""
+    params['COUNTER'] = ""
+    globals_from_args(params)
+
+
 def mvpUpdateMPV(counter, scode):
     inputfl = S.DATA_DIR + counter + "." + scode + ".csv"
     lastdt = getLastDate(inputfl)
@@ -202,13 +219,16 @@ def mvpUpdateMPV(counter, scode):
     lines = tail2(inputfl, days)
     for eod in lines:
         if updateMPV(counter, scode, eod):
+            load_mvp_args()
             mvpChart(counter, scode)
+            load_mvp_args(True)
             mvpSynopsis(counter, scode)
 
 
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
+    DBG_ALL = True if args['--debug'] else False
 
     global klse
     klse = "scrapers/i3investor/klse.txt"
@@ -219,7 +239,6 @@ if __name__ == '__main__':
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
     else:
-        S.DBG_YAHOO = True
         stocklist = loadKlseCounters(klse)
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:

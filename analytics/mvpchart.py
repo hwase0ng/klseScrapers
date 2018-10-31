@@ -5,13 +5,14 @@ Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
     -c,--chartdays=<cd>   Days to display on chart [default: 200]
-    -d,--displaychart     Display chart, not save
+    -d,--debug            Enable debug mode [default: False]
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>    Set MVP blocking count value [default: 1]
     -f,--filter           Switch ON MVP Divergence Matching filter [default: False]
-    -s,--synopsis         Synopsis of MVP
+    -s,--showchart        Display chart [default: False]
+    -S,--synopsis         Synopsis of MVP [default: False]
     -t,--tolerance=<mt>   Set MVP matching tolerance value [default: 3]
-    -p,--plotpeaks        Switch ON plotting peaks
+    -p,--plotpeaks        Switch ON plotting peaks [default: False]
     -D,--peaksdist=<pd>   Peaks distance [default: -1]
     -T,--threshold=<pt>   Peaks threshold [default: -1]
     -h,--help             This page
@@ -70,7 +71,7 @@ def annotateMVP(df, axes, MVP, cond):
         mpvdate = getMpvDate(df.iloc[idxMV[j]]['date'])
         mv = df.iloc[idxMV[j]][MVP]
         mv = int(mv)
-        if S.DBG_ALL:
+        if DBG_ALL:
             print j, mpvdate, mv
         if i <= len(idxMV):
             group_mvp.append([mpvdate[5:], str(mv)])
@@ -155,7 +156,7 @@ def findpeaks(df, mpvHL, dwfm=-1):
     mIndexesP, mIndexesN = indpeaks('M', df['M'], mpt, pdist, 1 if mLow > 0 else -1)
     pIndexesP, pIndexesN = indpeaks('P', df['P'], mpt, pdist, 1 if pLow > 0 else -1)
     vIndexesP, vIndexesN = indpeaks('V', df['V'], mpt, pdist)
-    if S.DBG_ALL:
+    if DBG_ALL:
         print pdist, cpt, mpt, ppt, vpt
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
         print('M Peaks are: %s, %s' % (mIndexesP, mIndexesN))
@@ -241,7 +242,7 @@ def formCmpvlines(cindexes, ccount):
     cmpvlines = {}
     for i in range(len(cmpvlist) - 1):
         for j in range(i + 1, len(cmpvlist) - 1):
-            if S.DBG_ALL:
+            if DBG_ALL:
                 print i, j, cmpvlist[i][0], cmpvlist[j][0]
             cmpv = cindexes[cmpvlist[i][0]][0]
             poslist1 = list(cmpv.keys())
@@ -325,13 +326,13 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                 p2y1, p2y2 = p2y[i], p2y[i + 1]
                 point1, point2 = xlist2[p2date1], xlist2[p2date2]
                 c2y = np.array(ylist2[point1:point2])
-                if S.DBG_ALL:
+                if DBG_ALL:
                     print p1date1, p1date2, min(p1y1, p1y2), max(p1y1, p1y2), c1y, peaks
                 if peaks:
                     c1count = c1y[c1y > min(p1y1, p1y2)]
                     c2count = c2y[c2y > min(p2y1, p2y2)]
                     if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
-                        if S.DBG_ALL:
+                        if DBG_ALL:
                             print max(len(c1count), len(c2count)), c1y, c2y
                         continue
                     lstyle = ":" if d1[i] > 0 else "--"
@@ -339,7 +340,7 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                     c1count = c1y[c1y < max(p1y1, p1y2)]
                     c2count = c2y[c2y < max(p2y1, p2y2)]
                     if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
-                        if S.DBG_ALL:
+                        if DBG_ALL:
                             print max(len(c1count), len(c2count)), c1y, c2y
                         continue
                     lstyle = "--" if d1[i] > 0 else ":"
@@ -386,7 +387,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         firstidx = df.index.get_loc(df.iloc[chartDays].name)
     else:
     '''
-    if S.DBG_ALL:
+    if DBG_ALL:
         print(df.tail(10))
         print type(mpvdate), mpvdate
         # print df.index.get_loc(df.iloc[chartDays].name)
@@ -440,6 +441,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 
 
 def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
+    print "Synopsis:", counter
     try:
         df, _, fname = dfLoadMPV(counter, chartDays)
         dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
@@ -450,7 +452,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         print e
         return
 
-    if S.DBG_ALL:
+    if DBG_ALL:
         print len(dfw), len(dff), len(dfm)
         print dfw[-3:]
         print dff[-3:]
@@ -578,30 +580,36 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     plt.close()
 
 
-if __name__ == '__main__':
-    global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD, MVP_DIVERGENCE_MATCH_FILTER
-    global klse, SYNOPSIS
+def globals_from_args(args):
+    global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
+    global MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE
+    global klse, DBG_ALL, SYNOPSIS
     klse = "scrapers/i3investor/klse.txt"
 
-    args = docopt(__doc__)
-    cfg = loadCfg(S.DATA_DIR)
-
-    MVP_PLOT_PEAKS = False if args['--plotpeaks'] else True
+    DBG_ALL = True if args['--debug'] else False
+    MVP_PLOT_PEAKS = True if args['--plotpeaks'] else False
     MVP_PEAKS_DISTANCE = -1 if not args['--peaksdist'] else float(args['--peaksdist'])
     MVP_PEAKS_THRESHOLD = -1 if not args['--threshold'] else float(args['--threshold'])
     MVP_DIVERGENCE_MATCH_FILTER = True if args['--filter'] else False
     MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking']) if args['--blocking'] else 1
     MVP_DIVERGENCE_MATCH_TOLERANCE = int(args['--tolerance']) if args['--tolerance'] else 3
-    chartDays = int(args['--chartdays']) if args['--chartdays'] else S.MVP_CHART_DAYS
     SYNOPSIS = True if args['--synopsis'] else False
+    chartDays = int(args['--chartdays']) if args['--chartdays'] else S.MVP_CHART_DAYS
     if SYNOPSIS and chartDays == S.MVP_CHART_DAYS:
         # daily charting is defaulted to 200, add 100 for synopsis charting
         chartDays += 100
-
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
     else:
         stocks = retrieveCounters(args['--list'])
+
+    return stocks, chartDays
+
+
+if __name__ == '__main__':
+    args = docopt(__doc__)
+    cfg = loadCfg(S.DATA_DIR)
+    stocks, chartDays = globals_from_args(args)
 
     if len(stocks):
         stocklist = formStocklist(stocks, klse)
@@ -622,8 +630,8 @@ if __name__ == '__main__':
             continue
         try:
             if SYNOPSIS:
-                mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--displaychart'])
+                mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--showchart'])
             else:
-                mvpChart(shortname, stocklist[shortname], chartDays, args['--displaychart'])
+                mvpChart(shortname, stocklist[shortname], chartDays, args['--showchart'])
         except Exception:
             traceback.print_exc()
