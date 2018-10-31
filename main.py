@@ -1,15 +1,14 @@
 '''
-Usage: main [-cfkpwh] [COUNTER] ...
+Usage: main [options] [COUNTER] ...
 
 Arguments:
     COUNTER           Optional counters
 Options:
-    -c,--check        Check processing mode
-    -f,--force        Force update when investing.com data is delayed
-    -k,--klse         Download all KLSE counters
-    -p,--portfolio    Select portfolio from config.json
-    -w,--watchlist    Select watchlist from config.json
-    -h,--help         This page
+    -c,--check            Check processing mode
+    -f,--force            Force update when investing.com data is delayed (obsoleted as now using i3)
+    -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
+    -k,--klse             Update KLSE stock listing
+    -h,--help             This page
 
 This app downloads EOD from KLSE, either for all counters or selectively
 
@@ -27,7 +26,7 @@ from utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap,\
-    getCounters
+    retrieveCounters
 from utils.fileutils import cd, purgeOldFiles
 from scrapers.dbKlseEod import dbUpsertCounters, initKlseDB
 from docopt import docopt
@@ -291,13 +290,6 @@ def scrapeKlse(procmode, force_update):
             preUpdateProcessing()
             list1 = writeLatestPrice(dates[1], True)
         else:
-            # Full download using klse.txt
-            # To do: a fix schedule to refresh klse.txt
-            writeStkList = False
-            if writeStkList:
-                print "Scraping i3 stocks listing ..."
-                writeStocksListing(klse)
-
             # TODO:
             # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
             # May need to do additional checking to determine if need to use either
@@ -322,11 +314,21 @@ if __name__ == '__main__':
     stocks = 'AASIA,ADVPKG,AEM,AIM,AMTEK,ASIABRN,ATLAN,ATURMJU,AVI,AYER,BCB,BHIC,BIG,BIPORT,BJFOOD,BJMEDIA,BLDPLNT,BOXPAK,BREM,BRIGHT,BTM,CAMRES,CEPCO,CFM,CHUAN,CICB,CNASIA,CYMAO,DEGEM,DIGISTA,DKLS,DOLMITE,EIG,EKSONS,EPMB,EUROSP,FACBIND,FCW,FSBM,GCE,GETS,GOCEAN,GOPENG,GPA,HCK,HHHCORP,HLT,ICAP,INNITY,IPMUDA,ITRONIC,JASKITA,JETSON,JIANKUN,KAMDAR,KANGER,KIALIM,KLCC,KLUANG,KOMARK,KOTRA,KPSCB,KYM,LBICAP,LEBTECH,LIONDIV,LIONFIB,LNGRES,MALPAC,MBG,MELATI,MENTIGA,MERGE,METROD,MGRC,MHCARE,MILUX,MISC,MSNIAGA,NICE,NPC,NSOP,OCB,OFI,OIB,OVERSEA,PENSONI,PESONA,PGLOBE,PJBUMI,PLB,PLS,PTGTIN,RAPID,REX,RSAWIT,SANBUMI,SAPIND,SBAGAN,SCIB,SEALINK,SEB,SERSOL,SHCHAN,SINOTOP,SJC,SMISCOR,SNC,SNTORIA,SRIDGE,STERPRO,STONE,SUNSURIA,SUNZEN,SYCAL,TAFI,TFP,TGL,THRIVEN,TSRCAP,UMS,UMSNGB,WEIDA,WOODLAN,XIANLNG,YFG,ZECON,ZELAN'
     stocks = 'D&O,E&O,F&N,L&G,M&G,P&O,Y&G'
     postUpdateProcessing()
+    stocks = getCounters(args['COUNTER'], args['--klse'],
+                         args['--portfolio'], args['--watchlist'], False)
     '''
     global klse
     klse = "scrapers/i3investor/klse.txt"
-    stocks = getCounters(args['COUNTER'], args['--klse'],
-                         args['--portfolio'], args['--watchlist'], False)
+    if args['--klse']:
+        # Full download using klse.txt
+        # To do: a fix schedule to refresh klse.txt
+        print "Scraping i3 stocks listing ..."
+        writeStocksListing(klse)
+
+    if args['COUNTER']:
+        stocks = args['COUNTER'][0].upper()
+    else:
+        stocks = retrieveCounters(args['--list'])
     S.DBG_ALL = False
     S.RESUME_FILE = True
 
@@ -334,10 +336,6 @@ if __name__ == '__main__':
         #  download only selected counters
         scrapeI3(formStocklist(stocks, klse))
     else:
-        if args['--klse']:
-            print "Scraping i3 stocks listing ..."
-            writeStocksListing(klse)
-        else:
-            scrapeKlse(args['--check'], args['--force'])
+        scrapeKlse(args['--check'], args['--force'])
 
     print "\nDone."

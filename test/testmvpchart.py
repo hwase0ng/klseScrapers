@@ -4,7 +4,7 @@ Created on Oct 24, 2018
 @author: hwase
 '''
 
-from analytics.mvpchart import dfFromCsv, getMpvDate
+from analytics.mvpchart import dfLoadMPV, getMpvDate
 from common import loadCfg, FifoDict
 import numpy as np
 import operator
@@ -43,7 +43,7 @@ vector = [0, 6, 25, 20, 15, 8, 15, 6, 0, 6, 0, -5, -15, -3, 4,
 print('Detect peaks with minimum height and distance filters.')
 
 cfg = loadCfg(S.DATA_DIR)
-df, _, _ = dfFromCsv("KLSE")
+df, _, _ = dfLoadMPV("KLSE")
 cvector = df['close']
 cindexes = peakutils.peak.indexes(np.array(cvector), thres=7.0 / max(cvector), min_dist=5)
 print('C Peaks are: %s' % (cindexes))

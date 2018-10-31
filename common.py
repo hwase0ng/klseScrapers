@@ -143,8 +143,13 @@ def formStocklist(stocks, infile):
     for shortname in stocks:
         # stock_code = getStockCode(shortname, infile)
         try:
-            stock_code = imap[shortname]
-            stocklist[shortname] = stock_code
+            if "." in shortname:
+                # KLSE related from settings.py
+                names = shortname.splice('.')
+                stocklist[names[0]] = names[1]
+            else:
+                stock_code = imap[shortname]
+                stocklist[shortname] = stock_code
         except KeyError:
             print "Applied hack for missing entry:", shortname
             # Hack to bypass restriction on KLSE counters
@@ -234,6 +239,7 @@ def retrieveCounters(clist):
     return ",".join(counters)
 
 
+# obsolete, use retrieveCounters instead
 def getCounters(counterlist, klse, pf, wl, verbose=True):
     counters = ''
     if klse:
@@ -276,7 +282,7 @@ def getSkipRows(csvfl, skipdays=S.MVP_DAYS):
     return skiprow, row_count
 
 
-def match_approximate(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE):
+def match_approximate(a, b, approx):
     c, d = [], []
     bEnd = False
     bfifo = FifoDict()
@@ -304,7 +310,7 @@ def match_approximate(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE):
 
 # Credit to the following implementation goes to Matt Messersmith:
 #   https://stackoverflow.com/questions/53022670/how-to-compare-2-sorted-numeric-lists-in-python-where-each-corresponding-element
-def match_approximate2(a, b, approx=S.MVP_DIVERGENCE_MATCH_TOLERANCE, invert=False, vector=None, cmpv=None):
+def match_approximate2(a, b, approx, invert=False, vector=None, cmpv=None):
     a_ind, b_ind = 0, 0
     resulta, resultb = [], []
     while a_ind < len(a) and b_ind < len(b):
