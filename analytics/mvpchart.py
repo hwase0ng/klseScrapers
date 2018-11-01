@@ -392,9 +392,11 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         print type(mpvdate), mpvdate
         # print df.index.get_loc(df.iloc[chartDays].name)
 
-    axes = df.plot(x='date', figsize=(15, 7), subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
+    axes = df.plot(x='date', figsize=(10, 5), subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
     # Disguise axis X label as title to save on chart space
-    axes[3].set_xlabel("MPV Chart of " + counter + "." + scode + ": " + mpvdate, fontsize=12)
+    title = "MPV Chart of " + counter + "." + scode + ": " + mpvdate
+    axes[3].set_xlabel(title, fontsize=12)
+    axes[3].figure.canvas.set_window_title(title)
     ax1 = plt.gca().axes.get_xaxis()
     ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     ax1.set_label_coords(0.84, -0.7)
@@ -481,7 +483,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 
     title = "MPV Synopsis of " + counter + " (" + scode + "): " + \
         mpvdate + " (" + str(chartDays) + " days)"
-    fig, axes = plt.subplots(4, 3, figsize=(15, 7), sharex=False, num=title)
+    fig, axes = plt.subplots(4, 3, figsize=(10, 5), sharex=False, num=title)
 
     '''
     # sharex is causing the MONTH column to be out of alignment
