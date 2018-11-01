@@ -145,7 +145,7 @@ def formStocklist(stocks, infile):
         try:
             if "." in shortname:
                 # KLSE related from settings.py
-                names = shortname.splice('.')
+                names = shortname.split('.')
                 stocklist[names[0]] = names[1]
             else:
                 stock_code = imap[shortname]
