@@ -200,7 +200,8 @@ def load_mvp_args(synopsis=False):
     params['--chartdays'] = S.MVP_CHART_DAYS
     params['--list'] = ""
     params['COUNTER'] = ""
-    globals_from_args(params)
+    _, chartDays = globals_from_args(params)
+    return chartDays
 
 
 def mvpUpdateMPV(counter, scode):
@@ -219,10 +220,10 @@ def mvpUpdateMPV(counter, scode):
     lines = tail2(inputfl, days)
     for eod in lines:
         if updateMPV(counter, scode, eod):
-            load_mvp_args()
-            mvpChart(counter, scode)
-            load_mvp_args(True)
-            mvpSynopsis(counter, scode)
+            chartdays = load_mvp_args()
+            mvpChart(counter, scode, chartdays)
+            chartdays = load_mvp_args(True)
+            mvpSynopsis(counter, scode, chartdays)
 
 
 if __name__ == '__main__':
