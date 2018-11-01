@@ -6,7 +6,7 @@ Arguments:
 Options:
     -d,--debug            Enable debug mode [default: False]
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
-    -u,--update           Update MVP instead of generate from scratch
+    -g,--generate         Generate MVP from scratch [default: False]
     -h,--help             This page
 
 Created on Oct 14, 2018
@@ -243,7 +243,7 @@ if __name__ == '__main__':
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
             continue
-        if not args['--update']:
+        if args['--generate']:
             generateMPV(shortname, stocklist[shortname])
         else:
             mvpUpdateMPV(shortname, stocklist[shortname])
