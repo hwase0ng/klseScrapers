@@ -168,6 +168,9 @@ class InvestingQuote(Quote):
             elif now.hour < 18:
                 # only download today's EOD if it is after 6pm local time
                 end_date = du.getYesterday("%Y-%m-%d")
+        if last_date == end_date:
+            self.csverr = sname + ": Skipped downloaded (" + last_date + ")"
+            return None
 
         '''
         last_date = datetime.datetime.strptime(last_date, "%Y-%m-%d").strftime('%m/%d/%Y')
