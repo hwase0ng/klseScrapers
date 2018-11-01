@@ -141,7 +141,7 @@ def findpeaks(df, mpvHL, dwfm=-1):
         pdist = 3 if dwfm < 0 else \
             5 if dwfm == 0 else \
             4 if dwfm == 1 else \
-            2
+            3
     if MVP_PEAKS_THRESHOLD > 0:
         cpt = MVP_PEAKS_THRESHOLD
         mpt = MVP_PEAKS_THRESHOLD
@@ -154,8 +154,8 @@ def findpeaks(df, mpvHL, dwfm=-1):
         vpt = ((vHigh - vLow) / 2) / 20
     cIndexesP, cIndexesN = indpeaks('C', df['close'], cpt, pdist, -1)
     mIndexesP, mIndexesN = indpeaks('M', df['M'], mpt, pdist, 1 if mLow > 0 else -1)
-    pIndexesP, pIndexesN = indpeaks('P', df['P'], mpt, pdist, 1 if pLow > 0 else -1)
-    vIndexesP, vIndexesN = indpeaks('V', df['V'], mpt, pdist)
+    pIndexesP, pIndexesN = indpeaks('P', df['P'], ppt, pdist, 1 if pLow > 0 else -1)
+    vIndexesP, vIndexesN = indpeaks('V', df['V'], vpt, pdist)
     if DBG_ALL:
         print pdist, cpt, mpt, ppt, vpt
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
@@ -207,6 +207,9 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     vxp, vyp, viP, sviP = locatepeaks(df['date'], df['V'], viP)
     vxn, vyn, viN, sviN = locatepeaks(df['date'], df['V'], viN)
 
+    # Being used by synopsis chart signal scanning
+    cmpvYPN = [cyp, cyn, myp, myn, pyp, pyn, vyp, vyn]
+
     # Nested dictionary structure:
     #   cIP = {'C': [[{pos1: [xdate1, yval1], pos2: [xdate2, yval2], ... ],
     #                [{0: [xdate1, yval1], 1: [xdate2, yval2], ... ]]}
@@ -234,7 +237,7 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
         if vxn is not None:
             ax[3].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
 
-    return cIP, cIN, cCP, cCN
+    return cIP, cIN, cCP, cCN, cmpvYPN
 
 
 def formCmpvlines(cindexes, ccount):
@@ -364,7 +367,7 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                 '''
 
 
-def line_divergence(axes, cIP, cIN, cCP, cCN):
+def line_divergence(axes, cIP, cIN, cCP, cCN, cmvpYPN):
     cmpvlinesP = formCmpvlines(cIP, cCP)
     cmpvlinesN = formCmpvlines(cIN, cCN)
     plotlines(axes, cmpvlinesP, cIP, True)
@@ -373,6 +376,7 @@ def line_divergence(axes, cIP, cIN, cCP, cCN):
     del cIN
     del cCP
     del cCN
+    return cmvpYPN
 
 
 def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
@@ -450,16 +454,16 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
         dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
         dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+
+        if DBG_ALL:
+            print len(dfw), len(dff), len(dfm)
+            print dfw[-3:]
+            print dff[-3:]
+            print dfm[-3:]
     except Exception as e:
         print "Dataframe exception: ", counter, fname
         print e
         return
-
-    if DBG_ALL:
-        print len(dfw), len(dff), len(dfm)
-        print dfw[-3:]
-        print dff[-3:]
-        print dfm[-3:]
 
     '''
     # sharex is causing the MONTH column to be out of alignment
@@ -520,6 +524,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     vHigh = annotateMVP(dfw, axes[3, 1], "V", 20)
     pHigh = dfw.loc[dfw['P'].idxmax()]['P']
     '''
+    hlList, pnList = [], []
     try:
         for i in range(3):
             ax = {}
@@ -551,8 +556,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
             vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
             mpvHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
-            line_divergence(ax, *plotpeaks(dflist[i], ax,
-                                           *findpeaks(dflist[i], mpvHL, i)))
+            hlList.append(mpvHL)
+            cmpvYPN = line_divergence(ax, *plotpeaks(dflist[i], ax,
+                                                     *findpeaks(dflist[i], mpvHL, i)))
+            pnList.append(cmpvYPN)
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'line divergence exception:', i
@@ -579,8 +586,15 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     if showchart:
         plt.show()
     else:
+        scanSignals(hlList, pnList)
         plt.savefig(fname + "-synopsis.png")
     plt.close()
+
+
+def scanSignals(hllist, pnlist):
+    for i in range(3):
+        pass
+    return True
 
 
 def globals_from_args(args):
