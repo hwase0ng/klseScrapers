@@ -18,6 +18,7 @@ Created on Apr 16, 2018
 
 import settings as S
 import pandas as pd
+from analytics.mvp import mpvUpdateKlseRelated
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, \
     scrapeRecentEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
@@ -290,12 +291,13 @@ def scrapeKlse(procmode, force_update):
             preUpdateProcessing()
             list1 = writeLatestPrice(dates[1], True)
         else:
-            # TODO:
             # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
-            # May need to do additional checking to determine if need to use either
+            # Have enhanced investing.com code to break down downloads by every 3 months
             list1 = scrapeI3(loadKlseCounters(klse))
 
         list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
+        if len(list2):
+            mpvUpdateKlseRelated()
 
         if S.USEMONGO:
             # do not perform upsert ops due to speed
