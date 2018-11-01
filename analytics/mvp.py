@@ -29,6 +29,9 @@ import csv
 import settings as S
 import traceback
 
+DBG_ALL = False
+KLSE = "scrapers/i3investor/klse.txt"
+
 
 def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volume):
     if volume == "-":
@@ -135,7 +138,8 @@ def updateMPV(counter, stkcode, eod):
     stock = eoddata[0]
     dt = eoddata[1]
     if dt <= df.iloc[-1]['date']:
-        print "Wrong date:", dt, "is less than", df.iloc[-1]['date']
+        print "Skipped processed date: *", dt, "*", \
+            " last processed date: ***", df.iloc[-1]['date'], "***"
         return False
     popen = float(eoddata[2])
     phigh = float(eoddata[3])
@@ -224,21 +228,27 @@ def mvpUpdateMPV(counter, scode):
             mvpSynopsis(counter, scode)
 
 
+def mpvUpdateKlseRelated():
+    stocks = retrieveCounters("k")
+    print "Updating KLSE related:", stocks
+    stocklist = formStocklist(stocks, KLSE)
+    for shortname in sorted(stocklist.iterkeys()):
+        mvpUpdateMPV(shortname, stocklist[shortname])
+
+
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
 
-    global klse, DBG_ALL
     DBG_ALL = True if args['--debug'] else False
-    klse = "scrapers/i3investor/klse.txt"
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
     else:
         stocks = retrieveCounters(args['--list'])
     if len(stocks):
-        stocklist = formStocklist(stocks, klse)
+        stocklist = formStocklist(stocks, KLSE)
     else:
-        stocklist = loadKlseCounters(klse)
+        stocklist = loadKlseCounters(KLSE)
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:
             print "INF:Skip: ", shortname
