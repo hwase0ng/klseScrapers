@@ -442,6 +442,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 
 def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     print "Synopsis:", counter
+    fname = ""
     try:
         df, _, fname = dfLoadMPV(counter, chartDays)
         dfw = df.groupby([Grouper(key='date', freq='W')]).mean()

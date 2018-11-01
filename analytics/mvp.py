@@ -50,7 +50,6 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
         eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0])
     lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0]
 
-    DBG_ALL = False
     if DBG_ALL:
         for _ in range(S.MVP_DAYS):
             print eodlist.pop()
@@ -85,8 +84,8 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
                     # priceDiff *= 20  # easier to view as value is below 1
                     if DBG_ALL and dt.startswith('2018-07'):
                         print '\t', dt, aveVol, avePrice, volDiff, priceDiff
-                    neweod = '{},{},{},{},{},{},{},{},{:.2f},{},{},{:.2f},{:.2f}\n'.format(
-                        stock, dt, popen, phigh, plow, pclose, volume,
+                    neweod = '{},{},{:.4f},{:.4f},{:.4f},{:.4f},{},{},{:.2f},{},{},{:.2f},{:.2f}\n'.format(
+                        stock, dt, float(popen), float(phigh), float(plow), float(pclose), volume,
                         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
                     if DBG_ALL:
                         print neweod
@@ -228,9 +227,9 @@ def mvpUpdateMPV(counter, scode):
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
-    DBG_ALL = True if args['--debug'] else False
 
-    global klse
+    global klse, DBG_ALL
+    DBG_ALL = True if args['--debug'] else False
     klse = "scrapers/i3investor/klse.txt"
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
