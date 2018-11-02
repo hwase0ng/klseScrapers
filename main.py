@@ -8,6 +8,8 @@ Options:
     -f,--force            Force update when investing.com data is delayed (obsoleted as now using i3)
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -k,--klse             Update KLSE stock listing
+    -K,--KLSE             Update KLSE related stocks
+    -r,--resume           Resume after crash [default: False]
     -h,--help             This page
 
 This app downloads EOD from KLSE, either for all counters or selectively
@@ -251,7 +253,7 @@ def postUpdateProcessing():
         print "Post-update Processing ... Done"
 
 
-def scrapeKlse(procmode, force_update):
+def scrapeKlse(procmode, force_update, resume):
     '''
     Determine if can use latest price found in i3 stocks page
     Conditions:
@@ -289,7 +291,7 @@ def scrapeKlse(procmode, force_update):
 
         if useI3latest:
             preUpdateProcessing()
-            list1 = writeLatestPrice(dates[1], True)
+            list1 = writeLatestPrice(dates[1], True, resume)
         else:
             # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
             # Have enhanced investing.com code to break down downloads by every 3 months
@@ -327,17 +329,20 @@ if __name__ == '__main__':
         print "Scraping i3 stocks listing ..."
         writeStocksListing(klse)
 
-    if args['COUNTER']:
-        stocks = args['COUNTER'][0].upper()
+    if args['--KLSE']:
+        scrapeKlseRelated('scrapers/investingcom/klse.idmap')
     else:
-        stocks = retrieveCounters(args['--list'])
-    S.DBG_ALL = False
-    S.RESUME_FILE = True
+        if args['COUNTER']:
+            stocks = args['COUNTER'][0].upper()
+        else:
+            stocks = retrieveCounters(args['--list'])
+        S.DBG_ALL = False
+        S.RESUME_FILE = True
 
-    if len(stocks) > 0:
-        #  download only selected counters
-        scrapeI3(formStocklist(stocks, klse))
-    else:
-        scrapeKlse(args['--check'], args['--force'])
+        if len(stocks) > 0:
+            #  download only selected counters
+            scrapeI3(formStocklist(stocks, klse))
+        else:
+            scrapeKlse(args['--check'], args['--force'], args['--resume'])
 
     print "\nDone."
