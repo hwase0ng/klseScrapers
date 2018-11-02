@@ -1,2 +1,5 @@
 *            #Ignore everything
 !.gitignore  #Except for this file itself.
+/config.json
+/config.json.bak
+/trimcsv.sh
