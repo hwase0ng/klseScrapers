@@ -168,7 +168,7 @@ class InvestingQuote(Quote):
             elif now.hour < 18:
                 # only download today's EOD if it is after 6pm local time
                 end_date = du.getYesterday("%Y-%m-%d")
-        if last_date == end_date:
+        if last_date > end_date:
             self.csverr = sname + ": Skipped downloaded (" + last_date + ")"
             return None
 
@@ -225,6 +225,9 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
         else:
             lastdt = S.ABS_START
         enddt = getToday('%Y-%m-%d')
+        if lastdt == enddt:
+            print "Skipped downloaded:", counter
+            continue
         print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
             shortname, stock_code, lastdt, enddt)
         while True:
