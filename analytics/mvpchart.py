@@ -130,10 +130,10 @@ def indpeaks(cmpv, vector, threshold, dist, factor=1):
     return pIndexes, nIndexes
 
 
-def findpeaks(df, mpvHL, dwfm=-1):
+def findpeaks(df, cmvpHL, dwfm=-1):
     if SYNOPSIS:
         df = df.reset_index()
-    cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow = mpvHL
+    cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow = cmvpHL
     # -1 = day chart, 0 = weekly, 1 = forth nightly, 2 = monthly
     if MVP_PEAKS_DISTANCE > 0:
         pdist = MVP_PEAKS_DISTANCE
@@ -208,7 +208,9 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     vxn, vyn, viN, sviN = locatepeaks(df['date'], df['V'], viN)
 
     # Being used by synopsis chart signal scanning
-    cmpvYPN = [cyp, cyn, myp, myn, pyp, pyn, vyp, vyn]
+    cmpvYP = [cyp, myp, pyp, vyp]
+    cmpvYN = [cyn, myn, pyn, vyn]
+    cmpvYPN = [cmpvYP, cmpvYN]
 
     # Nested dictionary structure:
     #   cIP = {'C': [[{pos1: [xdate1, yval1], pos2: [xdate2, yval2], ... ],
@@ -417,9 +419,9 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     pLow = df.iloc[df['P'].idxmin()]['P']
     cHigh = df.iloc[df['close'].idxmax()]['close']
     cLow = df.iloc[df['close'].idxmin()]['close']
-    mpvHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
+    cmvpHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
     try:
-        line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, mpvHL)))
+        line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, cmvpHL)))
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'line divergence exception:'
@@ -555,10 +557,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
             vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
             vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
-            mpvHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
-            hlList.append(mpvHL)
+            cmvpHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
+            hlList.append(cmvpHL)
             cmpvYPN = line_divergence(ax, *plotpeaks(dflist[i], ax,
-                                                     *findpeaks(dflist[i], mpvHL, i)))
+                                                     *findpeaks(dflist[i], cmvpHL, i)))
             pnList.append(cmpvYPN)
     except Exception as e:
         # just print error and continue without the required line in chart
