@@ -11,6 +11,7 @@ from utils.dateutils import getToday
 from common import getDataDir
 from analytics.mvp import updateMPV, load_mvp_args
 from analytics.mvpchart import mvpChart, mvpSynopsis
+from utils.fileutils import tail
 
 I3STOCKSURL = 'https://klse.i3investor.com/jsp/stocks.jsp?g=S&m=int&s='
 
@@ -169,15 +170,21 @@ def unpackStockData(key, lastTradingDate, skey):
     return eod, shortname, stockCode
 
 
-def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False):
+def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resume=False):
     stocksListing = i3ScrapeStocks()
     eodlist = []
 
     print ' Writing latest price from i3 ...'
     for key in sorted(stocksListing.iterkeys()):
         eod, shortname, stockCode = unpackStockData(key, lastTradingDate, stocksListing[key])
-        eodlist.append(eod)
         outfile = getDataDir(S.DATA_DIR) + shortname + '.' + stockCode + '.csv'
+        if resume:
+            lines = tail(outfile)
+            ldata = lines.split(',')
+            if ldata[1] == lastTradingDate:
+                print "Resume mode: Skipped downloaded ->", shortname
+                continue
+        eodlist.append(eod)
         if writeEOD:
             try:
                 with open(outfile, "ab") as fh:
