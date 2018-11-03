@@ -27,6 +27,7 @@ from common import retrieveCounters, loadCfg, formStocklist, \
 from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
+from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
 import numpy as np
@@ -120,6 +121,8 @@ def annotateMVP(df, axes, MVP, cond):
 
 
 def indpeaks(cmpv, vector, threshold, dist, factor=1):
+    if vector is None or not len(vector):
+        return [], []
     pIndexes = peak.indexes(np.array(vector),
                             thres=threshold / max(vector), min_dist=dist)
     nIndexes = peak.indexes(np.array(vector * -1),
@@ -130,10 +133,10 @@ def indpeaks(cmpv, vector, threshold, dist, factor=1):
     return pIndexes, nIndexes
 
 
-def findpeaks(df, cmvpHL, dwfm=-1):
+def findpeaks(df, cmpvHL, dwfm=-1):
     if SYNOPSIS:
         df = df.reset_index()
-    cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow = cmvpHL
+    cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow = cmpvHL
     # -1 = day chart, 0 = weekly, 1 = forth nightly, 2 = monthly
     if MVP_PEAKS_DISTANCE > 0:
         pdist = MVP_PEAKS_DISTANCE
@@ -208,9 +211,11 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     vxn, vyn, viN, sviN = locatepeaks(df['date'], df['V'], viN)
 
     # Being used by synopsis chart signal scanning
+    cmpvXP = [cxp, mxp, pxp, vxp]
+    cmpvXN = [cxn, mxn, pxn, vxn]
     cmpvYP = [cyp, myp, pyp, vyp]
     cmpvYN = [cyn, myn, pyn, vyn]
-    cmpvYPN = [cmpvYP, cmpvYN]
+    cmpvXYPN = [cmpvXP, cmpvXN, cmpvYP, cmpvYN]
 
     # Nested dictionary structure:
     #   cIP = {'C': [[{pos1: [xdate1, yval1], pos2: [xdate2, yval2], ... ],
@@ -239,7 +244,7 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
         if vxn is not None:
             ax[3].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
 
-    return cIP, cIN, cCP, cCN, cmpvYPN
+    return cIP, cIN, cCP, cCN, cmpvXYPN
 
 
 def formCmpvlines(cindexes, ccount):
@@ -369,7 +374,7 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
                 '''
 
 
-def line_divergence(axes, cIP, cIN, cCP, cCN, cmvpYPN):
+def line_divergence(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
     cmpvlinesP = formCmpvlines(cIP, cCP)
     cmpvlinesN = formCmpvlines(cIN, cCN)
     plotlines(axes, cmpvlinesP, cIP, True)
@@ -378,7 +383,7 @@ def line_divergence(axes, cIP, cIN, cCP, cCN, cmvpYPN):
     del cIN
     del cCP
     del cCN
-    return cmvpYPN
+    return cmpvXYPN
 
 
 def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
@@ -411,17 +416,17 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     axlabel.set_visible(False)
     '''
 
-    mHigh = annotateMVP(df, axes[1], "M", 10)
-    mLow = df.iloc[df['M'].idxmin()]['M']
-    vHigh = annotateMVP(df, axes[3], "V", 24)
-    vLow = df.iloc[df['V'].idxmin()]['V']
-    pHigh = df.iloc[df['P'].idxmax()]['P']
-    pLow = df.iloc[df['P'].idxmin()]['P']
     cHigh = df.iloc[df['close'].idxmax()]['close']
     cLow = df.iloc[df['close'].idxmin()]['close']
-    cmvpHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
+    mHigh = annotateMVP(df, axes[1], "M", 10)
+    mLow = df.iloc[df['M'].idxmin()]['M']
+    pHigh = df.iloc[df['P'].idxmax()]['P']
+    pLow = df.iloc[df['P'].idxmin()]['P']
+    vHigh = annotateMVP(df, axes[3], "V", 24)
+    vLow = df.iloc[df['V'].idxmin()]['V']
+    cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
     try:
-        line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, cmvpHL)))
+        line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, cmpvHL)))
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'line divergence exception:'
@@ -466,6 +471,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         print "Dataframe exception: ", counter, fname
         print e
         return
+    finally:
+        lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
+        lastClosingPrice = float(df.iloc[-1]['close'])
+        del df
 
     '''
     # sharex is causing the MONTH column to be out of alignment
@@ -485,10 +494,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     dflist[1] = dff.fillna(0)
     dflist[2] = dfm.fillna(0)
 
-    mpvdate = getMpvDate(df.iloc[-1]['date'])
-
     title = "MPV Synopsis of " + counter + " (" + scode + "): " + \
-        mpvdate + " (" + str(chartDays) + " days)"
+        lastTrxnDate + " (" + str(chartDays) + " days)"
     fig, axes = plt.subplots(4, 3, figsize=(10, 5), sharex=False, num=title)
 
     '''
@@ -557,11 +564,11 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
             vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
             vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
-            cmvpHL = [cHigh, cLow, mHigh, mLow, vHigh, vLow, pHigh, pLow]
-            hlList.append(cmvpHL)
-            cmpvYPN = line_divergence(ax, *plotpeaks(dflist[i], ax,
-                                                     *findpeaks(dflist[i], cmvpHL, i)))
-            pnList.append(cmpvYPN)
+            cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
+            hlList.append(cmpvHL)
+            cmpvXYPN = line_divergence(ax, *plotpeaks(dflist[i], ax,
+                                                      *findpeaks(dflist[i], cmpvHL, i)))
+            pnList.append(cmpvXYPN)
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'line divergence exception:', i
@@ -588,15 +595,9 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     if showchart:
         plt.show()
     else:
-        scanSignals(hlList, pnList)
+        scanSignals(counter, fname, hlList, pnList, lastTrxnDate, lastClosingPrice)
         plt.savefig(fname + "-synopsis.png")
     plt.close()
-
-
-def scanSignals(hllist, pnlist):
-    for i in range(3):
-        pass
-    return True
 
 
 def globals_from_args(args):
