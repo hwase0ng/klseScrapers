@@ -4,18 +4,19 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
-    -c,--chartdays=<cd>   Days to display on chart [default: 200]
-    -d,--debug            Enable debug mode [default: False]
-    -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
-    -b,--blocking=<bc>    Set MVP blocking count value [default: 1]
-    -f,--filter           Switch ON MVP Divergence Matching filter [default: False]
-    -s,--showchart        Display chart [default: False]
-    -S,--synopsis         Synopsis of MVP [default: False]
-    -t,--tolerance=<mt>   Set MVP matching tolerance value [default: 3]
-    -p,--plotpeaks        Switch ON plotting peaks [default: False]
-    -D,--peaksdist=<pd>   Peaks distance [default: -1]
-    -T,--threshold=<pt>   Peaks threshold [default: -1]
-    -h,--help             This page
+    -c,--chartdays=<cd>     Days to display on chart [default: 200]
+    -d,--displaychart       Display chart [default: False]
+    -D,--debug              Enable debug mode [default: False]
+    -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
+    -b,--blocking=<bc>      Set MVP blocking count value [default: 1]
+    -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
+    -s,--synopsis           Synopsis of MVP [default: False]
+    -t,--tolerance=<mt>     Set MVP matching tolerance value [default: 3]
+    -p,--plotpeaks          Switch ON plotting peaks [default: False]
+    -D,--peaksdist=<pd>     Peaks distance [default: -1]
+    -T,--threshold=<pt>     Peaks threshold [default: -1]
+    -S,--simulation=<sim>   Simulate day to day changes with values "start.end.step"
+    -h,--help               This page
 
 Created on Oct 16, 2018
 
@@ -24,12 +25,13 @@ Created on Oct 16, 2018
 
 from common import retrieveCounters, loadCfg, formStocklist, \
     loadKlseCounters, match_approximate2, getSkipRows
-from utils.dateutils import getDaysBtwnDates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
 from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
+from utils.dateutils import getDaysBtwnDates
+from utils.fileutils import tail2
 import numpy as np
 import operator
 import settings as S
@@ -41,10 +43,20 @@ def getMpvDate(dfdate):
     return mpvdt[0]
 
 
-def dfLoadMPV(counter, chartDays):
+def dfLoadMPV(counter, chartDays, start=0):
     fname = S.DATA_DIR + S.MVP_DIR + counter
     csvfl = fname + ".csv"
-    skiprow, _ = getSkipRows(csvfl, chartDays)
+    if start > 0:
+        lines = tail2(csvfl, start)
+        heads = lines[:chartDays]
+        csvfl += "tmp"
+        with open(csvfl, 'wb') as f:
+            for item in heads:
+                f.write("%s" % item)
+        skiprow = 0
+    else:
+        skiprow, _ = getSkipRows(csvfl, chartDays)
+
     if skiprow < 0:
         return None, skiprow, None
     # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
@@ -453,11 +465,10 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     plt.close()
 
 
-def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
-    print "Synopsis:", counter
+def getSynopsisDFs(counter, scode, chartDays, start=0):
     fname = ""
     try:
-        df, _, fname = dfLoadMPV(counter, chartDays)
+        df, _, fname = dfLoadMPV(counter, chartDays, start)
         dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
         dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
         dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
@@ -470,25 +481,13 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
     except Exception as e:
         print "Dataframe exception: ", counter, fname
         print e
-        return
+        return None, None, None, None
     finally:
         lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
         lastClosingPrice = float(df.iloc[-1]['close'])
         del df
 
-    '''
-    # sharex is causing the MONTH column to be out of alignment
-    # Adding/removing records does not help to rectify this issue
-    lastdfm = dfm.index[len(dfm) - 1]
-    lastdff = dff.index[len(dff) - 1]
-    lastdfw = dfw.index[len(dfw) - 1]
-    if lastdfw > lastdfm or lastdff > lastdfm:
-        new_date = datetools.to_datetime('2018-11-30')
-        newrow = DataFrame(dfm[-1:].values, index=[new_date], columns=dfm.columns)
-        dfm = dfm.append(newrow)
-        print dfm[-3:]
-    '''
-
+    print " Synopsis:", counter, lastTrxnDate
     dflist = {}
     dflist[0] = dfw.fillna(0)
     dflist[1] = dff.fillna(0)
@@ -496,24 +495,63 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 
     title = "MPV Synopsis of " + counter + " (" + scode + "): " + \
         lastTrxnDate + " (" + str(chartDays) + " days)"
-    fig, axes = plt.subplots(4, 3, figsize=(10, 5), sharex=False, num=title)
 
-    '''
-    # sharex is causing the MONTH column to be out of alignment
-    # Adding/removing records does not help to rectify this issue
-    # Keeping here for the pandas row append reference
-    lastdfm = dfm.index[len(dfm) - 1]
-    lastdff = dff.index[len(dff) - 1]
-    lastdfw = dfw.index[len(dfw) - 1]
-    if lastdfw > lastdfm or lastdff > lastdfm:
-        new_date = datetools.to_datetime('2018-11-30')
-        newrow = DataFrame(dfm[-1:].values, index=[new_date], columns=dfm.columns)
-        dfm = dfm.append(newrow)
-        print dfm[-3:]
-    '''
+    return dflist, title, fname, lastTrxnDate, lastClosingPrice
 
-    fig.suptitle(title)
-    fig.canvas.set_window_title(title)
+
+def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
+
+    def doPlotting(trxndate=""):
+        '''
+        # sharex is causing the MONTH column to be out of alignment
+        # Adding/removing records does not help to rectify this issue
+        lastdfm = dfm.index[len(dfm) - 1]
+        lastdff = dff.index[len(dff) - 1]
+        lastdfw = dfw.index[len(dfw) - 1]
+        if lastdfw > lastdfm or lastdff > lastdfm:
+            new_date = datetools.to_datetime('2018-11-30')
+            newrow = DataFrame(dfm[-1:].values, index=[new_date], columns=dfm.columns)
+            dfm = dfm.append(newrow)
+            print dfm[-3:]
+        '''
+
+        figsize = (10, 5) if showchart else (15, 7)
+        fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=title)
+        fig.suptitle(title)
+        fig.canvas.set_window_title(title)
+        hlList, pnList = plotSynopsis(dflist, axes)
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        if showchart:
+            plt.show()
+        else:
+            scanSignals(counter, fname, hlList, pnList, lastTrxnDate, lastClosingPrice)
+            if len(trxndate) > 0:
+                plt.savefig(fname + "-" + trxndate + "-sim.png")
+            else:
+                plt.savefig(fname + "-synopsis.png")
+        plt.close()
+
+    if simulation is None:
+        dflist, title, fname, lastTrxnDate, lastClosingPrice = \
+            getSynopsisDFs(counter, scode, chartDays)
+        if dflist is None:
+            return
+        doPlotting()
+    else:
+        nums = simulation.split(",")
+        start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
+        while True:
+            dflist, title, fname, lastTrxnDate, lastClosingPrice = \
+                getSynopsisDFs(counter, scode, chartDays, start)
+            doPlotting(lastTrxnDate)
+            if start > end:
+                start = start - step
+            else:
+                break
+
+
+def plotSynopsis(dflist, axes):
     for i in range(3):
         dflist[i]['close'].plot(ax=axes[0, i], color='b', label='C')
         dflist[i]['M'].plot(ax=axes[1, i], color='orange', label='M')
@@ -591,13 +629,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         print 'axhline exception:'
         print e
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    if showchart:
-        plt.show()
-    else:
-        scanSignals(counter, fname, hlList, pnList, lastTrxnDate, lastClosingPrice)
-        plt.savefig(fname + "-synopsis.png")
-    plt.close()
+    return hlList, pnList
 
 
 def globals_from_args(args):
@@ -650,8 +682,10 @@ if __name__ == '__main__':
             continue
         try:
             if SYNOPSIS:
-                mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--showchart'])
+                mvpSynopsis(shortname, stocklist[shortname], chartDays,
+                            args['--displaychart'], args['--simulation'])
             else:
-                mvpChart(shortname, stocklist[shortname], chartDays, args['--showchart'])
+                mvpChart(shortname, stocklist[shortname], chartDays,
+                         args['--displaychart'])
         except Exception:
             traceback.print_exc()
