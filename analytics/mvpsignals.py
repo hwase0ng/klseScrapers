@@ -9,6 +9,10 @@ import settings as S
 
 def scanSignals(counter, fname, hllist, pnlist, lastTrxnDate, lastprice):
     if pnlist is None or not len(pnlist):
+        print "Skipped:", counter
+        return False
+    if len(pnlist) < 3:
+        print "Skipped len:", counter, len(pnlist)
         return False
     pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
     pabC, pablistC, rvsM, rvslistM, rvsP, rvslistP = bottomBuySignals(pnW, pnF, lastprice)
@@ -52,10 +56,10 @@ def checkReversal(ynlist, cond):
     ylist = ylist[::-1]
     minY = min(ylist)
     if minY == ylist[1] and ylist[2] < ylist[3] and ylist[3] > cond:
-        return 2, ylist
+        return 2, ylist  # stage 2 reversal after 2 higher lows
     minY = min(ylist[1:])
     if minY == ylist[2] and ylist[3] > cond:
-        return 1, ylist
+        return 1, ylist  # stage 1 reversal after first higher lows
     return 0, ylist
 
 
@@ -66,15 +70,14 @@ def checkBottomPrice(pnlist, lastprice):
         ylist.append(val)
         if j > 2:  # only interested with last 4 elements
             break
-    if len(ylist) < 4:
+    if len(ylist) < 4 or ylist.count(0.0) > 0:
         return 0, ylist
     ylist = ylist[::-1]
     minY = min(ylist)
-    if minY == ylist[-1]:
-        if lastprice >= minY:
-            # stage 1 lower lows
-            return 1, ylist
-    elif minY == ylist[-2] and lastprice >= minY:
+    if minY == ylist[-1] and ylist[-2] <= ylist[-3] and lastprice >= minY:
+        # stage 1 lower lows
+        return 1, ylist
+    elif minY == ylist[-2] and ylist[-3] <= ylist[-4] and lastprice >= minY:
         return 2, ylist  # stage 2 after first higher low
     return 0, ylist
 

@@ -13,7 +13,7 @@ Options:
     -s,--synopsis           Synopsis of MVP [default: False]
     -t,--tolerance=<mt>     Set MVP matching tolerance value [default: 3]
     -p,--plotpeaks          Switch ON plotting peaks [default: False]
-    -D,--peaksdist=<pd>     Peaks distance [default: -1]
+    -P,--peaksdist=<pd>     Peaks distance [default: -1]
     -T,--threshold=<pt>     Peaks threshold [default: -1]
     -S,--simulation=<sim>   Simulate day to day changes with values "start.end.step"
     -h,--help               This page
@@ -31,7 +31,7 @@ from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates
-from utils.fileutils import tail2
+from utils.fileutils import tail2, wc_line_count
 import numpy as np
 import operator
 import settings as S
@@ -47,13 +47,17 @@ def dfLoadMPV(counter, chartDays, start=0):
     fname = S.DATA_DIR + S.MVP_DIR + counter
     csvfl = fname + ".csv"
     if start > 0:
-        lines = tail2(csvfl, start)
-        heads = lines[:chartDays]
-        csvfl += "tmp"
-        with open(csvfl, 'wb') as f:
-            for item in heads:
-                f.write("%s" % item)
-        skiprow = 0
+        row_count = wc_line_count(csvfl)
+        if row_count < S.MVP_CHART_DAYS:
+            skiprow = -1
+        else:
+            lines = tail2(csvfl, start)
+            heads = lines[:chartDays]
+            csvfl += "tmp"
+            with open(csvfl, 'wb') as f:
+                for item in heads:
+                    f.write("%s" % item)
+            skiprow = 0
     else:
         skiprow, _ = getSkipRows(csvfl, chartDays)
 
@@ -469,24 +473,28 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
 def getSynopsisDFs(counter, scode, chartDays, start=0):
     fname = ""
     try:
-        df, _, fname = dfLoadMPV(counter, chartDays, start)
-        dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
-        dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
-        dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+        df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
+        if skiprows >= 0:
+            dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
+            dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
+            dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
 
-        if DBG_ALL:
-            print len(dfw), len(dff), len(dfm)
-            print dfw[-3:]
-            print dff[-3:]
-            print dfm[-3:]
+            if DBG_ALL:
+                print len(dfw), len(dff), len(dfm)
+                print dfw[-3:]
+                print dff[-3:]
+                print dfm[-3:]
     except Exception as e:
         print "Dataframe exception: ", counter, fname
         print e
-        return None, None, None, None
+        return None, None, None, None, None
     finally:
-        lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
-        lastClosingPrice = float(df.iloc[-1]['close'])
-        del df
+        if df is not None:
+            lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
+            lastClosingPrice = float(df.iloc[-1]['close'])
+            del df
+        else:
+            return None, None, None, None, None
 
     print " Synopsis:", counter, lastTrxnDate
     dflist = {}
@@ -545,6 +553,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         while True:
             dflist, title, fname, lastTrxnDate, lastClosingPrice = \
                 getSynopsisDFs(counter, scode, chartDays, start)
+            if dflist is None:
+                continue
             doPlotting(lastTrxnDate)
             if start > end:
                 start = start - step
