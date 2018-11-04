@@ -415,7 +415,8 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
         print type(mpvdate), mpvdate
         # print df.index.get_loc(df.iloc[chartDays].name)
 
-    axes = df.plot(x='date', figsize=(10, 5), subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
+    figsize = (10, 5) if showchart else (15, 7)
+    axes = df.plot(x='date', figsize=figsize, subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
     # Disguise axis X label as title to save on chart space
     title = "MPV Chart of " + counter + "." + scode + ": " + mpvdate
     axes[3].set_xlabel(title, fontsize=12)
