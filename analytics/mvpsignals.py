@@ -7,7 +7,8 @@ Created on Nov 2, 2018
 import settings as S
 
 
-def scanSignals(counter, fname, hllist, pnlist, lastTrxnDate, lastprice):
+def scanSignals(counter, fname, hllist, pnlist, lastTrxnData):
+    # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
     if pnlist is None or not len(pnlist):
         print "Skipped:", counter
         return False
@@ -15,72 +16,89 @@ def scanSignals(counter, fname, hllist, pnlist, lastTrxnDate, lastprice):
         print "Skipped len:", counter, len(pnlist)
         return False
     pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
-    pabC, pablistC, rvsM, rvslistM, rvsP, rvslistP = bottomBuySignals(pnW, pnF, lastprice)
-    if pabC > 0 and rvsM > 0 and rvsP > 0:
+    bbprice, rvsM, rvsP, rvsV = bottomBuySignals(pnW, pnF, lastTrxnData)
+    if bbprice < 0 or bbprice > 1:
+        return False
+    if rvsM > 0 and rvsP > 0:
         outfile = fname + "-signals.csv"
-        print outfile
-        signals = ",BBS," + \
-                  str(pabC) + " pabC=(" + ",".join("{:.2f}".format(v) for v in pablistC) + ") " + \
-                  str(rvsM) + " rvsM=(" + ",".join("{:.2f}".format(v) for v in rvslistM) + ") " + \
-                  str(rvsP) + " rvsP=(" + ",".join("{:.2f}".format(v) for v in rvslistP) + ")"
+        signals = " BBS: %s,%d,%d,%d,%d" % (counter, bbprice, rvsM, rvsP, rvsV)
+        print signals
         with open(outfile, "ab") as fh:
-            bbsline = lastTrxnDate + signals
+            bbsline = lastTrxnData[0] + signals
             fh.write(bbsline + '\n')
-        with open(S.DATA_DIR + S.MVP_DIR + "sss-" + lastTrxnDate + ".cvs", "ab") as fh:
+        with open(S.DATA_DIR + S.MVP_DIR + "sss-" + lastTrxnData[0] + ".cvs", "ab") as fh:
             bbsline = counter + signals
             fh.write(bbsline + '\n')
         return True
     return False
 
 
-def bottomBuySignals(pnW, pnF, lastprice):
+def bottomBuySignals(pnW, pnF, lastTrxn):
+    # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
+    lastprice, lastvol = lastTrxn[1], lastTrxn[4]
     # 0=XP, 1=XN, 2=YP, 3=YN
-    priceAtBottom, pablist = checkBottomPrice(pnW[3], lastprice)
-    if priceAtBottom <= 0:
-        return 0, pablist, 0, 0, 0, 0
-    ynF = pnF[3]  # 0=XP, 1=XN, 2=YP, 3=YN
-    mynF, pynF = ynF[1], ynF[2]    # 0=C, 1=M, 2=P, 3=V
+    bbprice = checkBottomPrice(pnW[3], lastprice)
+    if bbprice < 0 or bbprice > 1:
+        return bbprice, 0, 0, 0
+    ypF, ynF = pnF[2], pnF[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+    mynF, pynF, vypF = ynF[1], ynF[2], ypF[3]    # 0=C, 1=M, 2=P, 3=V
     if len(mynF) < 4 or len(pynF) < 4:
-        return 0, pablist, 0, 0, 0, 0
-    rvsM, rvslistM = checkReversal(mynF, 5)
-    rvsP, rvslistP = checkReversal(pynF, -0.09)
-    return priceAtBottom, pablist, rvsM, rvslistM, rvsP, rvslistP
+        return bbprice, 0, 0, 0
+    rvsM = checkReversal(mynF, 5)
+    if rvsM < 0:
+        return bbprice, 0, 0, 0
+    rvsP = checkReversal(pynF, -0.09)
+    if rvsP < 0:
+        return bbprice, 0, 0, 0
+    rvsV = checkVol(vypF, lastvol)
+    return bbprice, rvsM, rvsP, rvsV
+
+
+def checkVol(yplist, lastvol):
+    yplist.sort()
+    maxY = yplist[-1]
+    maxY2 = yplist[-2]
+    if lastvol > maxY:
+        return 2
+    if lastvol > maxY2:
+        return 1
+    return 0
 
 
 def checkReversal(ynlist, cond):
-    ylist = []
-    for j, val in enumerate(reversed(ynlist)):
-        ylist.append(val)
-        if j > 2:  # only interested with last 4 elements
-            break
-    ylist = ylist[::-1]
-    minY = min(ylist)
-    if minY == ylist[1] and ylist[2] < ylist[3] and ylist[3] > cond:
-        return 2, ylist  # stage 2 reversal after 2 higher lows
-    minY = min(ylist[1:])
-    if minY == ylist[2] and ylist[3] > cond:
-        return 1, ylist  # stage 1 reversal after first higher lows
-    return 0, ylist
+    minY = min(ynlist)
+    if minY >= cond:
+        return -1
+    if minY == ynlist[-1]:
+        return -1
+    if minY == ynlist[-2]:
+        return 1
+    if ynlist[-1] > cond:
+        return 2
+    return -1
 
 
 def checkBottomPrice(pnlist, lastprice):
-    ynegative = pnlist[0]  # 0=C, 1=M, 2=P, 3=V
+    ynC, ynM = pnlist[0], pnlist[1]  # 0=C, 1=M, 2=P, 3=V
+    if ynC.count(0.0) > 2:
+        return -1
+    if ynM[-1] < 5:
+        return -1
+    minY = min(ynC)
+    if minY == ynC[-1]:
+        return -1
     ylist = []
-    for j, val in enumerate(reversed(ynegative)):
+    for j, val in enumerate(reversed(ynC)):
         ylist.append(val)
         if j > 2:  # only interested with last 4 elements
             break
     if len(ylist) < 4 or ylist.count(0.0) > 0:
-        return 0, ylist
-    ylist = ylist[::-1]
-    minY = min(ylist)
-    if minY == ylist[-1] and ylist[-2] <= ylist[-3] and lastprice >= minY:
-        # stage 1 lower lows
-        return 1, ylist
-    elif minY == ylist[-2] and ylist[-3] <= ylist[-4] and lastprice >= minY:
-        return 2, ylist  # stage 2 after first higher low
-    return 0, ylist
-
-
-if __name__ == '__main__':
-    pass
+        return -1
+    maxY = max(ynC)
+    if maxY == ynC[-1]:
+        return 2
+    if lastprice > maxY:
+        return 1
+    if lastprice > ynC[-1]:
+        return 0
+    return -1
