@@ -31,7 +31,7 @@ from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates
-from utils.fileutils import tail2, wc_line_count
+from utils.fileutils import tail2, wc_line_count, grepN
 import numpy as np
 import operator
 import settings as S
@@ -44,31 +44,34 @@ def getMpvDate(dfdate):
 
 
 def dfLoadMPV(counter, chartDays, start=0):
-    fname = S.DATA_DIR + S.MVP_DIR + counter
-    csvfl = fname + ".csv"
+    prefix = S.DATA_DIR + S.MVP_DIR
+    incvs = prefix + counter + ".csv"
     if start > 0:
-        row_count = wc_line_count(csvfl)
+        prefix = prefix + "simulation/"
+    outname = prefix + counter
+    if start > 0:
+        row_count = wc_line_count(incvs)
         if row_count < S.MVP_CHART_DAYS:
             skiprow = -1
         else:
-            lines = tail2(csvfl, start)
+            lines = tail2(incvs, start)
             heads = lines[:chartDays]
-            csvfl += "tmp"
-            with open(csvfl, 'wb') as f:
+            incvs += "tmp"
+            with open(incvs, 'wb') as f:
                 for item in heads:
                     f.write("%s" % item)
             skiprow = 0
     else:
-        skiprow, _ = getSkipRows(csvfl, chartDays)
+        skiprow, _ = getSkipRows(incvs, chartDays)
 
     if skiprow < 0:
         return None, skiprow, None
-    # series = Series.from_csv(csvfl, sep=',', parse_dates=[1], header=None)
-    df = read_csv(csvfl, sep=',', header=None, parse_dates=['date'],
+    # series = Series.from_csv(incvs, sep=',', parse_dates=[1], header=None)
+    df = read_csv(incvs, sep=',', header=None, parse_dates=['date'],
                   skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
-    return df, skiprow, fname
+    return df, skiprow, outname
 
 
 def annotateMVP(df, axes, MVP, cond):
@@ -137,7 +140,7 @@ def annotateMVP(df, axes, MVP, cond):
 
 
 def indpeaks(cmpv, vector, threshold, dist, factor=1):
-    if vector is None or not len(vector):
+    if vector is None or not len(vector) or threshold == 0:
         return [], []
     pIndexes = peak.indexes(np.array(vector),
                             thres=threshold / max(vector), min_dist=dist)
@@ -487,14 +490,19 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     except Exception as e:
         print "Dataframe exception: ", counter, fname
         print e
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     finally:
+        lasttrxn = []
         if df is not None:
             lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
             lastClosingPrice = float(df.iloc[-1]['close'])
+            lastTrxnM = float(df.iloc[-1]['M'])
+            lastTrxnP = float(df.iloc[-1]['P'])
+            lastTrxnV = float(df.iloc[-1]['V'])
+            lasttrxn = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
             del df
         else:
-            return None, None, None, None, None
+            return None, None, None, None, None, None
 
     print " Synopsis:", counter, lastTrxnDate
     dflist = {}
@@ -505,12 +513,21 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     title = "MPV Synopsis of " + counter + " (" + scode + "): " + \
         lastTrxnDate + " (" + str(chartDays) + " days)"
 
-    return dflist, title, fname, lastTrxnDate, lastClosingPrice
+    return dflist, title, fname, lasttrxn
+
+
+def numsFromDate(counter, datestr):
+    prefix = S.DATA_DIR + S.MVP_DIR
+    incvs = prefix + counter + ".csv"
+    row_count = wc_line_count(incvs)
+    linenum = grepN(incvs, datestr)  # e.g. 2018-10-30
+    start = row_count - linenum + S.MVP_CHART_DAYS + 100
+    nums = str(start) + "," + str(start + 1) + ",1"
+    return nums.split(',')
 
 
 def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
-
-    def doPlotting(trxndate=""):
+    def doPlotting(outname):
         '''
         # sharex is causing the MONTH column to be out of alignment
         # Adding/removing records does not help to rectify this issue
@@ -534,30 +551,28 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         if showchart:
             plt.show()
         else:
-            scanSignals(counter, fname, hlList, pnList, lastTrxnDate, lastClosingPrice)
-            if len(trxndate) > 0:
-                plt.savefig(fname + "-" + trxndate + "-sim.png")
-            else:
-                plt.savefig(fname + "-synopsis.png")
+            if scanSignals(counter, outname, hlList, pnList, lasttrxn):
+                if len(nums) > 0:
+                    outname = outname + "-" + lasttrxn[0]
+                plt.savefig(outname + "-synopsis.png")
         plt.close()
 
-    if simulation is None:
-        dflist, title, fname, lastTrxnDate, lastClosingPrice = \
-            getSynopsisDFs(counter, scode, chartDays)
+    if simulation is None or len(simulation) == 0:
+        nums = []
+        dflist, title, fname, lasttrxn = getSynopsisDFs(counter, scode, chartDays)
         if dflist is None:
             return
-        doPlotting()
+        doPlotting(fname)
     else:
-        nums = simulation.split(",")
+        nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation)
         start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
         while True:
-            dflist, title, fname, lastTrxnDate, lastClosingPrice = \
-                getSynopsisDFs(counter, scode, chartDays, start)
+            dflist, title, fname, lasttrxn = getSynopsisDFs(counter, scode, chartDays, start)
             if dflist is None:
                 continue
-            doPlotting(lastTrxnDate)
+            doPlotting(fname)
             if start > end:
-                start = start - step
+                start -= step
             else:
                 break
 
