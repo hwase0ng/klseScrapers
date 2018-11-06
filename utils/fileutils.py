@@ -28,13 +28,21 @@ def mapcount(filename):
 
 
 def grepN(filename, searchstr):
-    out = subprocess.Popen(['grep', '-n', searchstr, filename],
+    return grep(filename, '-n', searchstr)
+
+
+def grep(filename, option, searchstr):
+    out = subprocess.Popen(['grep', option, searchstr, filename],
                            stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT
                            ).communicate()[0]
     if "No such file" in out:
         return -1
-    return int(out.partition(b':')[0])
+    try:
+        result = int(out.partition(b':')[0])
+    except Exception:
+        result = -1
+    return result
 
 
 def wc_line_count(filename):
