@@ -27,6 +27,16 @@ def mapcount(filename):
     return lines
 
 
+def grepN(filename, searchstr):
+    out = subprocess.Popen(['grep', '-n', searchstr, filename],
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT
+                           ).communicate()[0]
+    if "No such file" in out:
+        return -1
+    return int(out.partition(b':')[0])
+
+
 def wc_line_count(filename):
     out = subprocess.Popen(['wc', '-l', filename],
                            stdout=subprocess.PIPE,
@@ -244,4 +254,4 @@ if __name__ == '__main__':
     print findAny('AIRASIA', '../scrapers/i3investor/klse.txt')
     print getStockCode('AIRASIA', '../scrapers/i3investor/klse.txt')
     print getStockShortNameById('41661', '../scrapers/investingcom/klse.idmap')
-    pass
+    print grepN('/z/data/mpv/KLSE.csv', "2018-10-30")
