@@ -521,6 +521,8 @@ def numsFromDate(counter, datestr):
     incvs = prefix + counter + ".csv"
     row_count = wc_line_count(incvs)
     linenum = grepN(incvs, datestr)  # e.g. 2018-10-30
+    if linenum < 0:
+        return []
     start = row_count - linenum + S.MVP_CHART_DAYS + 100
     nums = str(start) + "," + str(start + 1) + ",1"
     return nums.split(',')
@@ -565,6 +567,9 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         doPlotting(fname)
     else:
         nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation)
+        if len(nums) <= 0:
+            print "Input not found:", simulation
+            return
         start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
         while True:
             dflist, title, fname, lasttrxn = getSynopsisDFs(counter, scode, chartDays, start)
