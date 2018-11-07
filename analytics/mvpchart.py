@@ -65,6 +65,7 @@ def dfLoadMPV(counter, chartDays, start=0):
         skiprow, _ = getSkipRows(incvs, chartDays)
 
     if skiprow < 0:
+        print "INF: File not available:", incvs
         return None, skiprow, None
     # series = Series.from_csv(incvs, sep=',', parse_dates=[1], header=None)
     df = read_csv(incvs, sep=',', header=None, parse_dates=['date'],
