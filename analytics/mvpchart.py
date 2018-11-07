@@ -490,7 +490,6 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     except Exception as e:
         print "Dataframe exception: ", counter, fname
         print e
-        return None, None, None, None, None, None
     finally:
         lasttrxn = []
         if df is not None:
@@ -502,7 +501,7 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
             lasttrxn = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
             del df
         else:
-            return None, None, None, None, None, None
+            return None, None, None, None
 
     print " Synopsis:", counter, lastTrxnDate
     dflist = {}
