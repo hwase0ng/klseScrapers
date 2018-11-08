@@ -65,7 +65,7 @@ def dfLoadMPV(counter, chartDays, start=0):
         skiprow, _ = getSkipRows(incvs, chartDays)
 
     if skiprow < 0:
-        print "INF: File not available:", incvs
+        print "File not available:", incvs
         return None, skiprow, None
     # series = Series.from_csv(incvs, sep=',', parse_dates=[1], header=None)
     df = read_csv(incvs, sep=',', header=None, parse_dates=['date'],
@@ -275,8 +275,12 @@ def formCmpvlines(cindexes, ccount):
             if DBG_ALL:
                 print i, j, cmpvlist[i][0], cmpvlist[j][0]
             cmpv = cindexes[cmpvlist[i][0]][0]
+            if cmpv is None:
+                continue
             poslist1 = list(cmpv.keys())
             cmpv = cindexes[cmpvlist[j][0]][0]
+            if cmpv is None:
+                continue
             poslist2 = list(cmpv.keys())
             cmpvlines[cmpvlist[i][0] + cmpvlist[j][0]] = match_approximate2(
                 sorted(poslist1), sorted(poslist2), MVP_DIVERGENCE_MATCH_TOLERANCE)
@@ -524,6 +528,7 @@ def numsFromDate(counter, datestr):
     if linenum < 0:
         return []
     start = row_count - linenum + S.MVP_CHART_DAYS + 100
+    print "Start =", start
     nums = str(start) + "," + str(start + 1) + ",1"
     return nums.split(',')
 
