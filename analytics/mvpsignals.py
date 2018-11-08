@@ -21,7 +21,7 @@ def scanSignals(counter, fname, hllist, pnlist, lastTrxnData):
         return False
     if rvsM > 0 and rvsP > 0:
         outfile = fname + "-signals.csv"
-        signals = " BBS: %s,%d,%d,%d,%d" % (counter, bbprice, rvsM, rvsP, rvsV)
+        signals = "\tBBS: %s,%d,%d,%d,%d" % (counter, bbprice, rvsM, rvsP, rvsV)
         print signals
         with open(outfile, "ab") as fh:
             bbsline = lastTrxnData[0] + signals
@@ -55,17 +55,26 @@ def bottomBuySignals(pnW, pnF, lastTrxn):
 
 
 def checkVol(yplist, lastvol):
+    if yplist is None:
+        return 0
     yplist.sort()
     maxY = yplist[-1]
     maxY2 = yplist[-2]
+    maxY3 = yplist[-3]
     if lastvol > maxY:
-        return 2
+        return 3
     if lastvol > maxY2:
+        return 2
+    if lastvol > maxY3:
         return 1
     return 0
 
 
 def checkReversal(ynlist, cond):
+    if ynlist is None:
+        return 0
+    if ynlist.count(0) > 0:
+        return -1
     minY = min(ynlist)
     if minY >= cond:
         return -1
@@ -79,13 +88,15 @@ def checkReversal(ynlist, cond):
 
 
 def checkBottomPrice(pnlist, lastprice):
-    ynC, ynM = pnlist[0], pnlist[1]  # 0=C, 1=M, 2=P, 3=V
-    if ynC.count(0.0) > 2:
+    if pnlist is None:
         return -1
-    if ynM[-1] < 5:
+    ynC, ynM, ynP = pnlist[0], pnlist[1], pnlist[2]  # 0=C, 1=M, 2=P, 3=V
+    if ynC is None or ynC.count(0.0) > 2:
+        return -1
+    if ynM is None or ynM[-1] < 5:
         return -1
     minY = min(ynC)
-    if minY == ynC[-1]:
+    if minY == ynC[-1] or lastprice < ynP[-2] or lastprice < min(ynP):
         return -1
     ylist = []
     for j, val in enumerate(reversed(ynC)):
