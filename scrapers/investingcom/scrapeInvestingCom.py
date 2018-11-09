@@ -1,4 +1,14 @@
 '''
+Usage: main [options] [COUNTER] ...
+
+Arguments:
+    COUNTER           Optional counters
+Options:
+    -d,--debug            Enable debug mode [default: False]
+    -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
+    -r,--resume           Resume file instead of generating from start [default: False]
+    -h,--help             This page
+
 Created on Apr 16, 2018
 
 @author: hwase0ng
@@ -8,7 +18,8 @@ Note: This version is adapted from a source found in Internet which I could no l
 '''
 
 import sys
-from common import formStocklist, loadKlseCounters, appendCsv, getDataDir
+from common import formStocklist, loadKlseCounters, appendCsv, getDataDir, retrieveCounters
+from docopt import docopt
 import settings as S
 import utils.dateutils as du
 import requests
@@ -72,7 +83,7 @@ class Quote(object):
             assert(r.status_code == 200)
             return r.text
         except KeyError:
-            if S.DBG_ALL:
+            if DBG_ALL:
                 print "KeyError: " + self.name
             return "KeyError: No ID mapping for " + self.name
         except Exception as e:
@@ -87,7 +98,7 @@ class Quote(object):
         try:
             df = pd.read_html(self.response)
             df = df[0]  # Ignore footer table
-            if S.DBG_ICOM:
+            if DBG_ALL:
                 df.to_csv(getDataDir(S.DATA_DIR) + self.name + ".inf")
             price = df['Price'][0]
             # print self.name, type(price), price
@@ -129,7 +140,7 @@ class Quote(object):
         except ValueError as ve:
             df = 'ValueError'
             self.csverr = self.name + ": ValueError (No data for date range) " + ' (' + str(ve) + ')'
-            if S.DBG_ICOM:
+            if DBG_ALL:
                 with open(getDataDir(S.DATA_DIR) + "value.err", 'ab') as f:
                     f.write('\n=============================\n')
                     f.write(self.name + "\n")
@@ -137,7 +148,7 @@ class Quote(object):
         except Exception as e:
             # This happens when records being processed are larger than 3 months data,
             # try reducing the period
-            if S.DBG_ICOM:
+            if DBG_ALL:
                 with open(getDataDir(S.DATA_DIR) + "value.err", 'ab') as f:
                     f.write('\n=============================\n')
                     f.write(self.name + "\n")
@@ -232,13 +243,13 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
             shortname, stock_code, lastdt, enddt)
         while True:
             startdt = lastdt
-            if getDaysBtwnDates(lastdt, enddt) > 30 * 3:  # do 3 months at a time
-                stopdt = getDayOffset(startdt, 30 * 3)
+            if getDaysBtwnDates(lastdt, enddt) > 22 * 3:  # do 3 months at a time
+                stopdt = getDayOffset(startdt, 22 * 3)
                 lastdt = getNextDay(stopdt)
             else:
                 stopdt = enddt
             eod = InvestingQuote(idmap, shortname, startdt, stopdt)
-            if S.DBG_ALL:
+            if DBG_ALL:
                 for item in eod:
                     print item
             if len(eod.getCsvErr()) > 0:
@@ -246,7 +257,7 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
             elif isinstance(eod.response, unicode):
                 dfEod = eod.to_df()
                 if isinstance(dfEod, pd.DataFrame):
-                    if S.DBG_ICOM:
+                    if DBG_ALL:
                         print dfEod[:5]
                     if WRITE_CSV:
                         dfEod.index.name = 'index'
@@ -275,7 +286,7 @@ def loadIdMap(klsemap='klse.idmap'):
             for line in idmap:
                 name, var = line.partition("=")[::2]
                 ID_MAPPING[name.strip()] = int(var)
-            if S.DBG_ALL:
+            if DBG_ALL:
                 print dict(ID_MAPPING.items()[0:3])
         '''
         with open("klse.txt") as f:
@@ -284,7 +295,7 @@ def loadIdMap(klsemap='klse.idmap'):
                 name = idmap[0]
                 var = idmap[3]
                 ID_MAPPING[name.strip()] = int(var)
-            if S.DBG_ALL:
+            if DBG_ALL:
                 print dict(ID_MAPPING.items()[0:10])
         '''
     except EnvironmentError:
@@ -297,13 +308,14 @@ def loadIdMap(klsemap='klse.idmap'):
 
 
 if __name__ == '__main__':
+    args = docopt(__doc__)
+    global DBG_ALL
+    DBG_ALL = True if args['--debug'] else False
     # OUTPUT_FILE = sys.argv[1]
     idmap = loadIdMap()
 
-    S.DBG_ALL = False
-    S.DBG_ICOM = False
     WRITE_CSV = True
-    S.RESUME_FILE = True
+    S.RESUME_FILE = True if args['--resume'] else False
 
     # scrapeKlseRelated('klse.idmap', False)
 
@@ -313,6 +325,10 @@ if __name__ == '__main__':
     stocks = ''
     klse = "../i3investor/klse.txt"
 
+    if args['COUNTER']:
+        stocks = args['COUNTER'][0].upper()
+    else:
+        stocks = retrieveCounters(args['--list'])
     if len(stocks) > 0:
         #  download only selected counters
         stocklist = formStocklist(stocks, klse)
@@ -342,38 +358,48 @@ if __name__ == '__main__':
             enddt = getToday('%Y-%m-%d')
             print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
                 shortname, stock_code, lastdt, enddt)
-            eod = InvestingQuote(idmap, shortname, lastdt, enddt)
-            if S.DBG_ALL:
-                for item in eod:
-                    print item
-            if len(eod.getCsvErr()) > 0:
-                print eod.getCsvErr()
-                # If KeyError, counter not available in investing.com, try yahoo finance
-                print "Scraping from yahoo: ", shortname
-                cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
-                q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
-                if len(q.getCsvErr()) > 0:
-                    st_code, st_reason = q.getCsvErr().split(":")
-                    rtn_code = int(st_code)
+            while True:
+                startdt = lastdt
+                if getDaysBtwnDates(lastdt, enddt) > 22 * 3:  # do 3 months at a time
+                    stopdt = getDayOffset(startdt, 22 * 3)
+                    lastdt = getNextDay(stopdt)
                 else:
-                    print q
-                    if WRITE_CSV:
-                        q.write_csv(TMP_FILE)
-            elif isinstance(eod.response, unicode):
-                dfEod = eod.to_df()
-                if isinstance(dfEod, pd.DataFrame):
-                    if S.DBG_ICOM:
-                        print dfEod[:5]
-                    if WRITE_CSV:
-                        dfEod.index.name = 'index'
-                        dfEod.to_csv(TMP_FILE, index=False, header=False)
+                    stopdt = enddt
+                eod = InvestingQuote(idmap, shortname, startdt, stopdt)
+                if DBG_ALL:
+                    for item in eod:
+                        print item
+                if len(eod.getCsvErr()) > 0:
+                    print eod.getCsvErr()
+                    # If KeyError, counter not available in investing.com, try yahoo finance
+                    print "Scraping from yahoo: ", shortname
+                    cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
+                    q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
+                    if len(q.getCsvErr()) > 0:
+                        st_code, st_reason = q.getCsvErr().split(":")
+                        rtn_code = int(st_code)
+                    else:
+                        print q
+                        if WRITE_CSV:
+                            q.write_csv(TMP_FILE)
+                elif isinstance(eod.response, unicode):
+                    dfEod = eod.to_df()
+                    if isinstance(dfEod, pd.DataFrame):
+                        if DBG_ALL:
+                            print dfEod[:5]
+                        if WRITE_CSV:
+                            dfEod.index.name = 'index'
+                            dfEod.to_csv(TMP_FILE, index=False, header=False)
+                    else:
+                        print "ERR:" + dfEod + ": " + shortname + "," + lastdt
+                        rtn_code = -2
                 else:
-                    print "ERR:" + dfEod + ": " + shortname + "," + lastdt
-                    rtn_code = -2
-            else:
-                print "ERR:" + eod.response + "," + lastdt
-                rtn_code = -1
+                    print "ERR:" + eod.response + "," + lastdt
+                    rtn_code = -1
 
-            appendCsv(rtn_code, OUTPUT_FILE)
+                appendCsv(rtn_code, OUTPUT_FILE)
+
+                if stopdt == enddt:
+                    break
         else:
             print "ERR: Not found: ", shortname
