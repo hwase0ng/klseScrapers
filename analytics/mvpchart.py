@@ -15,7 +15,8 @@ Options:
     -p,--plotpeaks          Switch ON plotting peaks [default: False]
     -P,--peaksdist=<pd>     Peaks distance [default: -1]
     -T,--threshold=<pt>     Peaks threshold [default: -1]
-    -S,--simulation=<sim>   Simulate day to day changes with values "start.end.step"
+    -S,--simulation=<sim>   Simulate day to day changes with values "start.end.step" e.g. 600,300,2
+                            Also accepts dates in the form of "DATE1:DATE2:STEP"; e.g. 2018-10-01 or 2018-01-02:2018-07-20:5
     -h,--help               This page
 
 Created on Oct 16, 2018
@@ -45,30 +46,30 @@ def getMpvDate(dfdate):
 
 def dfLoadMPV(counter, chartDays, start=0):
     prefix = S.DATA_DIR + S.MVP_DIR
-    incvs = prefix + counter + ".csv"
+    incsv = prefix + counter + ".csv"
     if start > 0:
         prefix = prefix + "simulation/"
     outname = prefix + counter
     if start > 0:
-        row_count = wc_line_count(incvs)
+        row_count = wc_line_count(incsv)
         if row_count < S.MVP_CHART_DAYS:
             skiprow = -1
         else:
-            lines = tail2(incvs, start)
+            lines = tail2(incsv, start)
             heads = lines[:chartDays]
-            incvs += "tmp"
-            with open(incvs, 'wb') as f:
+            incsv += "tmp"
+            with open(incsv, 'wb') as f:
                 for item in heads:
                     f.write("%s" % item)
             skiprow = 0
     else:
-        skiprow, _ = getSkipRows(incvs, chartDays)
+        skiprow, _ = getSkipRows(incsv, chartDays)
 
     if skiprow < 0:
-        print "File not available:", incvs
+        print "File not available:", incsv
         return None, skiprow, None
-    # series = Series.from_csv(incvs, sep=',', parse_dates=[1], header=None)
-    df = read_csv(incvs, sep=',', header=None, parse_dates=['date'],
+    # series = Series.from_csv(incsv, sep=',', parse_dates=[1], header=None)
+    df = read_csv(incsv, sep=',', header=None, parse_dates=['date'],
                   skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
@@ -522,14 +523,21 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
 
 def numsFromDate(counter, datestr):
     prefix = S.DATA_DIR + S.MVP_DIR
-    incvs = prefix + counter + ".csv"
-    row_count = wc_line_count(incvs)
-    linenum = grepN(incvs, datestr)  # e.g. 2018-10-30
+    incsv = prefix + counter + ".csv"
+    row_count = wc_line_count(incsv)
+    dates = datestr.split(":") if ":" in datestr else [datestr]
+    linenum = grepN(incsv, dates[0])  # e.g. 2018-10-30
     if linenum < 0:
         return []
     start = row_count - linenum + S.MVP_CHART_DAYS + 100
-    print "Start =", start
-    nums = str(start) + "," + str(start + 1) + ",1"
+    stop = start + 1
+    if len(dates) > 1:
+        linenum = grepN(incsv, dates[1])  # e.g. 2018-10-30
+        if linenum > 0:
+            stop = row_count - linenum + S.MVP_CHART_DAYS + 100
+    step = int(dates[2]) if len(dates) > 2 else 1
+    nums = str(start) + "," + str(stop) + "," + str(step)
+    print "Start,Stop,Step =", nums
     return nums.split(',')
 
 
