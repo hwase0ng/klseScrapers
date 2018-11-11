@@ -16,14 +16,16 @@ def scanSignals(counter, fname, hllist, pnlist, lastTrxnData):
     if len(pnlist) < 3:
         print "Skipped len:", counter, len(pnlist)
         return False
-    pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
-    bbprice, rvsM, rvsP, rvsV, oversold, divergent = bottomBuySignals(pnW, pnF, lastTrxnData)
+    bbprice, rvsM, rvsP, rvsV, bottomrevs, oversold, divergent = \
+        bottomBuySignals(pnlist, lastTrxnData)
+    '''
     if bbprice < 0 or rvsM < 0 or rvsP < 0:
-        if not oversold and not divergent:
-            return False
+    '''
+    if not oversold and not divergent and not bottomrevs:
+        return False
 
-    signals = "\tBBS: %s,(%d,%d),(%d,%d,%d,%d)" % (counter, oversold, divergent,
-                                                   bbprice, rvsM, rvsP, rvsV)
+    signals = "\tBBS: %s,(%d,%d),(%d,%d,%d,%d,%d)" % (counter, oversold, divergent,
+                                                      bbprice, rvsM, rvsP, rvsV, bottomrevs)
     print signals
     outfile = fname + "-signals.csv"
     with open(outfile, "ab") as fh:
@@ -39,25 +41,38 @@ def scanSignals(counter, fname, hllist, pnlist, lastTrxnData):
     return True
 
 
-def bottomBuySignals(pnW, pnF, lastTrxn):
+def bottomBuySignals(pnlist, lastTrxn):
+    pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastM, lastP, lastvol = lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4]
+    oversold, divergent, bottomrevs = 0, 0, 0
     # 0=XP, 1=XN, 2=YP, 3=YN
     bbprice, retrace, newlowC = checkBottomPrice(pnW[2], pnF[2], lastprice)
     if bbprice < 0:
-        return bbprice, 0, 0, 0
-    ypF, ynF = pnF[2], pnF[3]  # 0=XP, 1=XN, 2=YP, 3=YN
-    mynF, pypF, pynF, vypF, vynF = ynF[1], ypF[2], ynF[2], ypF[3], ynF[3]   # 0=C, 1=M, 2=P, 3=V
+        return bbprice, 0, 0, 0, bottomrevs, oversold, divergent
+    ypF, ynF, ynM = pnF[2], pnF[3], pnM[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+    pypF, vypF = ypF[2], ypF[3]  # 0=C, 1=M, 2=P, 3=V
+    mynF, pynF, vynF, mynM = ynF[1], ynF[2], ynF[3], ynM[1]   # 0=C, 1=M, 2=P, 3=V
     if len(mynF) < 4 or len(pynF) < 4:
-        return bbprice, 0, 0, 0
+        return bbprice, 0, 0, 0, bottomrevs, oversold, divergent
     rvsM, newlowM = checkReversalM(retrace, mynF, 5, lastM)
     rvsP, newlowP, newhighP = checkReversalP(retrace, pypF, pynF, -0.09, lastP)
     rvsV, newlowV, newhighV = checkVol(retrace, vypF, vynF, lastvol)
+
     oversold = 1 if newlowC and newlowM and not newlowP and not newlowV else 0
-    divergent = 0
     if oversold and newhighP:
         divergent = 2 if newhighV else 1
-    return bbprice, rvsM, rvsP, rvsV, oversold, divergent
+
+    # bottomrevs 1 = reversal with month M below 5 (early reversal that is likely to fail)
+    # bottomrevs 2 = reversal with month M above 5
+    # bottomrevs 3 = end of retrace from top
+    if newlowC and not newlowM and not newlowP and lastM > 5 and lastP > 0:
+        bottomrevs = 2 if mynM is not None and len(mynM) > 0 and mynM[-1] >= 5 else 1
+    else:
+        bottomrevs = 3 if not newlowC and not newlowM and newlowP and newhighV \
+            else 0
+
+    return bbprice, rvsM, rvsP, rvsV, bottomrevs, oversold, divergent
 
 
 def checkVol(retrace, plist, nlist, lastvol):
