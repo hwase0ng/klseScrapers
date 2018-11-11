@@ -192,7 +192,7 @@ def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice):
 
 def load_mvp_args(synopsis=False):
     params = {}
-    params['--debug'] = False
+    params['--debug'] = ""
     params['--plotpeaks'] = True
     params['--peaksdist'] = -1
     params['--threshold'] = -1
