@@ -501,9 +501,10 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
         if df is not None:
             lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
             lastClosingPrice = float(df.iloc[-1]['close'])
-            lastTrxnM = float(df.iloc[-1]['M'])
-            lastTrxnP = float(df.iloc[-1]['P'])
-            lastTrxnV = float(df.iloc[-1]['V'])
+        if dfw is not None:
+            lastTrxnM = float(dfw.iloc[-1]['M'])
+            lastTrxnP = float(dfw.iloc[-1]['P'])
+            lastTrxnV = float(dfw.iloc[-1]['V'])
             lasttrxn = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
             del df
         else:
