@@ -6,7 +6,7 @@ Arguments:
 Options:
     -c,--chartdays=<cd>     Days to display on chart [default: 200]
     -d,--displaychart       Display chart [default: False]
-    -D,--debug              Enable debug mode [default: False]
+    -D,--debug=(dbgopt)     Enable debug mode (A)ll, (S)ignal
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>      Set MVP blocking count value [default: 1]
     -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
@@ -63,9 +63,9 @@ def dfLoadMPV(counter, chartDays, start=0):
                     f.write("%s" % item)
             skiprow = 0
     else:
-        skiprow, _ = getSkipRows(incsv, chartDays)
+        skiprow, rows = getSkipRows(incsv, chartDays)
 
-    if skiprow < 0:
+    if skiprow < 0 or rows <= 0:
         print "File not available:", incsv
         return None, skiprow, None
     # series = Series.from_csv(incsv, sep=',', parse_dates=[1], header=None)
@@ -567,7 +567,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         if showchart:
             plt.show()
         else:
-            if scanSignals(counter, outname, hlList, pnList, lasttrxn):
+            if scanSignals(DBG_SIGNAL, counter, outname, hlList, pnList, lasttrxn):
                 if len(nums) > 0:
                     outname = outname + "-" + lasttrxn[0]
                 plt.savefig(outname + "-synopsis.png")
@@ -680,10 +680,12 @@ def plotSynopsis(dflist, axes):
 def globals_from_args(args):
     global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
     global MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE
-    global klse, DBG_ALL, SYNOPSIS
+    global klse, DBG_ALL, DBG_SIGNAL, SYNOPSIS
     klse = "scrapers/i3investor/klse.txt"
 
-    DBG_ALL = True if args['--debug'] else False
+    dbgmode = "" if args['--debug'] is None else args['--debug']
+    DBG_ALL = True if "A" in dbgmode else False
+    DBG_SIGNAL = True if "S" in dbgmode else False
     MVP_PLOT_PEAKS = True if args['--plotpeaks'] else False
     MVP_PEAKS_DISTANCE = -1 if not args['--peaksdist'] else float(args['--peaksdist'])
     MVP_PEAKS_THRESHOLD = -1 if not args['--threshold'] else float(args['--threshold'])
