@@ -7,6 +7,7 @@ Options:
     -d,--debug            Enable debug mode [default: False]
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -r,--resume           Resume file instead of generating from start [default: False]
+    -s,--start=<sdt>      Start date
     -h,--help             This page
 
 Created on Apr 16, 2018
@@ -325,6 +326,8 @@ if __name__ == '__main__':
     stocks = ''
     klse = "../i3investor/klse.txt"
 
+    if args['--start']:
+        S.ABS_START = args['--start']
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
     else:
@@ -341,7 +344,7 @@ if __name__ == '__main__':
 
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:
-            print "Skip: ", shortname
+            print "Exclude: ", shortname
             continue
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
@@ -374,7 +377,8 @@ if __name__ == '__main__':
                     # If KeyError, counter not available in investing.com, try yahoo finance
                     print "Scraping from yahoo: ", shortname
                     cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
-                    q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
+                    # q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
+                    q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", startdt, stopdt)
                     if len(q.getCsvErr()) > 0:
                         st_code, st_reason = q.getCsvErr().split(":")
                         rtn_code = int(st_code)
