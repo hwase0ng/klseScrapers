@@ -7,7 +7,9 @@ Created on Nov 2, 2018
 import settings as S
 
 
-def scanSignals(counter, fname, hllist, pnlist, lastTrxnData):
+def scanSignals(dbg, counter, fname, hllist, pnlist, lastTrxnData):
+    global DBGMODE
+    DBGMODE = dbg
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
     # lastClosingPrice is not aggregated while the rest are from the weekly aggregation!
     if pnlist is None or not len(pnlist):
@@ -18,14 +20,18 @@ def scanSignals(counter, fname, hllist, pnlist, lastTrxnData):
         return False
     bbprice, rvsM, rvsP, rvsV, bottomrevs, oversold, divergent = \
         bottomBuySignals(pnlist, lastTrxnData)
-    '''
-    if bbprice < 0 or rvsM < 0 or rvsP < 0:
-    '''
     if not oversold and not divergent and not bottomrevs:
-        return False
+        # if (bbprice < 0 or rvsM < 0 or rvsP < 0):
+        if not dbg:
+            return ""
 
-    signals = "\tBBS: %s,(%d,%d),(%d,%d,%d,%d,%d)" % (counter, oversold, divergent,
-                                                      bbprice, rvsM, rvsP, rvsV, bottomrevs)
+    signals = ""
+    if oversold or divergent:
+        signals = "\tOVS: %s,(%d,%d)" % (counter, oversold, divergent)
+    elif bottomrevs or dbg:
+        label = "Dbg" if dbg else "BRV"
+        signals = "\t%s: %s,(%d,%d,%d,%d,%d)" % (label, counter, bottomrevs,
+                                                 bbprice, rvsM, rvsP, rvsV)
     print signals
     outfile = fname + "-signals.csv"
     with open(outfile, "ab") as fh:
@@ -38,7 +44,7 @@ def scanSignals(counter, fname, hllist, pnlist, lastTrxnData):
     with open(sss, "ab") as fh:
         bbsline = counter + signals
         fh.write(bbsline + '\n')
-    return True
+    return signals
 
 
 def bottomBuySignals(pnlist, lastTrxn):
@@ -46,8 +52,8 @@ def bottomBuySignals(pnlist, lastTrxn):
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastM, lastP, lastvol = lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4]
     oversold, divergent, bottomrevs = 0, 0, 0
-    # 0=XP, 1=XN, 2=YP, 3=YN
-    bbprice, retrace, newlowC = checkBottomPrice(pnW[2], pnF[2], lastprice)
+    # 0=XP, 1=XN, 2=YPositive, 3=YNegative
+    bbprice, retrace, newlowC = checkBottomPrice(pnW[3], pnF[2], lastprice)
     if bbprice < 0:
         return bbprice, 0, 0, 0, bottomrevs, oversold, divergent
     ypF, ynF, ynM = pnF[2], pnF[3], pnM[3]  # 0=XP, 1=XN, 2=YP, 3=YN
@@ -59,18 +65,30 @@ def bottomBuySignals(pnlist, lastTrxn):
     rvsP, newlowP, newhighP = checkReversalP(retrace, pypF, pynF, -0.09, lastP)
     rvsV, newlowV, newhighV = checkVol(retrace, vypF, vynF, lastvol)
 
-    oversold = 1 if newlowC and newlowM and not newlowP and not newlowV else 0
+    oversold = 1 if newlowC and newlowM and not newlowP and not newlowV else \
+        2 if newlowC and not newlowM and newlowP and not newlowV else 0
     if oversold and newhighP:
         divergent = 2 if newhighV else 1
 
-    # bottomrevs 1 = reversal with month M below 5 (early reversal that is likely to fail)
+    # bottomrevs 1 = reversal with month M below 5 (early reversal with higher risk)
     # bottomrevs 2 = reversal with month M above 5
-    # bottomrevs 3 = end of retrace from top
-    if newlowC and not newlowM and not newlowP and lastM > 5 and lastP > 0:
-        bottomrevs = 2 if mynM is not None and len(mynM) > 0 and mynM[-1] >= 5 else 1
+    # bottomrevs 3 = end of short term retrace from top with volume
+    # bottomrevs 4 = end of long term retrace from top with new low M and P,
+    #                also to check divergent on month's M and P
+    if not retrace and bbprice < 3 and \
+            newlowC and not newlowM and not newlowP \
+            and lastM > 5 and lastP > 0:
+        if mynM is None:
+            bottomrevs = 0
+        else:
+            minMM = min(mynM) if len(mynM) > 1 else -1
+            if minMM < 0:
+                bottomrevs = 0
+            else:
+                bottomrevs = 2 if minMM < 5 and mynM[-1] >= 5 else 1
     else:
-        bottomrevs = 3 if not newlowC and not newlowM and newlowP and newhighV \
-            else 0
+        bottomrevs = 3 if retrace == 1 and not newlowC and (newlowM or newlowP) and newhighV \
+            else 4 if retrace > 1 and not newlowC and newlowM and newlowP else 0
 
     return bbprice, rvsM, rvsP, rvsV, bottomrevs, oversold, divergent
 
@@ -81,9 +99,11 @@ def checkVol(retrace, plist, nlist, lastvol):
         return 0, newlow, newhigh
     yplen = len(plist)
     yplist = sorted(plist)
-    minYN, maxYP = min(nlist), yplist[-1]
-    if lastvol < minYN:
-        newlow = True
+    maxYP = yplist[-1]
+    if nlist is not None and len(nlist) > 0:
+        minYN = min(nlist)
+        if lastvol < minYN:
+            newlow = True
     if lastvol > maxYP:
         newhigh = True
     if retrace and maxYP == plist[-1]:
@@ -117,7 +137,10 @@ def checkReversalM(retrace, ynlist, cond, lastM):
         # May be required for retrace scenario
         return -1, newlow
     if minY == ynlist[-1]:
-        return 0, newlow
+        if not retrace:
+            return 0, newlow
+        # Stage 3 reversal new low
+        return 3, newlow
     if minY == ynlist[-2] or minY == ynlist[-3]:
         if ynlist[-1] > cond:
             # Stage 2 reversal: first/second higher low above 5
@@ -126,7 +149,8 @@ def checkReversalM(retrace, ynlist, cond, lastM):
             # Stage 1 reversal: first higher low, still need to wait for M to cross 5
             return 1, newlow
     if ynlist[-1] > cond:
-        print "Off chart minY for investigation:", minY, ynlist.index(minY)
+        if DBGMODE:
+            print "Off chart minY for investigation:", minY, ynlist.index(minY)
         return 2, newlow  # Stage 2 reversal
     return -1, newlow
 
@@ -149,6 +173,7 @@ def checkReversalP(retrace, yplist, ynlist, cond, lastP):
     if minYN == ynlist[-1]:
         if not retrace:
             return 0, newlow, newhigh
+        # stage 4 reversal hits new low
         return 4, newlow, newhigh
     # if minYN == ynlist[-2] or minYN == ynlist[-3]:
     if ynlist[-1] < cond:
@@ -163,25 +188,33 @@ def checkReversalP(retrace, yplist, ynlist, cond, lastP):
     return 3, newlow, newhigh
 
 
-def checkBottomPrice(ypW, ypF, lastprice):
-    retrace, newlow = False, False
+def checkBottomPrice(ynW, ypF, lastprice):
+    retrace, newlow = 0, False
     if ypF is None:
         return -1, retrace, newlow
-    ypWC, ypFC = ypW[0], ypF[0]  # 0=C, 1=M, 2=P, 3=V
-    if ypWC is None or ypFC is None:
+    ynWC, ypFC = ynW[0], ypF[0]  # 0=C, 1=M, 2=P, 3=V
+    if ynWC is None or ypFC is None:
         # No peak/trough, price is still free falling?
         return -1, retrace, newlow
-    minY = min(ypFC)
-    if lastprice < minY or minY == ypFC[-1]:
+    if ynWC.count(0) > 1:
+        # Transaction gaps
+        return -1, retrace, newlow
+    minY = min(ynWC)
+    if lastprice < minY or minY == ynWC[-1]:
         newlow = True
     if lastprice < minY:
         # Price is still going lower
         return 0, retrace, newlow
     minF, maxF = min(ypFC), max(ypFC)
-    if lastprice > maxF:
-        return 4, retrace, newlow  # Stage 4 above last top
     if maxF == ypFC[-1] or maxF == ypFC[-2]:
-        retrace = True
+        # short and early stage retrace (padini 2017-02-06)
+        retrace = 1
+    elif maxF > ypFC[0]:
+        # Long and substantial retrace (padini 2011-10-12)
+        retrace = 2
+    if lastprice > maxF or (maxF == ypFC[-1] and
+                            lastprice > (maxF - minF) * 2 / 3):
+        return 4, retrace, newlow  # Stage 4 above last top
     if lastprice > (maxF + minF) / 2:
         # Price above 1/2 from the high
         return 3, retrace, newlow  # Stage 3 reversal
