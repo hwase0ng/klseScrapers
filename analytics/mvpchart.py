@@ -63,9 +63,9 @@ def dfLoadMPV(counter, chartDays, start=0):
                     f.write("%s" % item)
             skiprow = 0
     else:
-        skiprow, rows = getSkipRows(incsv, chartDays)
+        skiprow, row_count = getSkipRows(incsv, chartDays)
 
-    if skiprow < 0 or rows <= 0:
+    if skiprow < 0 or row_count <= 0:
         print "File not available:", incsv
         return None, skiprow, None
     # series = Series.from_csv(incsv, sep=',', parse_dates=[1], header=None)
@@ -483,6 +483,7 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     fname = ""
     try:
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
+        dfw = None
         if skiprows >= 0:
             dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
             dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
@@ -559,18 +560,22 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
 
         figsize = (10, 5) if showchart else (15, 7)
         fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=title)
-        fig.suptitle(title)
         fig.canvas.set_window_title(title)
         hlList, pnList = plotSynopsis(dflist, axes)
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        signals = scanSignals(DBG_SIGNAL, counter, outname, hlList, pnList, lasttrxn)
+        if len(signals):
+            signals = signals.replace('\t', " [")
+            fig.suptitle(title + signals + "]")
+        else:
+            fig.suptitle(title)
         if showchart:
             plt.show()
         else:
-            if scanSignals(DBG_SIGNAL, counter, outname, hlList, pnList, lasttrxn):
-                if len(nums) > 0:
-                    outname = outname + "-" + lasttrxn[0]
-                plt.savefig(outname + "-synopsis.png")
+            if len(nums) > 0:
+                outname = outname + "-" + lasttrxn[0]
+            plt.savefig(outname + "-synopsis.png")
         plt.close()
 
     if simulation is None or len(simulation) == 0:
