@@ -62,7 +62,7 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
         inputfl = S.DATA_DIR + counter + '.' + stkcode + '.csv'
         row_count = wc_line_count(inputfl)
         if row_count < S.MVP_DAYS * 2:
-            print "Skipped: ", counter, row_count
+            print "Skipped rows: ", counter, row_count
             return
         with open(inputfl, "rb") as fl:
             try:
@@ -253,7 +253,7 @@ if __name__ == '__main__':
         stocklist = loadKlseCounters(KLSE)
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:
-            print "INF:Skip: ", shortname
+            print "Excludes: ", shortname
             continue
         if args['--generate']:
             generateMPV(shortname, stocklist[shortname])
