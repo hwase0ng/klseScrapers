@@ -280,14 +280,14 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
     return eodlist
 
 
-def loadIdMap(klsemap='klse.idmap'):
+def loadIdMap(klsemap='klse.idmap', dbg=False):
     ID_MAPPING = {}
     try:
         with open(klsemap) as idmap:
             for line in idmap:
                 name, var = line.partition("=")[::2]
                 ID_MAPPING[name.strip()] = int(var)
-            if DBG_ALL:
+            if dbg:
                 print dict(ID_MAPPING.items()[0:3])
         '''
         with open("klse.txt") as f:
@@ -296,7 +296,7 @@ def loadIdMap(klsemap='klse.idmap'):
                 name = idmap[0]
                 var = idmap[3]
                 ID_MAPPING[name.strip()] = int(var)
-            if DBG_ALL:
+            if dbg:
                 print dict(ID_MAPPING.items()[0:10])
         '''
     except EnvironmentError:
@@ -313,7 +313,7 @@ if __name__ == '__main__':
     global DBG_ALL
     DBG_ALL = True if args['--debug'] else False
     # OUTPUT_FILE = sys.argv[1]
-    idmap = loadIdMap()
+    idmap = loadIdMap(dbg=DBG_ALL)
 
     WRITE_CSV = True
     S.RESUME_FILE = True if args['--resume'] else False
