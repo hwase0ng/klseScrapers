@@ -262,7 +262,7 @@ def scrapeKlse(procmode, force_update, resume):
          that of investing.com latest eod
     '''
     lastdt = getLastDate(S.DATA_DIR + 'PBBANK.1295.csv')
-    if force_update:
+    if force_update or resume:
         dates = []
         dates.append(lastdt)
         dates.append(getToday('%Y-%m-%d'))
