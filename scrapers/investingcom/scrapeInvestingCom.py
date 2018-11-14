@@ -368,6 +368,7 @@ if __name__ == '__main__':
                     lastdt = getNextDay(stopdt)
                 else:
                     stopdt = enddt
+                print "\tstart=%s, stop=%s" % (startdt, stopdt)
                 eod = InvestingQuote(idmap, shortname, startdt, stopdt)
                 if DBG_ALL:
                     for item in eod:
