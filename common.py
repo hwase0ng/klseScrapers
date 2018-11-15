@@ -367,6 +367,20 @@ def match_approximate2(a, b, approx, invert=False, vector=None, cmpv=None):
     return [resulta, resultb]
 
 
+def combineList(listoflists):
+    xpositive, xnegative, ypositive, ynegative = \
+        listoflists[0], listoflists[1], listoflists[2], listoflists[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+    datelist, ylist = sorted(xpositive + xnegative), []
+    for dt in datelist:
+        try:
+            pos = xpositive.index(dt)
+            ylist.append(ypositive[pos])
+        except ValueError:
+            pos = xnegative.index(dt)
+            ylist.append(ynegative[pos])
+    return ylist
+
+
 if __name__ == '__main__':
     '''
     line = "3A,0012,THREE-A RESOURCES BHD,507"
@@ -375,10 +389,16 @@ if __name__ == '__main__':
         var, dummy = var.partition(',')[::2]
     print name
     print var
-    '''
     print getDataDir('data/')
     with cd('scrapers'):
         print getDataDir('data/')
     with cd('scrapers/i3'):
         print getDataDir('data/')
+    '''
+    lists = [['2018-03-31', '2018-04-05'], ['2018-01-05', '2018-04-01'], [1.2, 1.5], [1.1, 2.0]]
+    print combineList(lists)
+    lists = [['2018-03-01', '2018-03-05', '2018-04-30'], ['2018-01-05', '2018-04-01'], [1.2, 1.5, 1.7], [1.1, 2.0]]
+    print combineList(lists)
+    lists = [['2018-03-31', '2018-04-05'], ['2018-04-01'], [1.2, 1.5], [2.0]]
+    print combineList(lists)
     pass
