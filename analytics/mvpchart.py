@@ -144,13 +144,17 @@ def annotateMVP(df, axes, MVP, cond):
 def indpeaks(cmpv, vector, threshold, dist, factor=1):
     if vector is None or not len(vector) or threshold == 0:
         return [], []
-    pIndexes = peak.indexes(np.array(vector),
-                            thres=threshold / max(vector), min_dist=dist)
-    nIndexes = peak.indexes(np.array(vector * -1),
-                            thres=threshold * factor, min_dist=dist)
-    if MVP_DIVERGENCE_MATCH_FILTER:
-        newIndex = match_approximate2(pIndexes, nIndexes, 1, True, vector, cmpv)
-        pIndexes, nIndexes = newIndex[0], newIndex[1]
+    try:
+        pIndexes = peak.indexes(np.array(vector),
+                                thres=threshold / max(vector), min_dist=dist)
+        nIndexes = peak.indexes(np.array(vector * -1),
+                                thres=threshold * factor, min_dist=dist)
+        if MVP_DIVERGENCE_MATCH_FILTER:
+            newIndex = match_approximate2(pIndexes, nIndexes, 1, True, vector, cmpv)
+            pIndexes, nIndexes = newIndex[0], newIndex[1]
+    except Exception as e:
+        print e
+        print cmpv
     return pIndexes, nIndexes
 
 
@@ -483,7 +487,7 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     fname = ""
     try:
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
-        dfw = None
+        dfm = None
         if skiprows >= 0:
             dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
             dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
@@ -502,11 +506,12 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
         if df is not None:
             lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
             lastClosingPrice = float(df.iloc[-1]['close'])
-        if dfw is not None:
-            lastTrxnM = float(dfw.iloc[-1]['M'])
-            lastTrxnP = float(dfw.iloc[-1]['P'])
-            lastTrxnV = float(dfw.iloc[-1]['V'])
-            lasttrxn = [lastTrxnDate, lastClosingPrice, lastTrxnM, lastTrxnP, lastTrxnV]
+        if dfm is not None:
+            lastTrxnC = float(dfm.iloc[-1]['close'])
+            lastTrxnM = float(dfm.iloc[-1]['M'])
+            lastTrxnP = float(dfm.iloc[-1]['P'])
+            lastTrxnV = float(dfm.iloc[-1]['V'])
+            lasttrxn = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
             del df
         else:
             return None, None, None, None
@@ -529,6 +534,8 @@ def numsFromDate(counter, datestr):
     row_count = wc_line_count(incsv)
     dates = datestr.split(":") if ":" in datestr else [datestr]
     linenum = grepN(incsv, dates[0])  # e.g. 2018-10-30
+    if DBG_ALL:
+        print incsv, row_count, dates, linenum
     if linenum < 0:
         return []
     start = row_count - linenum + S.MVP_CHART_DAYS + 100
@@ -561,10 +568,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         figsize = (10, 5) if showchart else (15, 7)
         fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=title)
         fig.canvas.set_window_title(title)
-        hlList, pnList = plotSynopsis(dflist, axes)
+        _, pnList = plotSynopsis(dflist, axes)
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        signals = scanSignals(DBG_SIGNAL, counter, outname, hlList, pnList, lasttrxn)
+        signals = scanSignals(DBG_SIGNAL, counter, pnList, lasttrxn)
         if len(signals):
             signals = signals.replace('\t', " [")
             fig.suptitle(title + signals + "]")
@@ -573,9 +580,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         if showchart:
             plt.show()
         else:
-            if len(nums) > 0:
-                outname = outname + "-" + lasttrxn[0]
-            plt.savefig(outname + "-synopsis.png")
+            if len(signals):
+                if len(nums) > 0:
+                    outname = outname + "-" + lasttrxn[0]
+                plt.savefig(outname + "-synopsis.png")
         plt.close()
 
     if simulation is None or len(simulation) == 0:
@@ -653,7 +661,7 @@ def plotSynopsis(dflist, axes):
             vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
             cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
-            hlList.append(cmpvHL)
+            # hlList.append(cmpvHL)
             cmpvXYPN = line_divergence(ax, *plotpeaks(dflist[i], ax,
                                                       *findpeaks(dflist[i], cmpvHL, i)))
             pnList.append(cmpvXYPN)
