@@ -84,7 +84,7 @@ class Quote(object):
             assert(r.status_code == 200)
             return r.text
         except KeyError:
-            if DBG_ALL:
+            if S.DBG_ALL:
                 print "KeyError: " + self.name
             return "KeyError: No ID mapping for " + self.name
         except Exception as e:
@@ -99,7 +99,7 @@ class Quote(object):
         try:
             df = pd.read_html(self.response)
             df = df[0]  # Ignore footer table
-            if DBG_ALL:
+            if S.DBG_ALL:
                 df.to_csv(getDataDir(S.DATA_DIR) + self.name + ".inf")
             price = df['Price'][0]
             # print self.name, type(price), price
@@ -141,7 +141,7 @@ class Quote(object):
         except ValueError as ve:
             df = 'ValueError'
             self.csverr = self.name + ": ValueError (No data for date range) " + ' (' + str(ve) + ')'
-            if DBG_ALL:
+            if S.DBG_ALL:
                 with open(getDataDir(S.DATA_DIR) + "value.err", 'ab') as f:
                     f.write('\n=============================\n')
                     f.write(self.name + "\n")
@@ -149,7 +149,7 @@ class Quote(object):
         except Exception as e:
             # This happens when records being processed are larger than 3 months data,
             # try reducing the period
-            if DBG_ALL:
+            if S.DBG_ALL:
                 with open(getDataDir(S.DATA_DIR) + "value.err", 'ab') as f:
                     f.write('\n=============================\n')
                     f.write(self.name + "\n")
@@ -217,7 +217,7 @@ def unpackEOD(sname, sdate, popen, phigh, plow, pclose, pvol):
         "{:.1f}".format(float(str(pvol).replace('-', '0')))
 
 
-def scrapeKlseRelated(klsemap, WRITE_CSV=True):
+def scrapeKlseRelated(klsemap, WRITE_CSV=True, dbg=False):
     idmap = loadIdMap(klsemap)
     # counters = 'USDMYR.2168,FTFBM100.0200,FTFBMKLCI.0201,FTFBMMES.0202,FTFBMSCAP.0203,FTFBM70.0204,FTFBMEMAS.0205'
     counterlist = S.KLSE_RELATED.split(',')
@@ -250,7 +250,7 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
             else:
                 stopdt = enddt
             eod = InvestingQuote(idmap, shortname, startdt, stopdt)
-            if DBG_ALL:
+            if dbg:
                 for item in eod:
                     print item
             if len(eod.getCsvErr()) > 0:
@@ -258,7 +258,7 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True):
             elif isinstance(eod.response, unicode):
                 dfEod = eod.to_df()
                 if isinstance(dfEod, pd.DataFrame):
-                    if DBG_ALL:
+                    if dbg:
                         print dfEod[:5]
                     if WRITE_CSV:
                         dfEod.index.name = 'index'
