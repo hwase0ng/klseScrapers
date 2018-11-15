@@ -119,14 +119,20 @@ def bottomBuySignals(pnlist, lastTrxn):
         print "P=", posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP
         print "V=", posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV
 
-    # 1 - PADINI 2014-03, 2 - PADINI 2011-10
-    # 3 - extension of 1 after retrace: petronm 2013-04-24
+    plistC, nlistC, nlistM, nlistP, plistV = \
+        cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
+    # 1 - PADINI 2014-03 (LowC + LowM), 2 - PADINI 2011-10 (LowC + LowP)
+    # 3 - extension of 1 after retrace: PETRONM 2013-04-24
     # and plistC is not None and plistC[-1] < min(nlistC) + ((max(plistC) - min(nlistC)) / 3) \
-    oversold = 1 if (newlowC or bottomC) and (newlowM or bottomM) and not newlowP and not newlowV \
-        else 2 if (newlowC or bottomC) and not newlowM and (newlowP or bottomP) and not newlowV \
-        else 3 if not (newlowC or bottomC) and not newlowP and (newhighM or topM) and posC == 1 \
+    oversold = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
+        else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
+        and not (newlowP or bottomP) and not newlowV \
+        else 2 if (newlowC or bottomC) and not (newlowM or bottomM) and min(nlistM) < 5 and nlistM[-1] > 5 \
+        and (newlowP or bottomP) and not newlowV \
+        else 3 if not (newlowC or bottomC) and not (newlowP or bottomP) and (newhighM or topM) \
+        and min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1 \
         else 0
-    if oversold and (newhighP or newhighM):
+    if oversold and ((newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5)):
         oversold = 8
         if posC > 1:
             # Oversold confirmed
@@ -139,13 +145,12 @@ def bottomBuySignals(pnlist, lastTrxn):
     # bottomrevs 4 = end of long term retrace from top with new low M and P,
     #                also to check divergent on month's M and P
     elif not retrace:
-        plistC, nlistC, nlistM = cmpvMC[2], cmpvMC[3], cmpvMM[3]  # 0=XP, 1=XN, 2=YP, 3=YN
         if nlistC is not None and plistC is not None and nlistM is not None:
             bottom_divider = min(nlistC) + (max(plistC) - min(nlistC)) / 3
             if DBGMODE:
                 print "min,max of C=", min(nlistC), max(nlistC)
-            if posC < 3 and plistC[-1] < bottom_divider \
-                    and bottomC and min(nlistM) < 5 and nlistM[-1] > nlistM[-2] \
+            if posC < 3 and plistC[-1] < bottom_divider and bottomC \
+                    and len(nlistM) > 1 and min(nlistM) < 5 and nlistM[-1] > nlistM[-2] \
                     and not newlowP and lastM > 5:
                 # Volume should near or exceeds new low
                 # PADINI 2015-08-17, DUFU 2018-07
@@ -157,7 +162,6 @@ def bottomBuySignals(pnlist, lastTrxn):
                 # else failed example: PETRONM 2013-12-06
     else:
         # 3 - PADINI 2017-02-06
-        nlistC, nlistM, nlistP, plistV = cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
         maxPV = max(plistV)
         if DBGMODE:
             print "min(nlist)=", min(nlistM), min(nlistP), maxPV, lastV
@@ -178,7 +182,7 @@ def checkposition(pntype, pnlist, lastpos):
         count0 = -1 if nlist is None else nlist.count(0)
         if count0 < 0 or count0 > 1:
             print "\tSkipped W0", count0
-            return -1, newlow, newhigh, retrace, top, bottom
+            return -1, newlow, newhigh, retrace, top, bottom, prevtop, prevbottom
 
     plist, nlist = pnlist[2], pnlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
     if plist is None or nlist is None:
