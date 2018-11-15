@@ -80,7 +80,7 @@ def scrapeI3eod(sname, scode, lastdt):
 def getStartDate(OUTPUT_FILE):
     if S.RESUME_FILE:
         startdt = getLastDate(OUTPUT_FILE)
-        if len(startdt) == 0:
+        if startdt is None or len(startdt) == 0:
             # File is likely to be empty, hence scrape from beginning
             startdt = S.ABS_START
     else:
