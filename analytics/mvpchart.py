@@ -697,8 +697,8 @@ def globals_from_args(args):
     klse = "scrapers/i3investor/klse.txt"
 
     dbgmode = "" if args['--debug'] is None else args['--debug']
-    DBG_ALL = True if "A" in dbgmode else False
-    DBG_SIGNAL = True if "S" in dbgmode else False
+    DBG_ALL = True if "a" in dbgmode else False
+    DBG_SIGNAL = 1 if "s" in dbgmode else 2 if "t" in dbgmode else 0
     MVP_PLOT_PEAKS = True if args['--plotpeaks'] else False
     MVP_PEAKS_DISTANCE = -1 if not args['--peaksdist'] else float(args['--peaksdist'])
     MVP_PEAKS_THRESHOLD = -1 if not args['--threshold'] else float(args['--threshold'])
