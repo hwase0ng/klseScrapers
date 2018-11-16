@@ -196,10 +196,10 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
             print eod
 
         if updateMPV(shortname, stockCode, eod):
-            load_mvp_args()
-            mvpChart(shortname, stockCode)
             load_mvp_args(True)
-            mvpSynopsis(shortname, stockCode)
+            if mvpSynopsis(shortname, stockCode):
+                load_mvp_args(False)
+                mvpChart(shortname, stockCode)
 
     return eodlist
 
