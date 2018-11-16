@@ -49,7 +49,7 @@ def dfLoadMPV(counter, chartDays, start=0):
     incsv = prefix + counter + ".csv"
     if start > 0:
         prefix = prefix + "simulation/"
-    outname = prefix + counter
+    outname = prefix + "synopsis/" + counter
     if start > 0:
         row_count = wc_line_count(incsv)
         if row_count < S.MVP_CHART_DAYS:
@@ -585,13 +585,14 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                     outname = outname + "-" + lasttrxn[0]
                 plt.savefig(outname + "-synopsis.png")
         plt.close()
+        return len(signals) > 0
 
     if simulation is None or len(simulation) == 0:
         nums = []
         dflist, title, fname, lasttrxn = getSynopsisDFs(counter, scode, chartDays)
         if dflist is None:
             return
-        doPlotting(fname)
+        return doPlotting(fname)
     else:
         nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation)
         if len(nums) <= 0:
@@ -607,6 +608,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                 start -= step
             else:
                 break
+        return False
 
 
 def plotSynopsis(dflist, axes):
