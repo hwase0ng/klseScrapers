@@ -63,9 +63,9 @@ def topSellSignals(pricepos, pnlist):
     pnM = pnlist[2]
     xpM, xnM, ypM, ynM = pnM[0], pnM[1], pnM[2], pnM[3]  # 0=XP, 1=XN, 2=YP, 3=YN
     ynmC, ypmC, ypmM, ypmV = ynM[0], ypM[0], ypM[1], ypM[3]  # 0=C, 1=M, 2=P, 3=V
-    if ynmC is None or ypmC is None:
-        if ypmM is not None and len(ypmM) > 1 and ypmM[-1] < ypmM[-2]:
-            topSellSignal = 1
+    if ypmC is None or ynmC is None:
+        # if len(ypmM) > 1 and ypmM[-1] < ypmM[-2]:
+        #     topSellSignal = 1
         return topSellSignal
     xnmC, xpmC, xpmM, xpmV = xnM[0], xpM[0], xpM[1], xpM[3]  # 0=C, 1=M, 2=P, 3=V
     minYN, maxYP = min(ynmC), max(ypmC)
@@ -90,7 +90,7 @@ def formListCMPV(cmpv, pnlist):
 
 
 def bottomBuySignals(pnlist, lastTrxn):
-    oversold, divergent, bottomrevs = 0, 0, 0
+    oversold, oversold_stages, bottomrevs = 0, 0, 0
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
@@ -107,7 +107,7 @@ def bottomBuySignals(pnlist, lastTrxn):
         print "lastPrice vs lastC:", lastprice, lastC
         print "C=", posC, newlowC, newhighC, retrace, topC, bottomC, prevtopC, prevbottomC
     if posC < 0:
-        return posC, -1, -1, -1, bottomrevs, oversold, divergent
+        return posC, -1, -1, -1, bottomrevs, oversold, oversold_stages
     posM, newlowM, newhighM, _, topM, bottomM, prevtopM, prevbottomM = \
         checkposition('M', cmpvMM, lastM)
     posP, newlowP, newhighP, _, topP, bottomP, prevtopP, prevbottomP = \
@@ -122,8 +122,10 @@ def bottomBuySignals(pnlist, lastTrxn):
     plistC, nlistC, nlistM, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
     '''
-    1 - PADINI 2014-03 (LowC + LowM), 2 - PADINI 2011-10 (LowC + LowP)
-    3 - extension of 1 after retrace: PETRONM 2013-04-24
+    1 - PADINI 2014-03 (LowC + LowM with higher P divergent) - short rebound
+    2 - PADINI 2011-10 (LowC + LowP with higher M divergent) - reversal
+    3 - PETRONM 2013-04-24: extension of 1 after retrace
+    4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
     '''
     oversold = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -134,13 +136,15 @@ def bottomBuySignals(pnlist, lastTrxn):
         and nlistP[-1] < nlistP[-2] \
         else 3 if not (newlowC or bottomC) and not (newlowP or bottomP) and (newhighM or topM) \
         and min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1 \
+        else 4 if (newlowC or bottomC) and not (newlowM or bottomM) and not (newlowP or bottomP) \
+        and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
         else 0
-    if oversold and ((newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5)):
-        oversold = 8
-        if posC > 1:
-            # Oversold confirmed
-            oversold = 9
-        divergent = 1 if newhighV else 0
+    if oversold == 4 and posC > 1:
+        oversold_stages = 2
+    elif oversold and ((newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5)):
+        oversold_stages = 2 if posC > 1 else 1
+        if newhighV:
+            oversold_stages = 3
     elif not retrace:
         '''
         # bottomrevs 1 = reversal with P remains in negative zone (early signal of reversal)
@@ -175,7 +179,7 @@ def bottomBuySignals(pnlist, lastTrxn):
              bottomP and lastP > nlistP[-1]) \
             else 0
 
-    return posC, posM, posP, posV, bottomrevs, oversold, divergent
+    return posC, posM, posP, posV, bottomrevs, oversold, oversold_stages
 
 
 def checkposition(pntype, pnlist, lastpos):
