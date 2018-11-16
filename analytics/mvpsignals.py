@@ -64,7 +64,7 @@ def topSellSignals(pricepos, pnlist):
     xpM, xnM, ypM, ynM = pnM[0], pnM[1], pnM[2], pnM[3]  # 0=XP, 1=XN, 2=YP, 3=YN
     ynmC, ypmC, ypmM, ypmV = ynM[0], ypM[0], ypM[1], ypM[3]  # 0=C, 1=M, 2=P, 3=V
     if ynmC is None or ypmC is None:
-        if len(ypmM) > 1 and ypmM[-1] < ypmM[-2]:
+        if ypmM is not None and len(ypmM) > 1 and ypmM[-1] < ypmM[-2]:
             topSellSignal = 1
         return topSellSignal
     xnmC, xpmC, xpmM, xpmV = xnM[0], xpM[0], xpM[1], xpM[3]  # 0=C, 1=M, 2=P, 3=V
