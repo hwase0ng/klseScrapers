@@ -121,14 +121,17 @@ def bottomBuySignals(pnlist, lastTrxn):
 
     plistC, nlistC, nlistM, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
-    # 1 - PADINI 2014-03 (LowC + LowM), 2 - PADINI 2011-10 (LowC + LowP)
-    # 3 - extension of 1 after retrace: PETRONM 2013-04-24
-    # and plistC is not None and plistC[-1] < min(nlistC) + ((max(plistC) - min(nlistC)) / 3) \
+    '''
+    1 - PADINI 2014-03 (LowC + LowM), 2 - PADINI 2011-10 (LowC + LowP)
+    3 - extension of 1 after retrace: PETRONM 2013-04-24
+    '''
     oversold = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
-        and not (newlowP or bottomP) and not newlowV \
+        and not (newlowP or bottomP) and not prevtopP and not newlowV \
+        and nlistP[-1] > nlistP[-2] \
         else 2 if (newlowC or bottomC) and not (newlowM or bottomM) and min(nlistM) < 5 and nlistM[-1] > 5 \
-        and (newlowP or bottomP) and not newlowV \
+        and (newlowP or bottomP) and not prevtopP and not newlowV \
+        and nlistP[-1] < nlistP[-2] \
         else 3 if not (newlowC or bottomC) and not (newlowP or bottomP) and (newhighM or topM) \
         and min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1 \
         else 0
@@ -138,20 +141,21 @@ def bottomBuySignals(pnlist, lastTrxn):
             # Oversold confirmed
             oversold = 9
         divergent = 1 if newhighV else 0
-
-    # bottomrevs 1 = reversal with P remains in negative zone (early signal of reversal)
-    # bottomrevs 2 = reversal with P crossing to positive (confirmed reversal)
-    # bottomrevs 3 = end of short term retrace from top with volume
-    # bottomrevs 4 = end of long term retrace from top with new low M and P,
-    #                also to check divergent on month's M and P
     elif not retrace:
+        '''
+        # bottomrevs 1 = reversal with P remains in negative zone (early signal of reversal)
+        # bottomrevs 2 = reversal with P crossing to positive (confirmed reversal)
+        # bottomrevs 3 = end of short term retrace from top with volume
+        # bottomrevs 4 = end of long term retrace from top with new low M and P,
+        #                also to check divergent on month's M and P
+        '''
         if nlistC is not None and plistC is not None and nlistM is not None:
             bottom_divider = min(nlistC) + (max(plistC) - min(nlistC)) / 3
             if DBGMODE:
                 print "min,max of C=", min(nlistC), max(nlistC)
             if posC < 3 and plistC[-1] < bottom_divider and bottomC \
                     and len(nlistM) > 1 and min(nlistM) < 5 and nlistM[-1] > nlistM[-2] \
-                    and not newlowP and lastM > 5:
+                    and not topP and not prevtopP and not newlowP and lastM > 5 and not topV:
                 # Volume should near or exceeds new low
                 # PADINI 2015-08-17, DUFU 2018-07
                 bottomrevs = 1 if lastP < 0 else 2
