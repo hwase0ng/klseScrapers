@@ -9,6 +9,7 @@ Options:
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -k,--klse             Update KLSE stock listing
     -K,--KLSE             Update KLSE related stocks
+    -m,--mt4              Write and update metatrader4
     -r,--resume           Resume after crash [default: False]
     -h,--help             This page
 
@@ -234,7 +235,7 @@ def postUpdateProcessing():
     backupKLse(S.DATA_DIR, S.BKUP_DIR, "pst")
     backupKLse(S.DATA_DIR + S.MVP_DIR, S.BKUP_DIR, "mvp")
 
-    if len(S.MT4_DIR) == 0:
+    if len(S.MT4_DIR) == 0 or not mt4update:
         return
 
     csvfiles = getCsvFiles(S.DATA_DIR + 'latest.eod')
@@ -321,8 +322,9 @@ if __name__ == '__main__':
     stocks = getCounters(args['COUNTER'], args['--klse'],
                          args['--portfolio'], args['--watchlist'], False)
     '''
-    global klse
+    global klse, mt4update
     klse = "scrapers/i3investor/klse.txt"
+    mt4update = args['--mt4']
     if args['--klse']:
         # Full download using klse.txt
         # To do: a fix schedule to refresh klse.txt
