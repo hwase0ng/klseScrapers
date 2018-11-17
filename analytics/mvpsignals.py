@@ -23,10 +23,10 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
     if len(pnlist) < 3:
         print "Skipped len:", counter, len(pnlist)
         return False
-    bbprice, rvsM, rvsP, rvsV, bottomrevs, oversold, divergent = \
+    bbprice, rvsM, rvsP, rvsV, bottomrevs, oversold, oversold_stage = \
         bottomBuySignals(pnlist, lastTrxnData)
     topSell = topSellSignals(bbprice, pnlist)
-    if not oversold and not divergent and not bottomrevs and not topSell:
+    if not oversold and not oversold_stage and not bottomrevs and not topSell:
         # if (bbprice < 0 or rvsM < 0 or rvsP < 0):
         if not dbg:
             return ""
@@ -35,8 +35,8 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
     if topSell:
         signals = "\t%s,TOP,%d,(%dc,%dm,%dp,%dv)" % (counter, topSell,
                                                      bbprice, rvsM, rvsP, rvsV)
-    elif oversold or divergent:
-        signals = "\t%s,OVS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, oversold, divergent,
+    elif oversold or oversold_stage:
+        signals = "\t%s,OVS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, oversold, oversold_stage,
                                                         bbprice, rvsM, rvsP, rvsV)
     elif bottomrevs or dbg:
         label = "BRV" if bottomrevs else "Dbg"
@@ -90,7 +90,7 @@ def formListCMPV(cmpv, pnlist):
 
 
 def bottomBuySignals(pnlist, lastTrxn):
-    oversold, oversold_stages, bottomrevs = 0, 0, 0
+    oversold, oversold_stage, bottomrevs = 0, 0, 0
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
@@ -105,9 +105,10 @@ def bottomBuySignals(pnlist, lastTrxn):
         checkposition('C', cmpvMC + cmpvWC, lastC)
     if DBGMODE:
         print "lastPrice vs lastC:", lastprice, lastC
-        print "C=", posC, newlowC, newhighC, retrace, topC, bottomC, prevtopC, prevbottomC
+        print "C=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d,r=%d" % \
+            (posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace)
     if posC < 0:
-        return posC, -1, -1, -1, bottomrevs, oversold, oversold_stages
+        return posC, -1, -1, -1, bottomrevs, oversold, oversold_stage
     posM, newlowM, newhighM, _, topM, bottomM, prevtopM, prevbottomM = \
         checkposition('M', cmpvMM, lastM)
     posP, newlowP, newhighP, _, topP, bottomP, prevtopP, prevbottomP = \
@@ -115,15 +116,18 @@ def bottomBuySignals(pnlist, lastTrxn):
     posV, newlowV, newhighV, _, topV, bottomV, prevtopV, prevbottomV = \
         checkposition('V', cmpvMV, lastV)
     if DBGMODE:
-        print "M=", posM, newlowM, newhighM, topM, bottomM, prevtopM, prevbottomM
-        print "P=", posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP
-        print "V=", posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV
+        print "M=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d" % \
+            (posM, newlowM, newhighM, topM, bottomM, prevtopM, prevbottomM)
+        print "P=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d" % \
+            (posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP)
+        print "V=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d" % \
+            (posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV)
 
     plistC, nlistC, nlistM, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
     '''
     1 - PADINI 2014-03 (LowC + LowM with higher P divergent) - short rebound
-    2 - PADINI 2011-10 (LowC + LowP with higher M divergent) - reversal
+    2 - PADINI 2011-10-12 (LowC + LowP with higher M divergent) - reversal
     3 - PETRONM 2013-04-24: extension of 1 after retrace
     4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
     '''
@@ -139,19 +143,20 @@ def bottomBuySignals(pnlist, lastTrxn):
         else 4 if (newlowC or bottomC) and not (newlowM or bottomM) and not (newlowP or bottomP) \
         and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
         else 0
-    if oversold == 4 and posC > 1:
-        oversold_stages = 2
-    elif oversold and ((newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5)):
-        oversold_stages = 2 if posC > 1 else 1
-        if newhighV:
-            oversold_stages = 3
+    if oversold:
+        oversold_stage = 1
+        if posV > 0:
+            oversold_stage = 2
+        if oversold == 4 and posC > 1:
+            oversold_stage = 3
+        elif (newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5):
+            oversold_stage = 3 if posC > 1 else 2 if posV > 0 else 1
     elif not retrace:
         '''
         # bottomrevs 1 = reversal with P remains in negative zone (early signal of reversal)
         # bottomrevs 2 = reversal with P crossing to positive (confirmed reversal)
-        # bottomrevs 3 = end of short term retrace from top with volume
-        # bottomrevs 4 = end of long term retrace from top with new low M and P,
-        #                also to check divergent on month's M and P
+        # bottomrevs 9 = Now OVS2, end of long term retrace from top with new low M and P,
+        #                divergent on month's M and P
         '''
         if nlistC is not None and plistC is not None and nlistM is not None:
             bottom_divider = min(nlistC) + (max(plistC) - min(nlistC)) / 3
@@ -165,21 +170,30 @@ def bottomBuySignals(pnlist, lastTrxn):
                 bottomrevs = 1 if lastP < 0 else 2
             elif bottomC and newlowP and not newlowM:
                 if nlistC is not None and lastC > nlistC[-1]:
-                    # PADINI 2011-10-12
-                    bottomrevs = 4
+                    # PADINI 2011-10-12 - now reclassified under OVS2
+                    bottomrevs = 9
                 # else failed example: PETRONM 2013-12-06
     else:
-        # 3 - PADINI 2017-02-06
+        '''
+        bottomrevs 3 = end of short term retrace from top with volume (PADINI 2017-02-06)
         maxPV = max(plistV)
         if DBGMODE:
             print "min(nlist)=", min(nlistM), min(nlistP), maxPV, lastV
-        bottomrevs = 3 if retrace == 1 and \
-            not newlowC and (newhighV and (lastV > maxPV * 2 or lastC > nlistC[-1])) and \
+        bottomrevs = 3 if retrace and not newlowC and \
+            (newhighV and (lastV > maxPV * 2 or lastC > nlistC[-1])) and \
             (topM and min(nlistM) > 5 and lastM > nlistM[-1] or
              bottomP and lastP > nlistP[-1]) \
             else 0
+        '''
+        if not newlowC and posV > 0 and lastC > nlistC[-1] and \
+            (topM and min(nlistM) > 5 and lastM > nlistM[-1] or
+             bottomP and lastP > nlistP[-1]):
+            bottomrevs = 3
+            maxPV = max(plistV)
+            if DBGMODE:
+                print "min(nlist)=", min(nlistM), min(nlistP), maxPV, lastV
 
-    return posC, posM, posP, posV, bottomrevs, oversold, oversold_stages
+    return posC, posM, posP, posV, bottomrevs, oversold, oversold_stage
 
 
 def checkposition(pntype, pnlist, lastpos):
@@ -231,6 +245,12 @@ def checkposition(pntype, pnlist, lastpos):
                     pos = 3
                 else:
                     pos = 2
+        elif pntype == 'V':
+            if len(plist) > 1:
+                plistsorted = sorted(plist)
+                pos = 4 if lastpos > plistsorted[-1] else 3 if lastpos > plistsorted[-2] else 0
+            else:
+                pos = 4 if lastpos > plist[0] else 0
         else:
             # 1 = climbing from new low
             # 2 = dropping from new high
