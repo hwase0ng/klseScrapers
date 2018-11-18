@@ -89,9 +89,9 @@ def topSellSignals(pricepos, pnlist, composelist):
         xpmCdate = xpmC[ypmC.index(maxYP)]
         xnmCdate = xnmC[ynmC.index(minYN)]
         if ypmM is not None and len(ypmM) > 1 and ypmM[-1] < ypmM[-2]:
-            topSellSignal = 1
+            topSellSignal = 3
             if xpmCdate > xnmCdate:
-                topSellSignal = 2
+                topSellSignal = 4
 
     return topSellSignal
 
@@ -127,7 +127,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         and min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1 \
         else 4 if (newlowC or bottomC) and not (newlowM or bottomM) and not (newlowP or bottomP) \
         and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
-        else 5 if not (newlowC or bottomC) and bottomM and bottomP and bottomV \
+        else 5 if topC and not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV \
         else 0
     if oversold:
         oversold_stage = 1
