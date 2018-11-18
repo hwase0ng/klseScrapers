@@ -32,19 +32,19 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
     posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
     topSell = topSellSignals(posC, lastTrxnData, cmpvlists, composelist)
     if not topSell:
-        bottomrevs, oversold, oversold_stage = \
+        bottomrevs, bbs, bbs_stage = \
             bottomBuySignals(lastTrxnData, cmpvlists, composelist)
-        if not oversold and not oversold_stage and not bottomrevs:
+        if not bbs and not bbs_stage:
             # if (posC < 0 or posM < 0 or posP < 0):
             if not dbg:
                 return ""
 
     signals = ""
     if topSell:
-        signals = "\t%s,TOP,%d,(%dc,%dm,%dp,%dv)" % (counter, topSell,
+        signals = "\t%s,TSS,%d,(%dc,%dm,%dp,%dv)" % (counter, topSell,
                                                      posC, posM, posP, posV)
-    elif oversold or oversold_stage:
-        signals = "\t%s,OVS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, oversold, oversold_stage,
+    elif bbs or bbs_stage:
+        signals = "\t%s,BBS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, bbs, bbs_stage,
                                                         posC, posM, posP, posV)
     elif bottomrevs or dbg:
         label = "BRV" if bottomrevs else "Dbg"
@@ -120,7 +120,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
 
 
 def bottomBuySignals(lastTrxn, cmpvlists, composelist):
-    oversold, oversold_stage, bottomrevs = 0, 0, 0
+    bbs, bbs_stage, bottomrevs = 0, 0, 0
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
     cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
@@ -139,8 +139,10 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
     5 - DUFU 2015-08-26 (BottomM + BottomP + BottomV) - strong reversal
     6 - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
+    7 - PADINI 2015-08-17, DUFU 2018-07 bottomC + (LowV / HighV) - bottom reversal
+    8 - PADINI 2017-02-06 BottomP + HighV - continue bottom reversal after retrace
     '''
-    oversold = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
+    bbs = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
         and not (newlowP or bottomP) and not prevtopP and not newlowV \
         and nlistP[-1] > nlistP[-2] \
@@ -153,14 +155,21 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
         else 5 if topC and not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV \
         else 6 if topC and topP and (lastM < 5 or lastP < 0 or lastV < 0) \
+        else 7 if bottomC and (newlowV or newhighV) and not (topP or topV or prevtopP or
+                                                             prevbottomM or prevbottomV) \
+        else 8 if ((topC and prevbottomC) or prevtopC) and bottomP and newhighV and not newlowC \
+        and lastC > nlistC[-1] and (min(nlistM) > 5 and lastM > nlistM[-1] or
+                                    bottomP and lastP > nlistP[-1]) and lastM > 5 and lastP < 0 \
         else 0
-    if oversold:
-        oversold_stage = 1
-        if posV > 0 or (oversold == 4 and posC > 1) \
-                or (oversold == 6 and (bottomM or bottomP)):
-            oversold_stage = 2
+    if bbs:
+        bbs_stage = 1
+        if bbs == 7:
+            bbs_stage = 1 if lastP < 0 else 2
+        elif posV > 0 or (bbs == 4 and posC > 1) \
+                or (bbs == 6 and (bottomM or bottomP)):
+            bbs_stage = 2
         elif (newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5):
-            oversold_stage = 3 if posC > 1 else 2 if posV > 0 else 1
+            bbs_stage = 3 if posC > 1 else 2 if posV > 0 else 1
     elif not retrace:
         '''
         # bottomrevs 1 = reversal with P remains in negative zone (early signal of reversal)
@@ -203,7 +212,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
             if DBGMODE:
                 print "min(nlist)=%.2f,%.2f,%.2f,%.2f" % (min(nlistM), min(nlistP), maxPV, lastV)
 
-    return bottomrevs, oversold, oversold_stage
+    return bottomrevs, bbs, bbs_stage
 
 
 def checkposition(pntype, pnlist, lastpos):
@@ -280,7 +289,6 @@ def formListCMPV(cmpv, pnlist):
 
 
 def collectCompositions(pnlist, lastTrxn):
-    oversold, oversold_stage, bottomrevs = 0, 0, 0
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
