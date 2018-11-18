@@ -27,25 +27,29 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
     cmpvlists, composelist = collectCompositions(pnlist, lastTrxnData)
     if cmpvlists is None:
         return ""
-    bbprice, rvsM, rvsP, rvsV, bottomrevs, oversold, oversold_stage = \
-        bottomBuySignals(lastTrxnData, cmpvlists, composelist)
-    topSell = topSellSignals(bbprice, lastTrxnData, pnlist, composelist)
-    if not oversold and not oversold_stage and not bottomrevs and not topSell:
-        # if (bbprice < 0 or rvsM < 0 or rvsP < 0):
-        if not dbg:
-            return ""
+    composeC, composeM, composeP, composeV = \
+        composelist[0], composelist[1], composelist[2], composelist[3]
+    posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
+    topSell = topSellSignals(posC, lastTrxnData, cmpvlists, composelist)
+    if not topSell:
+        bottomrevs, oversold, oversold_stage = \
+            bottomBuySignals(lastTrxnData, cmpvlists, composelist)
+        if not oversold and not oversold_stage and not bottomrevs:
+            # if (posC < 0 or posM < 0 or posP < 0):
+            if not dbg:
+                return ""
 
     signals = ""
     if topSell:
         signals = "\t%s,TOP,%d,(%dc,%dm,%dp,%dv)" % (counter, topSell,
-                                                     bbprice, rvsM, rvsP, rvsV)
+                                                     posC, posM, posP, posV)
     elif oversold or oversold_stage:
         signals = "\t%s,OVS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, oversold, oversold_stage,
-                                                        bbprice, rvsM, rvsP, rvsV)
+                                                        posC, posM, posP, posV)
     elif bottomrevs or dbg:
         label = "BRV" if bottomrevs else "Dbg"
         signals = "\t%s,%s,%d,(%dc,%dm,%dp,%dv)" % (counter, label, bottomrevs,
-                                                    bbprice, rvsM, rvsP, rvsV)
+                                                    posC, posM, posP, posV)
     print signals
     outfile = S.DATA_DIR + S.MVP_DIR + "signals/" + counter + "-signals.csv"
     with open(outfile, "ab") as fh:
@@ -60,7 +64,7 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
     return signals
 
 
-def topSellSignals(pricepos, lastTrxn, pnlist, composelist):
+def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     topSellSignal = 0
     if pricepos < 3:
         return topSellSignal
@@ -73,17 +77,21 @@ def topSellSignals(pricepos, lastTrxn, pnlist, composelist):
 
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
+    cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
+    plistC, nlistC, nlistM, nlistP, plistV = \
+        cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
     '''
     1. DUFU 2016-01-06, PADINI 2012-08-29 - HighC, HighP
     2. PETRONM 2015-07-30 - HighC, HighM
-    4. PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
+    3&4. PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
+        Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
     5. KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
     '''
     if (newhighC or topC) and (newhighP or topP):
         topSellSignal = 1
         if topC or topP:
             topSellSignal = 2
-    elif newhighC and posM > 0:
+    elif newhighC and posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
         topSellSignal = 4 if lastM > 10 else 3
     elif bottomC and topM and posM < 3 and prevbottomP and prevtopV:
         topSellSignal = 5
@@ -130,6 +138,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     3 - PETRONM 2013-04-24: extension of 1 after retrace
     4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
     5 - DUFU 2015-08-26 (BottomM + BottomP + BottomV) - strong reversal
+    6 - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
     '''
     oversold = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -143,13 +152,13 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         else 4 if (newlowC or bottomC) and not (newlowM or bottomM) and not (newlowP or bottomP) \
         and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
         else 5 if topC and not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV \
+        else 6 if topC and topP and (lastM < 5 or lastP < 0 or lastV < 0) \
         else 0
     if oversold:
         oversold_stage = 1
-        if posV > 0:
+        if posV > 0 or (oversold == 4 and posC > 1) \
+                or (oversold == 6 and (bottomM or bottomP)):
             oversold_stage = 2
-        if oversold == 4 and posC > 1:
-            oversold_stage = 3
         elif (newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5):
             oversold_stage = 3 if posC > 1 else 2 if posV > 0 else 1
     elif not retrace:
@@ -192,9 +201,9 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
             bottomrevs = 3
             maxPV = max(plistV)
             if DBGMODE:
-                print "min(nlist)=", min(nlistM), min(nlistP), maxPV, lastV
+                print "min(nlist)=%.2f,%.2f,%.2f,%.2f" % (min(nlistM), min(nlistP), maxPV, lastV)
 
-    return posC, posM, posP, posV, bottomrevs, oversold, oversold_stage
+    return bottomrevs, oversold, oversold_stage
 
 
 def checkposition(pntype, pnlist, lastpos):
@@ -275,6 +284,8 @@ def collectCompositions(pnlist, lastTrxn):
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
+    if DBGMODE:
+        print "last:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, lastC, lastM, lastP, lastV)
 
     pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
     cmpvWC = formListCMPV(0, pnW)
@@ -284,7 +295,6 @@ def collectCompositions(pnlist, lastTrxn):
     cmpvMV = formListCMPV(3, pnM)
     composeC = checkposition('C', cmpvMC + cmpvWC, lastC)
     if DBGMODE:
-        print "lastPrice vs lastC: %.2f, %.2f" % (lastprice, lastC)
         [posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace] = composeC
         print "C=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d,r=%d" % \
             (posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace)
