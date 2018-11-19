@@ -41,11 +41,13 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
 
     signals = ""
     if tss:
-        signals = "\t%s,TSS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, tss, tss_stage,
-                                                        posC, posM, posP, posV)
+        label = "TSS"
+        signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, tss, tss_stage,
+                                                       posC, posM, posP, posV)
     elif bbs or bbs_stage:
-        signals = "\t%s,BBS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, bbs, bbs_stage,
-                                                        posC, posM, posP, posV)
+        label = "BBS"
+        signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, bbs, bbs_stage,
+                                                       posC, posM, posP, posV)
     elif bottomrevs or dbg:
         label = "BRV" if bottomrevs else "Dbg"
         signals = "\t%s,%s,%d,(%dc,%dm,%dp,%dv)" % (counter, label, bottomrevs,
@@ -56,9 +58,9 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
         bbsline = lastTrxnData[0] + signals
         fh.write(bbsline + '\n')
     if "simulation" in outfile:
-        sss = S.DATA_DIR + S.MVP_DIR + "simulation/sss-" + lastTrxnData[0] + ".csv"
+        sss = S.DATA_DIR + S.MVP_DIR + "simulation/" + label + "-" + lastTrxnData[0] + ".csv"
     else:
-        sss = S.DATA_DIR + S.MVP_DIR + "signals/sss-" + lastTrxnData[0] + ".csv"
+        sss = S.DATA_DIR + S.MVP_DIR + "signals/" + label + "-" + lastTrxnData[0] + ".csv"
         with open(sss, "ab") as fh:
             fh.write(signals + '\n')
     return signals
@@ -87,9 +89,9 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
         Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
     5. KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
     '''
-    if (newhighC or topC) and (newhighP or topP):
+    if (newhighC or topC) and (newhighP or topP) and not (prevbottomC or prevtopM or prevtopP):
         topSellSignal = 1
-        if topC or topP:
+        if prevbottomV:
             tss_stage = 1
     elif newhighC and posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
         topSellSignal = 2
@@ -135,14 +137,19 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     [posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP, _] = composeP
     [posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV, _] = composeV
     '''
-    1 - PADINI 2014-03 (LowC + LowM with higher P divergent) - short rebound
+    1 - PADINI 2014-03-03 BBS,1,1 (LowC + LowM with higher P divergent) - short rebound
+      - PADINI 2014-03-14 BBS,1,2
     2 - PADINI 2011-10-12 (LowC + LowP with higher M divergent) - reversal
     3 - PETRONM 2013-04-24: extension of 1 after retrace
     4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
+      - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
     5 - DUFU 2015-08-26 (BottomM + BottomP + BottomV) - strong reversal
-    6 - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
+    6 - DUFU 2016-02-10 BBS,6,1 topC + topP + lowM + pbV
+      - DUFU 2016-03-15 BBS,6,2
+      - DUFU 2014-11-14 with bottomM, bottomP, ptP
     7 - PADINI 2015-08-17, DUFU 2018-07 bottomC + (LowV / HighV) - bottom reversal
     8 - PADINI 2017-02-06 BottomP + HighV - continue bottom reversal after retrace
+    9 - DUFU 2014-11-14 topC + bottomM + bottomP
     '''
     bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -156,11 +163,12 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         else 4 if (newlowC or bottomC) and not (newlowM or bottomM) and not (newlowP or bottomP) \
         and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
         else 5 if topC and not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV \
-        else 6 if topC and topP and (lastM < 5 or lastP < 0 or lastV < 0) \
+        else 6 if topC and topP and newlowM and (lastM < 5 and lastP > 0) \
         else 7 if bottomC and (newlowV or newhighV) and not (topP or topV or prevtopP or
                                                              prevbottomM or prevbottomV) \
         else 8 if not newlowC and posV > 0 and lastC > nlistC[-1] and \
             (topM and min(nlistM) > 5 and lastM > nlistM[-1] or bottomP and lastP > nlistP[-1]) \
+        else 9 if topC and bottomM and bottomP and prevbottomC and prevtopP and lastM > 10 and lastP < 0 \
         else 0
     if bottomBuySignal:
         bbs_stage = 1
