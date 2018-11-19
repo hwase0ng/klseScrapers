@@ -488,7 +488,7 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     try:
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
         dfm = None
-        if skiprows >= 0:
+        if skiprows >= 0 and df is not None:
             dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
             dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
             dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
