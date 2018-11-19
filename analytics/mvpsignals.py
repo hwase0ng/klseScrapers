@@ -68,7 +68,7 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
 
 def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     topSellSignal, tss_stage = 0, 0
-    if pricepos < 3:
+    if pricepos < 2:
         return topSellSignal, tss_stage
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
@@ -82,23 +82,25 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
     plistC, nlistC, nlistM, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
-    '''
-    1. DUFU 2016-01-06, PADINI 2012-08-29 - HighC, HighP
-    2. PETRONM 2015-07-30 - HighC, HighM
-    3&4. PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
-        Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
-    5. KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
-    '''
-    if (newhighC or topC) and (newhighP or topP) and not (prevbottomC or prevtopM or prevtopP):
+
+    if newhighC and (newhighP or topP or bottomV) and not (prevbottomC or prevtopM or prevtopP):
+        # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
         topSellSignal = 1
-        if prevbottomV:
-            tss_stage = 1
+        # PADINI 2012-08-22 prevbottomV
+        tss_stage = 0 if (posM > 0 or posV > 0 or not prevbottomV) else 1
     elif newhighC and posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
+        # PETRONM 2015-07-30 - HighC, HighM
+        # PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
+        #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
         topSellSignal = 2
-        if lastM > 10:
-            tss_stage = 1
+        tss_stage = 1 if lastM > 10 else 0
     elif bottomC and topM and posM < 3 and prevbottomP and prevtopV:
+        # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
         topSellSignal = 3
+    elif (newhighP or topP) and newhighV and (bottomC and (bottomM or prevbottomM)) and nlistM[-1] < 5:
+        # PADINI 2014-03-13, 2014-04-02
+        topSellSignal = 4
+        tss_stage = 1 if topP or prevbottomM else 0
 
     '''
     if not topSellSignal:
