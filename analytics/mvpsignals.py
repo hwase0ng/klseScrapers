@@ -30,8 +30,8 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
     posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
-    topSell = topSellSignals(posC, lastTrxnData, cmpvlists, composelist)
-    if not topSell:
+    tss, tss_stage = topSellSignals(posC, lastTrxnData, cmpvlists, composelist)
+    if not tss:
         bottomrevs, bbs, bbs_stage = \
             bottomBuySignals(lastTrxnData, cmpvlists, composelist)
         if not bbs and not bbs_stage:
@@ -40,9 +40,9 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
                 return ""
 
     signals = ""
-    if topSell:
-        signals = "\t%s,TSS,%d,(%dc,%dm,%dp,%dv)" % (counter, topSell,
-                                                     posC, posM, posP, posV)
+    if tss:
+        signals = "\t%s,TSS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, tss, tss_stage,
+                                                        posC, posM, posP, posV)
     elif bbs or bbs_stage:
         signals = "\t%s,BBS,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, bbs, bbs_stage,
                                                         posC, posM, posP, posV)
@@ -65,9 +65,9 @@ def scanSignals(dbg, counter, pnlist, lastTrxnData):
 
 
 def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
-    topSellSignal = 0
+    topSellSignal, tss_stage = 0, 0
     if pricepos < 3:
-        return topSellSignal
+        return topSellSignal, tss_stage
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
     [posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace] = composeC
@@ -90,11 +90,13 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     if (newhighC or topC) and (newhighP or topP):
         topSellSignal = 1
         if topC or topP:
-            topSellSignal = 2
+            tss_stage = 1
     elif newhighC and posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
-        topSellSignal = 4 if lastM > 10 else 3
+        topSellSignal = 2
+        if lastM > 10:
+            tss_stage = 1
     elif bottomC and topM and posM < 3 and prevbottomP and prevtopV:
-        topSellSignal = 5
+        topSellSignal = 3
 
     '''
     if not topSellSignal:
@@ -116,11 +118,11 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
                 topSellSignal = 4
     '''
 
-    return topSellSignal
+    return topSellSignal, tss_stage
 
 
 def bottomBuySignals(lastTrxn, cmpvlists, composelist):
-    bbs, bbs_stage, bottomrevs = 0, 0, 0
+    bottomBuySignal, bbs_stage, bottomrevs = 0, 0, 0
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
     cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
@@ -142,7 +144,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     7 - PADINI 2015-08-17, DUFU 2018-07 bottomC + (LowV / HighV) - bottom reversal
     8 - PADINI 2017-02-06 BottomP + HighV - continue bottom reversal after retrace
     '''
-    bbs = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
+    bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
         and not (newlowP or bottomP) and not prevtopP and not newlowV \
         and nlistP[-1] > nlistP[-2] \
@@ -161,12 +163,12 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         and lastC > nlistC[-1] and (min(nlistM) > 5 and lastM > nlistM[-1] or
                                     bottomP and lastP > nlistP[-1]) and lastM > 5 and lastP < 0 \
         else 0
-    if bbs:
+    if bottomBuySignal:
         bbs_stage = 1
-        if bbs == 7:
+        if bottomBuySignal == 7:
             bbs_stage = 1 if lastP < 0 else 2
-        elif posV > 0 or (bbs == 4 and posC > 1) \
-                or (bbs == 6 and (bottomM or bottomP)):
+        elif posV > 0 or (bottomBuySignal == 4 and posC > 1) \
+                or (bottomBuySignal == 6 and (bottomM or bottomP)):
             bbs_stage = 2
         elif (newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5):
             bbs_stage = 3 if posC > 1 else 2 if posV > 0 else 1
@@ -212,7 +214,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
             if DBGMODE:
                 print "min(nlist)=%.2f,%.2f,%.2f,%.2f" % (min(nlistM), min(nlistP), maxPV, lastV)
 
-    return bottomrevs, bbs, bbs_stage
+    return bottomrevs, bottomBuySignal, bbs_stage
 
 
 def checkposition(pntype, pnlist, lastpos):
