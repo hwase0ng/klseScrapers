@@ -159,9 +159,8 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         else 6 if topC and topP and (lastM < 5 or lastP < 0 or lastV < 0) \
         else 7 if bottomC and (newlowV or newhighV) and not (topP or topV or prevtopP or
                                                              prevbottomM or prevbottomV) \
-        else 8 if ((topC and prevbottomC) or prevtopC) and bottomP and newhighV and not newlowC \
-        and lastC > nlistC[-1] and (min(nlistM) > 5 and lastM > nlistM[-1] or
-                                    bottomP and lastP > nlistP[-1]) and lastM > 5 and lastP < 0 \
+        else 8 if not newlowC and posV > 0 and lastC > nlistC[-1] and \
+            (topM and min(nlistM) > 5 and lastM > nlistM[-1] or bottomP and lastP > nlistP[-1]) \
         else 0
     if bottomBuySignal:
         bbs_stage = 1
