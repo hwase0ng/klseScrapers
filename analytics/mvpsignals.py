@@ -83,17 +83,22 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     plistC, nlistC, nlistM, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
 
-    if newhighC and (newhighP or topP or bottomV) and not (prevbottomC or prevtopM or prevtopP):
-        # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
-        topSellSignal = 1
-        # PADINI 2012-08-22 prevbottomV
-        tss_stage = 0 if (posM > 0 or posV > 0 or not prevbottomV) else 1
+    if newhighC and (newhighP or topP or bottomV) and not (prevbottomC or prevtopM):
+        if prevtopP and not prevtopV:
+            topSellSignal = 0
+        else:
+            # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
+            topSellSignal = 1
+            # PADINI 2012-08-22 prevbottomV
+            # DUFU 2017-05-02 prevtopP and prevtopV
+            tss_stage = 1 if prevtopP and prevtopV and bottomV else \
+                0 if (posM > 0 or posV > 0 or not prevbottomV) else 1
     elif newhighC and posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
         # PETRONM 2015-07-30 - HighC, HighM
         # PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
         #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
         topSellSignal = 2
-        tss_stage = 1 if lastM > 10 else 0
+        tss_stage = 1 if newhighM or lastM > 10 else 0
     elif bottomC and topM and posM < 3 and prevbottomP and prevtopV:
         # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
         topSellSignal = 3
