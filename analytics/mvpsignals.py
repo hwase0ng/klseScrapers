@@ -44,12 +44,12 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
         label = "TSS"
         signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, tss, tss_stage,
                                                        posC, posM, posP, posV)
-    elif bottomrevs or dbg:
-        label = "BRV" if bottomrevs else "Dbg"
+    elif bottomrevs:
+        label = "BRV"
         signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, bottomrevs, bbs_stage,
                                                        posC, posM, posP, posV)
-    elif bbs or bbs_stage:
-        label = "OVS"
+    elif bbs or bbs_stage or dbg:
+        label = "OVS" if bbs else "Dbg"
         signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, bbs, bbs_stage,
                                                        posC, posM, posP, posV)
     print signals
@@ -109,6 +109,11 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
         # PADINI 2014-03-13, 2014-04-02
         topSellSignal = 4
         tss_stage = 1 if topP or prevbottomM else 0
+    elif bottomC and bottomM and topP and prevbottomP and prevtopV:
+        # KLSE 2015-04-01, 2015-04-28 - major sell off
+        if newlowV or posM == 0:
+            topSellSignal = 5
+            tss_stage = 0 if newlowV else 1
 
     '''
     if not topSellSignal:
