@@ -172,9 +172,14 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
        - DUFU 2016-03-15 BBS,6,2
        - DUFU 2014-11-14 with bottomM, bottomP, ptP
      7 - PADINI 2015-08-17, DUFU 2018-07 bottomC + (LowV / HighV) - bottom reversal
-     8 - PADINI 2017-02-06 BottomP + HighV - continue bottom reversal after retrace
+     8 - continue bottom reversal after retrace
+       - DUFU 2014-11-21 BottomM + BottomP
+       - PADINI 2017-02-06 BottomP + HighV and higherM
+       - KLSE 2017-12-12 BottomM + HighV and higerP
+         # below nlistC condition not applicable due to one short retrace in KLSE example
+         # else 8 if not newlowC and posV > 0 and lastC > nlistC[-1] and \
      9 - DUFU 2014-11-14 topC + bottomM + bottomP
-    10 - KLSE 2017-01-03 - precursor of 4
+    10 - KLSE 2017-01-03 - precursor of 4 (bottomC, lowerM with higherP, newlowV)
     '''
     bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -191,8 +196,9 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         else 6 if topC and topP and newlowM and (lastM < 5 and lastP > 0) \
         else 7 if bottomC and (newlowV or newhighV) and not (topP or topV or prevtopP or
                                                              prevbottomM or prevbottomV) \
-        else 8 if not newlowC and posV > 0 and lastC > nlistC[-1] and \
-            (topM and min(nlistM) > 5 and lastM > nlistM[-1] or bottomP and lastP > nlistP[-1]) \
+        else 8 if not newlowC and posV > 0 and \
+            ((topM and min(nlistM) > 5 and lastM > nlistM[-1] or bottomP and lastP > nlistP[-1]) or
+             (bottomM and nlistM[-1] < 5 and nlistP[-1] > min(nlistP))) \
         else 9 if topC and bottomM and bottomP and prevbottomC and prevtopP and lastM > 10 and lastP < 0 \
         else 10 if bottomC and (prevbottomM and
                                 nlistM[-1] < 5) and (nlistP[-2] == min(nlistP) and
