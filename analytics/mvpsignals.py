@@ -71,8 +71,11 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
 
 def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     topSellSignal, tss_stage = 0, 0
+    '''
+    TSS 6 happens when newlowC or posC = 0
     if pricepos < 2:
         return topSellSignal, tss_stage
+    '''
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
     [posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace] = composeC
@@ -114,6 +117,12 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
         if newlowV or posM == 0:
             topSellSignal = 5
             tss_stage = 0 if newlowV else 1
+    elif (newlowC or bottomC) and (bottomM and nlistM[-1] < 5) and prevtopP and not topV:
+        # and lastP < 0: stage 1 lastP turned positive
+        # topV - BTM 2018-11-15
+        # KLSE 2015-07-16, 2015-08-03 - major sell off continuation
+        topSellSignal = 6
+        tss_stage = 0 if newlowC else 1
 
     '''
     if not topSellSignal:
@@ -152,19 +161,20 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     [posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP, _] = composeP
     [posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV, _] = composeV
     '''
-    1 - PADINI 2014-03-03 BBS,1,1 (LowC + LowM with higher P divergent) - short rebound
-      - PADINI 2014-03-14 BBS,1,2
-    2 - PADINI 2011-10-12 (LowC + LowP with higher M divergent) - reversal
-    3 - PETRONM 2013-04-24: extension of 1 after retrace
-    4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
-      - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
-    5 - DUFU 2015-08-26 (BottomM + BottomP + BottomV) - strong reversal
-    6 - DUFU 2016-02-10 BBS,6,1 topC + topP + lowM + pbV
-      - DUFU 2016-03-15 BBS,6,2
-      - DUFU 2014-11-14 with bottomM, bottomP, ptP
-    7 - PADINI 2015-08-17, DUFU 2018-07 bottomC + (LowV / HighV) - bottom reversal
-    8 - PADINI 2017-02-06 BottomP + HighV - continue bottom reversal after retrace
-    9 - DUFU 2014-11-14 topC + bottomM + bottomP
+     1 - PADINI 2014-03-03 BBS,1,1 (LowC + LowM with higher P divergent) - short rebound
+       - PADINI 2014-03-14 BBS,1,2
+     2 - PADINI 2011-10-12 (LowC + LowP with higher M divergent) - reversal
+     3 - PETRONM 2013-04-24: extension of 1 after retrace
+     4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
+       - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
+     5 - DUFU 2015-08-26 (BottomM + BottomP + BottomV) - strong reversal
+     6 - DUFU 2016-02-10 BBS,6,1 topC + topP + lowM + pbV
+       - DUFU 2016-03-15 BBS,6,2
+       - DUFU 2014-11-14 with bottomM, bottomP, ptP
+     7 - PADINI 2015-08-17, DUFU 2018-07 bottomC + (LowV / HighV) - bottom reversal
+     8 - PADINI 2017-02-06 BottomP + HighV - continue bottom reversal after retrace
+     9 - DUFU 2014-11-14 topC + bottomM + bottomP
+    10 - KLSE 2017-01-03 - precursor of 4
     '''
     bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -184,18 +194,24 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         else 8 if not newlowC and posV > 0 and lastC > nlistC[-1] and \
             (topM and min(nlistM) > 5 and lastM > nlistM[-1] or bottomP and lastP > nlistP[-1]) \
         else 9 if topC and bottomM and bottomP and prevbottomC and prevtopP and lastM > 10 and lastP < 0 \
+        else 10 if bottomC and (prevbottomM and
+                                nlistM[-1] < 5) and (nlistP[-2] == min(nlistP) and
+                                                     nlistP[-1] > nlistP[-2]) and newlowV \
         else 0
     if bottomBuySignal:
-        bbs_stage = 1
         if bottomBuySignal in [2, 5, 6, 7, 8]:
             bottomrevs = bottomBuySignal
         if bottomBuySignal == 7:
-            bbs_stage = 1 if lastP < 0 else 2
+            bbs_stage = 0 if lastP < 0 else 1
+        # elif bottomBuySignal == 4:
+        #     bbs_stage = 2 if bottomC else 1
+        elif bottomBuySignal == 10:
+            bbs_stage = 0 if lastV > -0.5 else 1
         elif posV > 0 or (bottomBuySignal == 4 and posC > 1) \
                 or (bottomBuySignal == 6 and (bottomM or bottomP)):
-            bbs_stage = 2
+            bbs_stage = 1
         elif (newhighP or newhighM) or (bottomP and not bottomM and nlistM[-1] > 5):
-            bbs_stage = 3 if posC > 1 else 2 if posV > 0 else 1
+            bbs_stage = 2 if posC > 1 else 1 if posV > 0 else 0
     elif not retrace:
         '''
         # bottomrevs 1 = reversal with P remains in negative zone (early signal of reversal)
