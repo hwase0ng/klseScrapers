@@ -72,7 +72,7 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
 def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     topSellSignal, tss_stage = 0, 0
     '''
-    TSS 6 happens when newlowC or posC = 0
+    Wrong assumption as TSS 6 happens when newlowC or posC = 0
     if pricepos < 2:
         return topSellSignal, tss_stage
     '''
@@ -89,40 +89,44 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     plistC, nlistC, nlistM, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
 
-    if newhighC and (newhighP or topP or bottomV) and not (prevbottomC or prevtopM):
-        if prevtopP and not prevtopV:
-            topSellSignal = 0
-        else:
-            # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
-            topSellSignal = 1
-            # PADINI 2012-08-22 prevbottomV
-            # DUFU 2017-05-02 prevtopP and prevtopV
-            tss_stage = 1 if prevtopP and prevtopV and bottomV else \
-                0 if (posM > 0 or posV > 0 or not prevbottomV) else 1
-    elif newhighC and posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
-        # PETRONM 2015-07-30 - HighC, HighM
-        # PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
-        #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
-        topSellSignal = 2
-        tss_stage = 1 if newhighM or lastM > 10 else 0
-    elif bottomC and topM and posM < 3 and prevbottomP and prevtopV:
-        # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
-        topSellSignal = 3
-    elif (newhighP or topP) and newhighV and (bottomC and (bottomM or prevbottomM)) and nlistM[-1] < 5:
-        # PADINI 2014-03-13, 2014-04-02
-        topSellSignal = 4
-        tss_stage = 1 if topP or prevbottomM else 0
-    elif bottomC and bottomM and topP and prevbottomP and prevtopV:
-        # KLSE 2015-04-01, 2015-04-28 - major sell off
-        if newlowV or posM == 0:
-            topSellSignal = 5
-            tss_stage = 0 if newlowV else 1
-    elif (newlowC or bottomC) and (bottomM and nlistM[-1] < 5) and prevtopP and not topV:
-        # and lastP < 0: stage 1 lastP turned positive
-        # topV - BTM 2018-11-15
-        # KLSE 2015-07-16, 2015-08-03 - major sell off continuation
-        topSellSignal = 6
-        tss_stage = 0 if newlowC else 1
+    if newhighC:
+        if (newhighP or topP or bottomV) and not (prevbottomC or prevtopM):
+            if prevtopP and not prevtopV:
+                topSellSignal = 0
+            else:
+                # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
+                topSellSignal = 1
+                # PADINI 2012-08-22 prevbottomV
+                # DUFU 2017-05-02 prevtopP and prevtopV
+                tss_stage = 1 if prevtopP and prevtopV and bottomV else \
+                    0 if (posM > 0 or posV > 0 or not prevbottomV) else 1
+        elif posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
+            # PETRONM 2015-07-30 - HighC, HighM
+            # PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
+            #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
+            topSellSignal = 2
+            tss_stage = 1 if newhighM or lastM > 10 else 0
+    elif newlowC or bottomC:
+        if (bottomM and nlistM[-1] < 5) and prevtopP and not topV:
+            # and lastP < 0: stage 1 lastP turned positive
+            # topV - BTM 2018-11-15
+            # KLSE 2015-07-16, 2015-08-03 - major sell off continuation
+            topSellSignal = 6
+            tss_stage = 0 if newlowC else 1
+        elif bottomC:
+            if topM and posM < 3 and prevbottomP and prevtopV:
+                # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
+                topSellSignal = 3
+            elif bottomM and topP and prevbottomP and prevtopV:
+                # KLSE 2015-04-01, 2015-04-28 - major sell off
+                if newlowV or posM == 0:
+                    topSellSignal = 5
+                    tss_stage = 0 if newlowV else 1
+            elif newhighP or topP:
+                if newhighV and (bottomM or prevbottomM) and nlistM[-1] < 5:
+                    # PADINI 2014-03-13, 2014-04-02
+                    topSellSignal = 4
+                    tss_stage = 1 if topP or prevbottomM else 0
 
     '''
     if not topSellSignal:
@@ -181,6 +185,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
      9 - DUFU 2014-11-14 topC + bottomM + bottomP
     10 - KLSE 2017-01-03 - precursor of 4 (bottomC, lowerM with higherP, newlowV)
     11 - KLSE 2018-07-12 - Oversold from top, bottomC + bottomP + bottom V (Variant of 2 with M < 5 or P < 0)
+    12 - DUFU 2016-11-01 topC with newlowV - final retrace before powerful break out
     '''
     bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -207,9 +212,10 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         else 11 if topC and newlowC and (prevtopM or prevtopP) and newlowV and topV \
         and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
              (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))) \
+        else 12 if topC and prevtopM and lastM > 5 and lastP < 0 and newlowV \
         else 0
     if bottomBuySignal:
-        if bottomBuySignal in [2, 5, 6, 7, 8]:
+        if bottomBuySignal in [2, 5, 6, 7, 8, 12]:
             bottomrevs = bottomBuySignal
         if bottomBuySignal == 7:
             bbs_stage = 0 if lastP < 0 else 1
@@ -217,6 +223,8 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         #     bbs_stage = 2 if bottomC else 1
         elif bottomBuySignal == 10:
             bbs_stage = 0 if lastV > -0.5 else 1
+        elif bottomBuySignal == 12:
+            bbs_stage = 0 if lastV < 0 else 1
         elif posV > 0 or (bottomBuySignal == 4 and posC > 1) \
                 or (bottomBuySignal == 6 and (bottomM or bottomP)):
             bbs_stage = 1

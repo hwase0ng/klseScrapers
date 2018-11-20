@@ -675,6 +675,7 @@ def plotSynopsis(dflist, axes):
         for i in range(3):
             axes[1, i].axhline(5, color='k', linestyle=':')
             axes[2, i].axhline(0, color='k', linestyle=':')
+            axes[3, i].axhline(0, color='k', linestyle=':')
             if mHigh > 6:
                 axes[1, i].axhline(10, color='r', linestyle=':')
             if pHigh > 4:
