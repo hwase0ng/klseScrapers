@@ -187,33 +187,55 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     11 - KLSE 2018-07-12 - Oversold from top, bottomC + bottomP + bottom V (Variant of 2 with M < 5 or P < 0)
     12 - DUFU 2016-11-01 topC with newlowV - final retrace before powerful break out
     '''
-    bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
-        else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
-        and not (newlowP or bottomP) and not prevtopP and not newlowV \
-        and nlistP[-1] > nlistP[-2] \
-        else 2 if (newlowC or bottomC) and not (newlowM or bottomM) and min(nlistM) < 5 and nlistM[-1] > 5 \
-        and (newlowP or bottomP) and not prevtopP and not newlowV \
-        and nlistP[-1] < nlistP[-2] \
-        else 3 if not (newlowC or bottomC) and not (newlowP or bottomP) and (newhighM or topM) \
-        and min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1 \
-        else 4 if (newlowC or bottomC) and not (newlowM or bottomM) and not (newlowP or bottomP) \
-        and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
-        else 5 if topC and not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV \
-        else 6 if topC and topP and newlowM and (lastM < 5 and lastP > 0) \
-        else 7 if bottomC and (newlowV or newhighV) and not (topP or topV or prevtopP or
-                                                             prevbottomM or prevbottomV) \
-        else 8 if not newlowC and posV > 0 and \
-            ((topM and min(nlistM) > 5 and lastM > nlistM[-1] or bottomP and lastP > nlistP[-1]) or
-             (bottomM and nlistM[-1] < 5 and nlistP[-1] > min(nlistP))) \
-        else 9 if topC and bottomM and bottomP and prevbottomC and prevtopP and lastM > 10 and lastP < 0 \
-        else 10 if bottomC and (prevbottomM and
-                                nlistM[-1] < 5) and (nlistP[-2] == min(nlistP) and
-                                                     nlistP[-1] > nlistP[-2]) and newlowV \
-        else 11 if topC and newlowC and (prevtopM or prevtopP) and newlowV and topV \
-        and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
-             (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))) \
-        else 12 if topC and prevtopM and lastM > 5 and lastP < 0 and newlowV \
-        else 0
+    if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2:
+        return bottomrevs, bottomBuySignal, bbs_stage
+
+    if topC:
+        if not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV:
+            bottomBuySignal = 5
+        elif topP and newlowM and (lastM < 5 and lastP > 0):
+            bottomBuySignal = 6
+        elif not newlowC and posV > 0 and \
+            ((topM and min(nlistM) > 5 and lastM > nlistM[-1] or
+              bottomP and lastP > nlistP[-1]) or
+             (bottomM and nlistM[-1] < 5 and nlistP[-1] > min(nlistP))):
+            bottomBuySignal = 8
+        elif bottomM and bottomP and prevbottomC and prevtopP and lastM > 10 and lastP < 0:
+            bottomBuySignal = 9
+        elif newlowC and (prevtopM or prevtopP) and newlowV and topV \
+            and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
+                 (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))):
+            bottomBuySignal = 11
+        elif prevtopM and lastM > 5 and lastP < 0 and newlowV:
+            bottomBuySignal = 12
+    else:
+        bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
+            else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
+            and not (newlowP or bottomP) and not prevtopP and not newlowV \
+            and nlistP[-1] > nlistP[-2] \
+            else 2 if (newlowC or bottomC) and not (newlowM or bottomM) and min(nlistM) < 5 and nlistM[-1] > 5 \
+            and (newlowP or bottomP) and not prevtopP and not newlowV \
+            and nlistP[-1] < nlistP[-2] \
+            else 3 if not (newlowC or bottomC) and not (newlowP or bottomP) and (newhighM or topM) \
+            and min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1 \
+            else 4 if (newlowC or bottomC) and not (newlowM or bottomM) and not (newlowP or bottomP) \
+            and (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP) \
+            else 5 if topC and not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV \
+            else 6 if topC and topP and newlowM and (lastM < 5 and lastP > 0) \
+            else 7 if bottomC and (newlowV or newhighV) and not (topP or topV or prevtopP or
+                                                                 prevbottomM or prevbottomV) \
+            else 8 if not newlowC and posV > 0 and \
+                ((topM and min(nlistM) > 5 and lastM > nlistM[-1] or bottomP and lastP > nlistP[-1]) or
+                 (bottomM and nlistM[-1] < 5 and nlistP[-1] > min(nlistP))) \
+            else 9 if topC and bottomM and bottomP and prevbottomC and prevtopP and lastM > 10 and lastP < 0 \
+            else 10 if bottomC and (prevbottomM and
+                                    nlistM[-1] < 5) and (nlistP[-2] == min(nlistP) and
+                                                         nlistP[-1] > nlistP[-2]) and newlowV \
+            else 11 if topC and newlowC and (prevtopM or prevtopP) and newlowV and topV \
+            and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
+                 (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))) \
+            else 12 if topC and prevtopM and lastM > 5 and lastP < 0 and newlowV \
+            else 0
     if bottomBuySignal:
         if bottomBuySignal in [2, 5, 6, 7, 8, 12]:
             bottomrevs = bottomBuySignal
