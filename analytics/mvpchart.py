@@ -571,7 +571,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         _, pnList = plotSynopsis(dflist, axes)
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        signals = scanSignals(DBG_SIGNAL, counter, pnList, lasttrxn)
+        signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, lasttrxn)
         if len(signals):
             signals = signals.replace('\t', " [")
             fig.suptitle(title + signals + "]")
