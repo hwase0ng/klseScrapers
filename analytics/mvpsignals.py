@@ -191,8 +191,16 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         return bottomrevs, bottomBuySignal, bbs_stage
 
     if topC:
-        if not (newlowC or bottomC) and bottomM and prevtopP and bottomP and bottomV:
-            bottomBuySignal = 5
+        if newlowC:
+            if (prevtopM or prevtopP) and newlowV and topV \
+                and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
+                     (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))):
+                bottomBuySignal = 11
+        elif bottomM and bottomP:
+            if not (newlowC or bottomC) and prevtopP and bottomV:
+                bottomBuySignal = 5
+            elif prevbottomC and prevtopP and lastM > 10 and lastP < 0:
+                bottomBuySignal = 9
         elif topP and newlowM and (lastM < 5 and lastP > 0):
             bottomBuySignal = 6
         elif not newlowC and posV > 0 and \
@@ -200,12 +208,6 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
               bottomP and lastP > nlistP[-1]) or
              (bottomM and nlistM[-1] < 5 and nlistP[-1] > min(nlistP))):
             bottomBuySignal = 8
-        elif bottomM and bottomP and prevbottomC and prevtopP and lastM > 10 and lastP < 0:
-            bottomBuySignal = 9
-        elif newlowC and (prevtopM or prevtopP) and newlowV and topV \
-            and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
-                 (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))):
-            bottomBuySignal = 11
         elif prevtopM and lastM > 5 and lastP < 0 and newlowV:
             bottomBuySignal = 12
     else:
