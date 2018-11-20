@@ -180,6 +180,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
          # else 8 if not newlowC and posV > 0 and lastC > nlistC[-1] and \
      9 - DUFU 2014-11-14 topC + bottomM + bottomP
     10 - KLSE 2017-01-03 - precursor of 4 (bottomC, lowerM with higherP, newlowV)
+    11 - KLSE 2018-07-12 - Oversold from top, bottomC + bottomP + bottom V (Variant of 2 with M < 5 or P < 0)
     '''
     bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
         else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -203,6 +204,9 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         else 10 if bottomC and (prevbottomM and
                                 nlistM[-1] < 5) and (nlistP[-2] == min(nlistP) and
                                                      nlistP[-1] > nlistP[-2]) and newlowV \
+        else 11 if topC and newlowC and (prevtopM or prevtopP) and newlowV and topV \
+        and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
+             (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))) \
         else 0
     if bottomBuySignal:
         if bottomBuySignal in [2, 5, 6, 7, 8]:
