@@ -522,8 +522,7 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     dflist[1] = dff.fillna(0)
     dflist[2] = dfm.fillna(0)
 
-    title = "MPV Synopsis of " + counter + " (" + scode + "): " + \
-        lastTrxnDate + " (" + str(chartDays) + " days)"
+    title = lastTrxnDate + " (" + scode + "," + str(chartDays) + "d)"
 
     return dflist, title, fname, lasttrxn
 
@@ -573,10 +572,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, lasttrxn)
         if len(signals):
-            signals = signals.replace('\t', " [")
-            fig.suptitle(title + signals + "]")
+            signals = signals.replace('\t', "")
+            fig.suptitle(title + " [" + signals + "]")
         else:
-            fig.suptitle(title)
+            fig.suptitle(title + " [" + counter + "]")
         if showchart:
             plt.show()
         else:
