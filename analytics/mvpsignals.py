@@ -19,12 +19,12 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
     # lastClosingPrice is not aggregated while the rest are from the weekly aggregation!
     if pnlist is None or not len(pnlist):
         print "Skipped:", counter
-        return False
+        return ""
     if len(pnlist) < 3:
         print "Skipped len:", counter, len(pnlist)
-        return False
+        return ""
 
-    cmpvlists, composelist = collectCompositions(pnlist, lastTrxnData)
+    cmpvlists, composelist, strlist = collectCompositions(pnlist, lastTrxnData)
     if cmpvlists is None:
         return ""
     composeC, composeM, composeP, composeV = \
@@ -40,18 +40,19 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
                 return ""
 
     signals = ""
+    strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     if tss:
         label = "TSS"
-        signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, tss, tss_stage,
-                                                       posC, posM, posP, posV)
+        signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, tss, tss_stage,
+                                                       strC, strM, strP, strV)
     elif bottomrevs:
-        label = "BRV"
-        signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, bottomrevs, bbs_stage,
-                                                       posC, posM, posP, posV)
+        label = "BRK" if bottomrevs == 13 else "BRV"
+        signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bottomrevs, bbs_stage,
+                                                       strC, strM, strP, strV)
     elif bbs or bbs_stage or dbg:
         label = "OVS" if bbs else "Dbg"
-        signals = "\t%s,%s,%d,%d,(%dc,%dm,%dp,%dv)" % (counter, label, bbs, bbs_stage,
-                                                       posC, posM, posP, posV)
+        signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bbs, bbs_stage,
+                                                       strC, strM, strP, strV)
     print signals
     if "simulation" in fname:
         outfile = S.DATA_DIR + S.MVP_DIR + "simulation/signals/" + counter + "-signals.csv"
@@ -78,10 +79,10 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     '''
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
-    [posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace] = composeC
-    [posM, newlowM, newhighM, topM, bottomM, prevtopM, prevbottomM, _] = composeM
-    [posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP, _] = composeP
-    [posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV, _] = composeV
+    [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
+    [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
+    [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
+    [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
 
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
@@ -90,7 +91,13 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
 
     if newhighC:
-        if (newhighP or topP or bottomV) and not (prevbottomC or prevtopM):
+        if newhighM and newhighP and newhighV:
+            # very strong breakout
+            pass
+        elif topM and topP and topV:
+            # still very strong breakout
+            pass
+        elif (newhighP or topP or bottomV) and not (prevbottomC or prevtopM):
             if prevtopP and not prevtopV:
                 topSellSignal = 0
             else:
@@ -160,10 +167,10 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
-    [posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace] = composeC
-    [posM, newlowM, newhighM, topM, bottomM, prevtopM, prevbottomM, _] = composeM
-    [posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP, _] = composeP
-    [posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV, _] = composeV
+    [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
+    [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
+    [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
+    [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
     '''
      1 - PADINI 2014-03-03 BBS,1,1 (LowC + LowM with higher P divergent) - short rebound
        - PADINI 2014-03-14 BBS,1,2
@@ -171,6 +178,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
      3 - PETRONM 2013-04-24: extension of 1 after retrace - short rebound
      4 - Pre-cursor of 12 powerful break out
        - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
+       - FLBHD 2018-07-02
        - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
      5 - DUFU 2015-08-26 (BottomM + BottomP + BottomV) - strong reversal
      6 - Recovery from retrace before long term reversal - pre-cursor of 4?
@@ -193,7 +201,17 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2:
         return bottomrevs, bottomBuySignal, bbs_stage
 
-    if topC or prevtopC:
+    retrace = True if topC or prevtopC else False
+
+    if newhighC:
+        if newhighM and newhighP and newhighV:
+            # very strong breakout
+            bottomBuySignal = 13
+        elif topM and topP and topV:
+            # still very strong breakout
+            bottomBuySignal = 13
+            bbs_stage = 1
+    elif topC or prevtopC:
         if newlowC:
             if (prevtopM or prevtopP) and newlowV and topV \
                 and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
@@ -269,7 +287,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
             else 0
     '''
     if bottomBuySignal:
-        if bottomBuySignal in [5, 7, 12]:
+        if bottomBuySignal in [5, 7, 12, 13]:
             bottomrevs = bottomBuySignal
         if bottomBuySignal == 7:
             bbs_stage = 0 if lastP < 0 else 1
@@ -330,14 +348,15 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
 
 
 def checkposition(pntype, pnlist, lastpos):
-    pos, retrace, newlow, newhigh, bottom, top, prevbottom, prevtop = \
-        0, 0, False, False, False, False, False, False
+    result = ""
+    pos, newlow, newhigh, bottom, top, prevbottom, prevtop = \
+        0, 0, False, False, False, False, False
     if pntype == 'C':
         nlist = pnlist[7]  # 0=XP, 1=XN, 2=YP, 3=YN
         count0 = -1 if nlist is None else nlist.count(0)
         if count0 < 0 or count0 > 1:
             print "\tSkipped W0", count0
-            return -1, newlow, newhigh, retrace, top, bottom, prevtop, prevbottom
+            return [-1, newlow, newhigh, top, bottom, prevtop, prevbottom], result
 
     plist, nlist = pnlist[2], pnlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
     if plist is None or nlist is None:
@@ -386,9 +405,12 @@ def checkposition(pntype, pnlist, lastpos):
             else:
                 pos = 4 if lastpos > plist[0] else 0
 
-        retrace = True if (top or prevtop) and pos > 1 else False
+        # retrace = True if (top or prevtop) and pos > 1 else False
 
-    return [pos, newlow, newhigh, top, bottom, prevtop, prevbottom, retrace]
+    result = [result + str(i * 1) for i in [pos, newhigh, newlow,
+                                            top, bottom, prevtop, prevbottom]]
+    result = "".join(result)
+    return [pos, newhigh, newlow, top, bottom, prevtop, prevbottom], result
 
 
 def formListCMPV(cmpv, pnlist):
@@ -415,27 +437,27 @@ def collectCompositions(pnlist, lastTrxn):
     cmpvMM = formListCMPV(1, pnM)
     cmpvMP = formListCMPV(2, pnM)
     cmpvMV = formListCMPV(3, pnM)
-    composeC = checkposition('C', cmpvMC + cmpvWC, lastC)
+    composeC, strC = checkposition('C', cmpvMC + cmpvWC, lastC)
     if DBGMODE:
-        [posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace] = composeC
-        print "C=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d,r=%d" % \
-            (posC, newlowC, newhighC, topC, bottomC, prevtopC, prevbottomC, retrace)
+        [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
+        print "C=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
+            (posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC)
     posC = composeC[0]
     if posC < 0:
-        return None, None
-    composeM = checkposition('M', cmpvMM, lastM)
-    composeP = checkposition('P', cmpvMP, lastP)
-    composeV = checkposition('V', cmpvMV, lastV)
+        return None, None, None
+    composeM, strM = checkposition('M', cmpvMM, lastM)
+    composeP, strP = checkposition('P', cmpvMP, lastP)
+    composeV, strV = checkposition('V', cmpvMV, lastV)
     if DBGMODE:
-        [posM, newlowM, newhighM, topM, bottomM, prevtopM, prevbottomM, _] = composeM
-        print "M=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d" % \
-            (posM, newlowM, newhighM, topM, bottomM, prevtopM, prevbottomM)
-        [posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP, _] = composeP
-        print "P=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d" % \
-            (posP, newlowP, newhighP, topP, bottomP, prevtopP, prevbottomP)
-        [posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV, _] = composeV
-        print "V=%d,l=%d,h=%d,t=%d,b=%d,pT=%d,pB=%d" % \
-            (posV, newlowV, newhighV, topV, bottomV, prevtopV, prevbottomV)
+        [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
+        print "M=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
+            (posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM)
+        [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
+        print "P=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
+            (posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP)
+        [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
+        print "V=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
+            (posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV)
 
     cmpvlists = []
     cmpvlists.append(cmpvMC)
@@ -447,15 +469,25 @@ def collectCompositions(pnlist, lastTrxn):
     composelist.append(composeM)
     composelist.append(composeP)
     composelist.append(composeV)
-    return cmpvlists, composelist
+    strlist = []
+    strlist.append(strC)
+    strlist.append(strM)
+    strlist.append(strP)
+    strlist.append(strV)
+    return cmpvlists, composelist, strlist
 
 
 if __name__ == '__main__':
     cfg = loadCfg(S.DATA_DIR)
-    counter = "PADINI"
-    pnlist = [[[['2015-12-27', '2016-03-06', '2016-05-29', '2016-09-11', '2016-10-30', '2016-12-18', '2017-01-29'], ['2015-12-27', '2016-03-06', '2016-05-15', '2016-06-26', '2016-08-14', '2016-10-23', '2017-01-01'], ['2015-12-27', '2016-02-07', '2016-03-27', '2016-05-15', '2016-08-14', '2016-10-30', '2017-01-08'], ['2015-12-06', '2016-01-24', '2016-03-13', '2016-05-08', '2016-07-17', '2016-08-28', '2016-10-23', '2016-12-04', '2017-01-22']], [['2015-11-22', '2016-01-10', '2016-04-17', '2016-06-26', '2016-08-28', '2016-10-16', '2016-12-11', '2017-01-22'], ['2016-01-03', '2016-03-20', '2016-05-22', '2016-07-10', '2016-09-04', '2016-11-20', '2017-01-22'], ['2015-11-29', '2016-01-24', '2016-03-20', '2016-06-26', '2016-08-28', '2016-10-16', '2016-12-04', '2017-01-22'], ['2016-01-03', '2016-02-21', '2016-04-03', '2016-05-29', '2016-07-10', '2016-10-02', '2016-11-20', '2017-01-01']], [[1.97, 2.16, 2.3840000000000003, 3.008, 2.922, 2.605, 2.4520000000000004], [8.666666666666666, 10.4, 8.0, 5.5, 11.0, 9.0, 7.25], [0.20666666666666667, 0.1025, -0.0275, 0.156, 0.186, 0.02, -0.037500000000000006], [1.008, 1.0379999999999998, -0.22799999999999998, 2.0775, 0.48, 0.738, 0.9339999999999999, 2.962, 2.302]], [[1.598, 1.8559999999999999, 1.964, 2.2675, 2.7340000000000004, 2.7640000000000002, 2.58, 2.396], [7.75, 6.8, 6.6, 3.6666666666666665, 5.5, 6.4, 5.0], [0.062, 0.017999999999999995, -0.052000000000000005, -0.035, 0.044, -0.06000000000000001, -0.096, -0.074], [-0.5825, -0.33399999999999996, -0.7939999999999999, -0.29, -0.8700000000000001, -0.636, -0.404, -0.865]]], [[['2015-12-27', '2016-03-06', '2016-05-29', '2016-09-18'], ['2016-03-06', '2016-05-15', '2016-08-07', '2016-10-30', '2017-01-08'], ['2015-12-27', '2016-05-15', '2016-08-21', '2016-11-13'], ['2016-02-07', '2016-05-01', '2016-09-04', '2016-12-11']], [['2015-11-29', '2016-04-17', '2016-06-26', '2016-10-16'], ['2016-01-10', '2016-04-03', '2016-07-10', '2016-10-16', '2017-01-22'], ['2016-01-24', '2016-04-17', '2016-06-26', '2016-09-04', '2016-12-11'], ['2016-01-10', '2016-04-03', '2016-07-10', '2016-10-02', '2017-01-08']], [[1.91875, 2.15, 2.3419999999999996, 2.9825000000000004], [10.0, 7.888888888888889, 10.4, 8.9, 7.0], [0.18, 0.12666666666666662, 0.14900000000000002, 0.016], [0.7325, 1.4360000000000002, 0.5855555555555555, 2.402]], [[1.6, 1.9989999999999999, 2.281111111111111, 2.7655555555555558], [8.0, 7.111111111111111, 3.8333333333333335, 7.0, 5.7], [0.036000000000000004, -0.03599999999999999, -0.023333333333333334, 0.06444444444444444, -0.096], [-0.12444444444444443, -0.7311111111111112, -0.5933333333333333, -0.583, -0.73625]]], [[['2016-05-31', '2016-09-30'], ['2016-01-31', '2016-08-31'], ['2015-12-31', '2016-05-31', '2016-11-30'], ['2016-01-31', '2016-05-31']], [['2016-03-31'], ['2015-12-31', '2016-06-30', '2017-01-31'], ['2016-03-31', '2016-12-31'], ['2016-03-31', '2016-09-30']], [[2.3199999999999994, 2.9225000000000008], [8.947368421052632, 8.909090909090908], [0.15857142857142859, 0.1219047619047619, -0.013636363636363636], [0.58, 0.6052380952380952]], [[2.0572727272727276], [8.19047619047619, 5.7368421052631575, 6.3], [-0.01090909090909091, -0.08000000000000002], [-0.5322727272727272, -0.4334999999999999]]]]
-    lasttxn = ['2017-02-06', 2.42, 2.393333333333333, 8.0, -0.06333333333333334, 2.9266666666666663]
-    expected = "PADINI,Dbg,0,(0c,3m,1p,3v)"
-    prefix = S.DATA_DIR + S.MVP_DIR + "simulation/"
-    signals = scanSignals(True, counter, prefix + counter, pnlist, lasttxn)
-    print signals
+    counter = ""
+    if len(counter):
+        pnlist = [[[['2015-12-27', '2016-03-06', '2016-05-29', '2016-09-11', '2016-10-30', '2016-12-18', '2017-01-29'], ['2015-12-27', '2016-03-06', '2016-05-15', '2016-06-26', '2016-08-14', '2016-10-23', '2017-01-01'], ['2015-12-27', '2016-02-07', '2016-03-27', '2016-05-15', '2016-08-14', '2016-10-30', '2017-01-08'], ['2015-12-06', '2016-01-24', '2016-03-13', '2016-05-08', '2016-07-17', '2016-08-28', '2016-10-23', '2016-12-04', '2017-01-22']], [['2015-11-22', '2016-01-10', '2016-04-17', '2016-06-26', '2016-08-28', '2016-10-16', '2016-12-11', '2017-01-22'], ['2016-01-03', '2016-03-20', '2016-05-22', '2016-07-10', '2016-09-04', '2016-11-20', '2017-01-22'], ['2015-11-29', '2016-01-24', '2016-03-20', '2016-06-26', '2016-08-28', '2016-10-16', '2016-12-04', '2017-01-22'], ['2016-01-03', '2016-02-21', '2016-04-03', '2016-05-29', '2016-07-10', '2016-10-02', '2016-11-20', '2017-01-01']], [[1.97, 2.16, 2.3840000000000003, 3.008, 2.922, 2.605, 2.4520000000000004], [8.666666666666666, 10.4, 8.0, 5.5, 11.0, 9.0, 7.25], [0.20666666666666667, 0.1025, -0.0275, 0.156, 0.186, 0.02, -0.037500000000000006], [1.008, 1.0379999999999998, -0.22799999999999998, 2.0775, 0.48, 0.738, 0.9339999999999999, 2.962, 2.302]], [[1.598, 1.8559999999999999, 1.964, 2.2675, 2.7340000000000004, 2.7640000000000002, 2.58, 2.396], [7.75, 6.8, 6.6, 3.6666666666666665, 5.5, 6.4, 5.0], [0.062, 0.017999999999999995, -0.052000000000000005, -0.035, 0.044, -0.06000000000000001, -0.096, -0.074], [-0.5825, -0.33399999999999996, -0.7939999999999999, -0.29, -0.8700000000000001, -0.636, -0.404, -0.865]]], [[['2015-12-27', '2016-03-06', '2016-05-29', '2016-09-18'], ['2016-03-06', '2016-05-15', '2016-08-07', '2016-10-30', '2017-01-08'], ['2015-12-27', '2016-05-15', '2016-08-21', '2016-11-13'], ['2016-02-07', '2016-05-01', '2016-09-04', '2016-12-11']], [['2015-11-29', '2016-04-17', '2016-06-26', '2016-10-16'], ['2016-01-10', '2016-04-03', '2016-07-10', '2016-10-16', '2017-01-22'], ['2016-01-24', '2016-04-17', '2016-06-26', '2016-09-04', '2016-12-11'], ['2016-01-10', '2016-04-03', '2016-07-10', '2016-10-02', '2017-01-08']], [[1.91875, 2.15, 2.3419999999999996, 2.9825000000000004], [10.0, 7.888888888888889, 10.4, 8.9, 7.0], [0.18, 0.12666666666666662, 0.14900000000000002, 0.016], [0.7325, 1.4360000000000002, 0.5855555555555555, 2.402]], [[1.6, 1.9989999999999999, 2.281111111111111, 2.7655555555555558], [8.0, 7.111111111111111, 3.8333333333333335, 7.0, 5.7], [0.036000000000000004, -0.03599999999999999, -0.023333333333333334, 0.06444444444444444, -0.096], [-0.12444444444444443, -0.7311111111111112, -0.5933333333333333, -0.583, -0.73625]]], [[['2016-05-31', '2016-09-30'], ['2016-01-31', '2016-08-31'], ['2015-12-31', '2016-05-31', '2016-11-30'], ['2016-01-31', '2016-05-31']], [['2016-03-31'], ['2015-12-31', '2016-06-30', '2017-01-31'], ['2016-03-31', '2016-12-31'], ['2016-03-31', '2016-09-30']], [[2.3199999999999994, 2.9225000000000008], [8.947368421052632, 8.909090909090908], [0.15857142857142859, 0.1219047619047619, -0.013636363636363636], [0.58, 0.6052380952380952]], [[2.0572727272727276], [8.19047619047619, 5.7368421052631575, 6.3], [-0.01090909090909091, -0.08000000000000002], [-0.5322727272727272, -0.4334999999999999]]]]
+        lasttxn = ['2017-02-06', 2.42, 2.393333333333333, 8.0, -0.06333333333333334, 2.9266666666666663]
+        expected = "PADINI,Dbg,0,(0c,3m,1p,3v)"
+        prefix = S.DATA_DIR + S.MVP_DIR + "simulation/"
+        signals = scanSignals(True, counter, prefix + counter, pnlist, lasttxn)
+    else:
+        signals = ""
+        signals = [signals + str(i * 1) for i in [1, True, False]]
+        signals = "".join(signals)
+    print "signal=", signals
