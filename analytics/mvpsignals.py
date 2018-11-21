@@ -167,22 +167,25 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     '''
      1 - PADINI 2014-03-03 BBS,1,1 (LowC + LowM with higher P divergent) - short rebound
        - PADINI 2014-03-14 BBS,1,2
-     2 - PADINI 2011-10-12 (LowC + LowP with higher M divergent) - reversal
-     3 - PETRONM 2013-04-24: extension of 1 after retrace
-     4 - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
+     2 - PADINI 2011-10-12 (LowC + LowP with higher M divergent) - weak oversold
+     3 - PETRONM 2013-04-24: extension of 1 after retrace - short rebound
+     4 - Pre-cursor of 12 powerful break out
+       - EDGENTA 2018-08-16 with 30% rebound (LowC + highP)
        - DUFU 2016-04-14 bottomM, prevTop C,M,V & P
      5 - DUFU 2015-08-26 (BottomM + BottomP + BottomV) - strong reversal
-     6 - DUFU 2016-02-10 BBS,6,1 topC + topP + lowM + pbV
+     6 - Recovery from retrace before long term reversal - pre-cursor of 4?
+       - DUFU 2016-02-10 BBS,6,1 topC + topP + lowM + pbV
        - DUFU 2016-03-15 BBS,6,2
-       - DUFU 2014-11-14 with bottomM, bottomP, ptP
-     7 - PADINI 2015-08-17, DUFU 2018-07 bottomC + (LowV / HighV) - bottom reversal
-     8 - continue bottom reversal after retrace
+     7 - bottomC + (LowV / HighV) - powerful bottom reversal
+       - PADINI 2015-08-17
+       - DUFU 2018-07
+     8 - Extension of 9 - short term rebound during volatility period
        - DUFU 2014-11-21 BottomM + BottomP
        - PADINI 2017-02-06 BottomP + HighV and higherM
        - KLSE 2017-12-12 BottomM + HighV and higerP
          # below nlistC condition not applicable due to one short retrace in KLSE example
          # else 8 if not newlowC and posV > 0 and lastC > nlistC[-1] and \
-     9 - DUFU 2014-11-14 topC + bottomM + bottomP
+     9 - DUFU 2014-11-14 topC + bottomM + bottomP - short term rebound
     10 - KLSE 2017-01-03 - precursor of 4 (bottomC, lowerM with higherP, newlowV)
     11 - KLSE 2018-07-12 - Oversold from top, bottomC + bottomP + bottom V (Variant of 2 with M < 5 or P < 0)
     12 - DUFU 2016-11-01 topC with newlowV - final retrace before powerful break out
@@ -190,12 +193,17 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2:
         return bottomrevs, bottomBuySignal, bbs_stage
 
-    if topC:
+    if topC or prevtopC:
         if newlowC:
             if (prevtopM or prevtopP) and newlowV and topV \
                 and ((bottomP and nlistM[-1] < 5 and nlistM[-2] == min(nlistM)) or
                      (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))):
                 bottomBuySignal = 11
+        elif not newlowC and posV > 0 and \
+            ((topM and min(nlistM) > 5 and lastM > nlistM[-1] or
+              bottomP and lastP > nlistP[-1]) or
+             (bottomM and nlistM[-1] < 5 and nlistP[-1] > min(nlistP))):
+            bottomBuySignal = 8
         elif bottomM and bottomP:
             if not (newlowC or bottomC) and prevtopP and bottomV:
                 bottomBuySignal = 5
@@ -203,13 +211,34 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
                 bottomBuySignal = 9
         elif topP and newlowM and (lastM < 5 and lastP > 0):
             bottomBuySignal = 6
-        elif not newlowC and posV > 0 and \
-            ((topM and min(nlistM) > 5 and lastM > nlistM[-1] or
-              bottomP and lastP > nlistP[-1]) or
-             (bottomM and nlistM[-1] < 5 and nlistP[-1] > min(nlistP))):
-            bottomBuySignal = 8
         elif prevtopM and lastM > 5 and lastP < 0 and newlowV:
             bottomBuySignal = 12
+    elif newlowC or bottomC:
+        if (newlowM or bottomM):
+            if min(nlistM) < 5 and not (newlowP or bottomP) and not prevtopP and not newlowV \
+                    and nlistP[-1] > nlistP[-2]:
+                bottomBuySignal = 1
+        elif not (newlowM or bottomM):
+            if newlowP or bottomP:
+                if min(nlistM) < 5 and nlistM[-1] > 5 \
+                    and not prevtopP and not newlowV \
+                        and nlistP[-1] < nlistP[-2]:
+                    bottomBuySignal = 2
+            else:
+                if (newhighP or topP or newhighM or topM) and not (prevtopM or prevtopP):
+                    bottomBuySignal = 4
+                elif bottomC:
+                    if (newlowV or newhighV) and not (topP or topV or prevtopP or
+                                                      prevbottomM or prevbottomV):
+                        bottomBuySignal = 7
+                    elif (prevbottomM and nlistM[-1] < 5) and \
+                            (nlistP[-2] == min(nlistP) and nlistP[-1] > nlistP[-2]) and newlowV:
+                        bottomBuySignal = 10
+    elif not (newlowC or bottomC):
+        if not (newlowP or bottomP) and (newhighM or topM) and \
+                min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1:
+            bottomBuySignal = 3
+    '''
     else:
         bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
             else 1 if (newlowC or bottomC) and (newlowM or bottomM) and min(nlistM) < 5 \
@@ -238,8 +267,9 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
                  (bottomM and nlistP[-1] < 0 and nlistP[-2] == min(nlistP))) \
             else 12 if topC and prevtopM and lastM > 5 and lastP < 0 and newlowV \
             else 0
+    '''
     if bottomBuySignal:
-        if bottomBuySignal in [2, 5, 6, 7, 8, 12]:
+        if bottomBuySignal in [5, 7, 12]:
             bottomrevs = bottomBuySignal
         if bottomBuySignal == 7:
             bbs_stage = 0 if lastP < 0 else 1
