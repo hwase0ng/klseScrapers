@@ -5,7 +5,7 @@ Created on Nov 2, 2018
 '''
 
 import settings as S
-from common import combineList, loadCfg
+from common import loadCfg
 
 
 def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
@@ -24,7 +24,7 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
         print "Skipped len:", counter, len(pnlist)
         return ""
 
-    cmpvlists, composelist, strlist = collectCompositions(pnlist, lastTrxnData)
+    cmpvlists, composelist, hstlist, strlist = collectCompositions(pnlist, lastTrxnData)
     if cmpvlists is None:
         return ""
     composeC, composeM, composeP, composeV = \
@@ -90,29 +90,47 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     plistC, nlistC, nlistM, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
 
-    if newhighC:
+    if topM and topP and topV:
+        # PADINI 2014-05-08
+        topSellSignal = 4
+        tss_stage = 2 if posC > 3 else 1 if posC > 2 else 0
+    elif (newhighC or topC) and ((topP and not topM) or (topM and not topP)):
+        topSellSignal = 1
+        if topP:
+            # PADINI 2012-09-03 TopP divergent with lower M
+            # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
+            # DUFU 2017-04-03 triggered,
+            #      2017-05-02 M & P divergent with V
+            #      2017-10-02 Second TSS signal in a side way market
+            tss_stage = 1 if posC > 3 or newlowM else 2
+        else:
+            # KLSE 2014-05-08 TopM divergent with lower P
+            # PETRONM 2015-07-30 - HighC, HighM
+            #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
+            tss_stage = 1 if lastV < 0 else 2
+    elif (newlowM or bottomM) and newlowP and prevtopC and posC > 2:
+        #      2017-10-02 Second TSS signal after TSS1
+        topSellSignal = 2
+        tss_stage = 1 if newlowV else 2
+    elif bottomC and ((topP and not topM) or (topM and not topP)):
+        # KLSE 2015-03-05, 2015-04-28 - major sell off
+        topSellSignal = 5
+        tss_stage = 2 if bottomM or bottomP else 1
+    elif (newhighC or topC) and newlowM and newlowP:
+        # PETRONM 2017-12-04 - very elusive catch due to volatility of M & P, must sell as price goes higher
+        topSellSignal = 7
+        tss_stage = 2 if topC else 1
+    elif newhighC:
         if newhighM and newhighP and newhighV:
             # very strong breakout
             pass
         elif topM and topP and topV:
             # still very strong breakout
             pass
-        elif (newhighP or topP or bottomV) and not (prevbottomC or prevtopM):
-            if prevtopP and not prevtopV:
-                topSellSignal = 0
-            else:
-                # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
-                topSellSignal = 1
-                # PADINI 2012-08-22 prevbottomV
-                # DUFU 2017-05-02 prevtopP and prevtopV
-                tss_stage = 1 if prevtopP and prevtopV and bottomV else \
-                    0 if (posM > 0 or posV > 0 or not prevbottomV) else 1
-        elif posM > 0 and nlistM[-1] > 5 and nlistP[-1] > 0:
-            # PETRONM 2015-07-30 - HighC, HighM
-            # PETRONM 2017-01-02 - HighC, posM > 0 (Only 1 day signal to catch if using HighM!)
-            #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
-            topSellSignal = 2
-            tss_stage = 1 if newhighM or lastM > 10 else 0
+    elif bottomC and prevtopC:
+        if (topM and not topP) or (topP and not topM):
+            # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
+            topSellSignal = 3
     elif newlowC or bottomC:
         if (bottomM and nlistM[-1] < 5) and prevtopP and not topV:
             # and lastP < 0: stage 1 lastP turned positive
@@ -120,20 +138,6 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
             # KLSE 2015-07-16, 2015-08-03 - major sell off continuation
             topSellSignal = 6
             tss_stage = 0 if newlowC else 1
-        elif bottomC:
-            if topM and posM < 3 and prevbottomP and prevtopV:
-                # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
-                topSellSignal = 3
-            elif bottomM and topP and prevbottomP and prevtopV:
-                # KLSE 2015-04-01, 2015-04-28 - major sell off
-                if newlowV or posM == 0:
-                    topSellSignal = 5
-                    tss_stage = 0 if newlowV else 1
-            elif newhighP or topP:
-                if newhighV and (bottomM or prevbottomM) and nlistM[-1] < 5:
-                    # PADINI 2014-03-13, 2014-04-02
-                    topSellSignal = 4
-                    tss_stage = 1 if topP or prevbottomM else 0
 
     '''
     if not topSellSignal:
@@ -201,7 +205,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2:
         return bottomrevs, bottomBuySignal, bbs_stage
 
-    retrace = True if topC or prevtopC else False
+    retrace = True if (topC or prevtopC) and posC > 2 else False
 
     if newhighC:
         if newhighM and newhighP and newhighV:
@@ -211,6 +215,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
             # still very strong breakout
             bottomBuySignal = 13
             bbs_stage = 1
+    '''
     elif topC or prevtopC:
         if newlowC:
             if (prevtopM or prevtopP) and newlowV and topV \
@@ -256,6 +261,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
         if not (newlowP or bottomP) and (newhighM or topM) and \
                 min(nlistM) < 5 and nlistM[-1] > 5 and posC == 1:
             bottomBuySignal = 3
+    '''
     '''
     else:
         bottomBuySignal = 0 if nlistM is None or nlistP is None or len(nlistM) < 2 or len(nlistP) < 2 \
@@ -348,7 +354,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
 
 
 def checkposition(pntype, pnlist, lastpos):
-    result = ""
+    clist, profiling, snapshot = "", "", ""
     pos, newlow, newhigh, bottom, top, prevbottom, prevtop = \
         0, 0, False, False, False, False, False
     if pntype == 'C':
@@ -356,7 +362,7 @@ def checkposition(pntype, pnlist, lastpos):
         count0 = -1 if nlist is None else nlist.count(0)
         if count0 < 0 or count0 > 1:
             print "\tSkipped W0", count0
-            return [-1, newlow, newhigh, top, bottom, prevtop, prevbottom], result
+            return [-1, newlow, newhigh, top, bottom, prevtop, prevbottom], profiling, snapshot
 
     plist, nlist = pnlist[2], pnlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
     if plist is None or nlist is None:
@@ -369,7 +375,7 @@ def checkposition(pntype, pnlist, lastpos):
             newlow = True
             pos = 0
     else:
-        clist = combineList(pnlist)
+        clist, profiling = profilemapping(pntype, pnlist)
         minP, maxP = min(plist), max(plist)
         minN, maxN = min(nlist), max(nlist)
         if lastpos > maxP:
@@ -391,9 +397,9 @@ def checkposition(pntype, pnlist, lastpos):
         if pntype == 'C':
             if not newhigh and not newlow:
                 range3 = (maxP - minN) / 3
-                if lastpos <= minN + range3:
+                if lastpos < minN + range3:
                     pos = 1
-                elif lastpos <= maxP - range3:
+                elif lastpos >= maxP - range3:
                     pos = 3
                 else:
                     pos = 2
@@ -407,10 +413,49 @@ def checkposition(pntype, pnlist, lastpos):
 
         # retrace = True if (top or prevtop) and pos > 1 else False
 
-    result = [result + str(i * 1) for i in [pos, newhigh, newlow,
-                                            top, bottom, prevtop, prevbottom]]
-    result = "".join(result)
-    return [pos, newhigh, newlow, top, bottom, prevtop, prevbottom], result
+    snapshot = ".".join(profiling)
+    profiling = snapshot
+    snapshot = ""
+    snapshot = [snapshot + str(i * 1) for i in [pos, newhigh, newlow,
+                                                top, bottom, prevtop, prevbottom]]
+    snapshot = "".join(snapshot)
+    return [pos, newhigh, newlow, top, bottom, prevtop, prevbottom], profiling, snapshot
+
+
+def profilemapping(pntype, listoflists):
+    xpositive, xnegative, ypositive, ynegative = \
+        listoflists[0], listoflists[1], listoflists[2], listoflists[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+    datelist = sorted(xpositive + xnegative)
+    psorted, nsorted = sorted(ypositive, reverse=True), sorted(ynegative)
+    ylist, profiling = [], []
+    for dt in datelist:
+        try:
+            pos = xpositive.index(dt)
+            yval = ypositive[pos]
+            ylist.append(yval)
+            ppos = psorted.index(yval) + 1
+            if pntype == 'C':
+                profiling.append('p' + str(ppos))
+            elif pntype == 'M':
+                prefix = 'hp' if yval > 10 else 'mp' if yval > 5 else 'lp'
+                profiling.append(prefix + str(ppos))
+            else:
+                prefix = 'pp' if yval > 0 else 'np'
+                profiling.append(prefix + str(ppos))
+        except ValueError:
+            pos = xnegative.index(dt)
+            yval = ynegative[pos]
+            ylist.append(yval)
+            npos = nsorted.index(yval) + 1
+            if pntype == 'C':
+                profiling.append('n' + str(npos))
+            elif pntype == 'M':
+                prefix = 'hn' if yval > 10 else 'mn' if yval > 5 else 'ln'
+                profiling.append(prefix + str(npos))
+            else:
+                prefix = 'pn' if yval > 0 else 'nn'
+                profiling.append(prefix + str(npos))
+    return ylist, profiling
 
 
 def formListCMPV(cmpv, pnlist):
@@ -437,27 +482,27 @@ def collectCompositions(pnlist, lastTrxn):
     cmpvMM = formListCMPV(1, pnM)
     cmpvMP = formListCMPV(2, pnM)
     cmpvMV = formListCMPV(3, pnM)
-    composeC, strC = checkposition('C', cmpvMC + cmpvWC, lastC)
+    composeC, historyC, strC = checkposition('C', cmpvMC + cmpvWC, lastC)
     if DBGMODE:
         [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
-        print "C=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
-            (posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC)
+        print "C=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC, historyC)
     posC = composeC[0]
     if posC < 0:
-        return None, None, None
-    composeM, strM = checkposition('M', cmpvMM, lastM)
-    composeP, strP = checkposition('P', cmpvMP, lastP)
-    composeV, strV = checkposition('V', cmpvMV, lastV)
+        return None, None, None, None
+    composeM, historyM, strM = checkposition('M', cmpvMM, lastM)
+    composeP, historyP, strP = checkposition('P', cmpvMP, lastP)
+    composeV, historyV, strV = checkposition('V', cmpvMV, lastV)
     if DBGMODE:
         [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
-        print "M=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
-            (posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM)
+        print "M=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM, historyM)
         [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
-        print "P=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
-            (posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP)
+        print "P=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP, historyP)
         [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
-        print "V=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d" % \
-            (posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV)
+        print "V=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV, historyV)
 
     cmpvlists = []
     cmpvlists.append(cmpvMC)
@@ -469,12 +514,17 @@ def collectCompositions(pnlist, lastTrxn):
     composelist.append(composeM)
     composelist.append(composeP)
     composelist.append(composeV)
+    hstlist = []
+    hstlist.append(historyC)
+    hstlist.append(historyM)
+    hstlist.append(historyP)
+    hstlist.append(historyV)
     strlist = []
     strlist.append(strC)
     strlist.append(strM)
     strlist.append(strP)
     strlist.append(strV)
-    return cmpvlists, composelist, strlist
+    return cmpvlists, composelist, hstlist, strlist
 
 
 if __name__ == '__main__':
