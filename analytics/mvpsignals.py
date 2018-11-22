@@ -87,8 +87,8 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
     cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
-    plistC, nlistC, nlistM, nlistP, plistV = \
-        cmpvMC[2], cmpvMC[3], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
+    plistC, nlistC, plistM, nlistM, nlistP, plistV = \
+        cmpvMC[2], cmpvMC[3], cmpvMM[2], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
 
     if topM and topP and topV:
         # PADINI 2014-05-08
@@ -116,10 +116,19 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
         # KLSE 2015-03-05, 2015-04-28 - major sell off
         topSellSignal = 5
         tss_stage = 2 if bottomM or bottomP else 1
-    elif (newhighC or topC) and newlowM and newlowP:
+    elif (newhighC or topC) and newlowM and newlowP and plistM[-1] < 10 and min(nlistM) < 5:
         # PETRONM 2017-12-04 - very elusive catch due to volatility of M & P, must sell as price goes higher
-        topSellSignal = 7
+        # KESM 2017-08-09 failed due to highM > 10 (BSS with newlowM and newlowP)
+        # KESM 2018-04-04 passed
+        topSellSignal = 3
         tss_stage = 2 if topC else 1
+    elif (newlowC or bottomC) and ((bottomM and not bottomP) or (bottomP and not bottomM)) \
+            and nlistM[-1] < 5 and nlistP[-1] < -0.025:
+        # topV - BTM 2018-11-15
+        # KLSE 2015-07-16, 2015-08-03 - bottomM divergent with P, major sell off continuation
+        # KESM 2018-11-19 bottomP divergent with M (to observe further)
+        topSellSignal = 6
+        tss_stage = 2 if (bottomM and bottomP) else 1
     elif newhighC:
         if newhighM and newhighP and newhighV:
             # very strong breakout
@@ -127,6 +136,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
         elif topM and topP and topV:
             # still very strong breakout
             pass
+    '''
     elif bottomC and prevtopC:
         if (topM and not topP) or (topP and not topM):
             # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
@@ -139,7 +149,6 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
             topSellSignal = 6
             tss_stage = 0 if newlowC else 1
 
-    '''
     if not topSellSignal:
         pnM = pnlist[2]
         xpM, xnM, ypM, ynM = pnM[0], pnM[1], pnM[2], pnM[3]  # 0=XP, 1=XN, 2=YP, 3=YN
