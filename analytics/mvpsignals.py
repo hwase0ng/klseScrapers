@@ -42,7 +42,7 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
     signals = ""
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     if tss:
-        label = "TSS"
+        label = "TBD" if tss == 999 else "TSS" if tss > 0 else "RTR"
         signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, tss, tss_stage,
                                                        strC, strM, strP, strV)
     elif bottomrevs:
@@ -87,55 +87,94 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
     cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
-    plistC, nlistC, plistM, nlistM, nlistP, plistV = \
-        cmpvMC[2], cmpvMC[3], cmpvMM[2], cmpvMM[3], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
+    plistC, nlistC, plistM, nlistM, plistP, nlistP, plistV = \
+        cmpvMC[2], cmpvMC[3], cmpvMM[2], cmpvMM[3], cmpvMP[2], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
 
-    if topM and topP and topV:
-        # PADINI 2014-05-08
-        topSellSignal = 4
-        tss_stage = 2 if posC > 3 else 1 if posC > 2 else 0
-    elif (newhighC or topC) and ((topP and not topM) or (topM and not topP)):
-        topSellSignal = 1
-        if topP:
-            # PADINI 2012-09-03 TopP divergent with lower M
-            # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP
-            # DUFU 2017-04-03 triggered,
-            #      2017-05-02 M & P divergent with V
-            #      2017-10-02 Second TSS signal in a side way market
-            tss_stage = 1 if posC > 3 or newlowM else 2
+    if plistM is None or plistP is None:
+        pass
+    elif (newhighC or topC) and not newlowC and ((topP and not topM) or (topM and not topP)):
+        # KESM 2018-11-23 topC with invalid newlowC condition filtered
+        if plistM[-1] < 10:  # and plistP[-1] < 0:
+            topSellSignal = 1
+            if topP:
+                # PADINI 2012-09-03 TopP divergent with lower M
+                # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP with lowerM divergent
+                # DUFU 2017-04-03 triggered,
+                #      2017-05-02 M & P divergent with V
+                #      2017-10-02 Second TSS signal in a side way market
+                tss_stage = 1 if posC > 3 or newlowM else 2
+            else:
+                # KLSE 2014-05-08 TopM divergent with lower P
+                # PETRONM 2015-07-30 - HighC, HighM
+                #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
+                tss_stage = 1 if lastV < 0 else 2
         else:
-            # KLSE 2014-05-08 TopM divergent with lower P
-            # PETRONM 2015-07-30 - HighC, HighM
-            #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
-            tss_stage = 1 if lastV < 0 else 2
+            # CARLSBG 2017-05-04 with M > 10
+            topSellSignal = -1
+            tss_stage = 1
     elif (newlowM or bottomM) and newlowP and prevtopC and posC > 2:
         #      2017-10-02 Second TSS signal after TSS1
         topSellSignal = 2
         tss_stage = 1 if newlowV else 2
+    elif (newhighC or topC) and newlowM and newlowP and not topM and not topP:
+        # CARLSBG 2017-12 ???
+        if plistM[-1] < 10:
+            if plistP[-1] < 0:
+                # KESM 2018-04-04 passed
+                topSellSignal = 3
+                tss_stage = 2 if topC else 1
+            else:
+                # PETRONM 2017-12-04 50% final rebound before major sell off
+                #   - very elusive catch due to lowM & midP, must sell as price goes higher
+                topSellSignal = -3
+                tss_stage = -1
+        elif plistP[-1] > 0:
+            # KESM 2017-08-09 failed due to highM > 10, use as BBS instead
+            # ANNJOO 2017-07-03 faile due to higherP and plistP[-1] > 0
+            topSellSignal = -3
+            tss_stage = 1
+        else:
+            print "TSS 3 TBD"
+            topSellSignal, tss_stage = 999, 3
+    elif topM and topP and topV:
+        if nlistM[-1] < 10:
+            # PADINI 2014-05-08
+            topSellSignal = 4
+            tss_stage = 2 if posC > 3 else 1 if posC > 2 else 0
+        else:
+            print "TSS 4 TBD"
+            topSellSignal, tss_stage = 999, 4
     elif bottomC and ((topP and not topM) or (topM and not topP)):
         # KLSE 2015-03-05, 2015-04-28 - major sell off
         topSellSignal = 5
         tss_stage = 2 if bottomM or bottomP else 1
-    elif (newhighC or topC) and newlowM and newlowP and plistM[-1] < 10 and min(nlistM) < 5:
-        # PETRONM 2017-12-04 - very elusive catch due to volatility of M & P, must sell as price goes higher
-        # KESM 2017-08-09 failed due to highM > 10 (BSS with newlowM and newlowP)
-        # KESM 2018-04-04 passed
-        topSellSignal = 3
-        tss_stage = 2 if topC else 1
-    elif (newlowC or bottomC) and ((bottomM and not bottomP) or (bottomP and not bottomM)) \
-            and nlistM[-1] < 5 and nlistP[-1] < -0.025:
-        # topV - BTM 2018-11-15
-        # KLSE 2015-07-16, 2015-08-03 - bottomM divergent with P, major sell off continuation
-        # KESM 2018-11-19 bottomP divergent with M (to observe further)
-        topSellSignal = 6
-        tss_stage = 2 if (bottomM and bottomP) else 1
-    elif newhighC:
-        if newhighM and newhighP and newhighV:
+    elif (newlowC or bottomC) and ((bottomM and not bottomP) or (bottomP and not bottomM)):
+        if nlistM[-1] < 5 and nlistP[-1] < -0.025:
+            # topV - BTM 2018-11-15
+            # KLSE 2015-07-16, 2015-08-03 - bottomM divergent with P, major sell off continuation
+            # KESM 2018-11-19 bottomP divergent with M (to observe further)
+            topSellSignal = 6
+            tss_stage = 2 if (bottomM and bottomP) else 1
+        else:
+            print "TSS 5 TBD"
+            topSellSignal, tss_stage = 999, 5
+    elif newhighC and newhighM and newhighP:
+        # CARLSBG 2018-03-05
+        tss_stage = 1
+        if newhighV:
             # very strong breakout
-            pass
-        elif topM and topP and topV:
+            topSellSignal = -7
+        else:
+            topSellSignal = 7
+    elif topC and topM and topP:
+        # LIONIND 2017-04-03 TSS,7,2 failed
+        tss_stage = 2
+        if topV:
             # still very strong breakout
-            pass
+            topSellSignal = -7
+        else:
+            topSellSignal = 7
+            tss_stage = 2
     '''
     elif bottomC and prevtopC:
         if (topM and not topP) or (topP and not topM):
