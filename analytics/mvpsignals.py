@@ -42,7 +42,7 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
     signals = ""
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     if tss:
-        label = "TBD" if tss == 999 else "TSS" if tss > 0 else "RTR"
+        label = "RTL" if tss_stage < 0 else "TBD" if tss == 999 else "TSS" if tss > 0 else "RTR"
         signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, tss, tss_stage,
                                                        strC, strM, strP, strV)
     elif bottomrevs:
@@ -144,11 +144,12 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
         else:
             print "TSS 4 TBD"
             topSellSignal, tss_stage = 999, 4
-    elif bottomC and ((topP and not topM) or (topM and not topP)):
+    elif bottomC and ((topP and not (topM or bottomM)) or (topM and not (topP or bottomP))):
+        # HEXZA 2018-11-23 bottomM and topP bullish signal?
         # KLSE 2015-03-05, 2015-04-28 - major sell off
         topSellSignal = 5
         tss_stage = 2 if bottomM or bottomP else 1
-    elif (newlowC or bottomC) and ((bottomM and not bottomP) or (bottomP and not bottomM)):
+    elif posC < 2 and (newlowC or bottomC) and ((bottomM and not bottomP) or (bottomP and not bottomM)):
         if nlistM[-1] < 5 and nlistP[-1] < -0.025:
             # topV - BTM 2018-11-15
             # KLSE 2015-07-16, 2015-08-03 - bottomM divergent with P, major sell off continuation
@@ -156,8 +157,8 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
             topSellSignal = 6
             tss_stage = 2 if (bottomM and bottomP) else 1
         else:
-            print "TSS 5 TBD"
-            topSellSignal, tss_stage = 999, 5
+            print "TSS 6 TBD"
+            topSellSignal, tss_stage = 999, 6
     elif newhighC and newhighM and newhighP:
         # CARLSBG 2018-03-05
         tss_stage = 1
