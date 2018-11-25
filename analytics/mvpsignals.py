@@ -113,7 +113,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
                 #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
                 tss_stage = 1 if lastV < 0 else 2
         elif topC:
-            # LIONIND 2017-02-03
+            # LIONIND 2017-02-03, PADINI 2018-11-23
             # CARLSBG 2017-05-04 with M > 10
             topSellSignal = -1
             tss_stage = 1
@@ -133,7 +133,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
                 # KESM 2018-04-04 passed
                 topSellSignal = 3
                 tss_stage = 2 if topC else 1
-            else:
+            elif posC > 2:
                 # m<10 and p>0
                 # PETRONM 2017-12-04 50% final rebound before major sell off
                 #   - very elusive catch due to lowM & midP, must sell as price goes higher
@@ -159,7 +159,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
             tss_stage = 0
     elif bottomC and ((topP and not (topM or (bottomM and nlistM[-1] < 0))) or
                       (topM and not (topP or bottomP))):
-        if nlistM[-1] > nlistM[-2] and nlistM[-1] > 5:
+        if len(nlistM) > 1 and nlistM[-1] > nlistM[-2] and nlistM[-1] > 5:
             # PETRONM 2015-02-05 higher M
             topSellSignal = -5
             tss_stage = 1 if lastM < 5 or lastP < 0 else 0
