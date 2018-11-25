@@ -4,7 +4,7 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
-    -c,--chartdays=<cd>     Days to display on chart [default: 200]
+    -c,--chartdays=<cd>     Days to display on chart [default: 300]
     -d,--displaychart       Display chart [default: False]
     -D,--debug=(dbgopt)     Enable debug mode (A)ll, (S)ignal
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
@@ -522,7 +522,7 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
     dflist[1] = dff.fillna(0)
     dflist[2] = dfm.fillna(0)
 
-    title = lastTrxnDate + " (" + scode + "," + str(chartDays) + "d)"
+    title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
 
     return dflist, title, fname, lasttrxn
 
@@ -709,9 +709,12 @@ def globals_from_args(args):
     MVP_DIVERGENCE_MATCH_TOLERANCE = int(args['--tolerance']) if args['--tolerance'] else 3
     SYNOPSIS = True if args['--synopsis'] else False
     chartDays = int(args['--chartdays']) if args['--chartdays'] else S.MVP_CHART_DAYS
+    '''
+    # removed this as it causes different results due to different number of peaks/valleys
     if SYNOPSIS and chartDays == S.MVP_CHART_DAYS:
         # daily charting is defaulted to 200, add 100 for synopsis charting
         chartDays += 100
+    '''
     if args['COUNTER']:
         stocks = args['COUNTER'][0].upper()
     else:
