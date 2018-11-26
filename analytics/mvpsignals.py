@@ -126,27 +126,36 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist):
             print "TSS 2 TBD"
             topSellSignal, tss_stage = 999, 2
     elif (newhighC or topC) and (newlowM or lastM < 5) and (newlowP or lastP < 0) and not topM and not topP:
-        if plistM[-1] < 10 and (len(plistP) > 1 and plistP[-1] < plistP[-2] or prevtopP):
-            if plistP[-1] < 0 or (prevtopP and nlistP[-1] < 0):
+        if plistM[-1] < 10:
+            if plistP[-1] < 0:
                 # m<10 and p<0
                 # PETRONM 2014-12-03, 2016-06-02 with prevtopM, 2016-08-02 false positive
                 # KESM 2018-04-04 passed
                 topSellSignal = 3
                 tss_stage = 2 if topC else 1
             elif posC > 2:
-                # m<10 and p>0
-                # PETRONM 2017-12-04 50% final rebound before major sell off
-                #   - very elusive catch due to lowM & midP, must sell as price goes higher
                 topSellSignal = -3
-                tss_stage = -1
+                if len(plistM) > 1 and plistM[-2] < 10:
+                    # m<10 and p>0
+                    # PETRONM 2017-12-04 50% final rebound before major sell off
+                    #   - very elusive catch due to lowM & midP, must sell as price goes higher
+                    tss_stage = -1
+                else:
+                    # ANNJOO 2017-07-03 failed due to higherP and plistP[-1] > 0
+                    tss_stage = 0
+            else:
+                if prevtopP:
+                    topSellSignal = 3
+                else:
+                    print "TSS 3 TBD 1"
+                    topSellSignal, tss_stage = 999, 3
         elif topC and plistP[-1] > 0:
             # m>10 or p>0
             # KESM 2017-08-09 failed due to highM > 10, use as BBS instead
-            # ANNJOO 2017-07-03 failed due to higherP and plistP[-1] > 0
             topSellSignal = -3
             tss_stage = 1
         else:
-            print "TSS 3 TBD"
+            print "TSS 3 TBD 2"
             topSellSignal, tss_stage = 999, 3
     elif topM and topP and topV and prevbottomC:
         if plistM[-1] < 10 and nlistM[-1] < 5:
@@ -467,7 +476,7 @@ def checkposition(pntype, pnlist, lastpos):
         if lastpos > maxP:
             newhigh = True
             pos = 4
-        elif clist[-1] == maxP:
+        if clist[-1] == maxP:
             top = True
         elif plist[-1] == maxP:
             prevtop = True
@@ -475,7 +484,7 @@ def checkposition(pntype, pnlist, lastpos):
         if lastpos < minN:
             newlow = True
             pos = 0
-        elif clist[-1] == minN:
+        if clist[-1] == minN:
             bottom = True
         elif nlist[-1] == minN:
             prevbottom = True
