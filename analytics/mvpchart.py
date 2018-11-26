@@ -537,12 +537,12 @@ def numsFromDate(counter, datestr):
         print incsv, row_count, dates, linenum
     if linenum < 0:
         return []
-    start = row_count - linenum + S.MVP_CHART_DAYS + 100
+    start = row_count - linenum + S.MVP_CHART_DAYS
     stop = start + 1
     if len(dates) > 1:
         linenum = grepN(incsv, dates[1])  # e.g. 2018-10-30
         if linenum > 0:
-            stop = row_count - linenum + S.MVP_CHART_DAYS + 100
+            stop = row_count - linenum + S.MVP_CHART_DAYS
     step = int(dates[2]) if len(dates) > 2 else 1
     nums = str(start) + "," + str(stop) + "," + str(step)
     print "Start,Stop,Step =", nums
@@ -572,7 +572,6 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, lasttrxn)
         if len(signals):
-            signals = signals.replace('\t', "")
             fig.suptitle(title + " [" + signals + "]")
         else:
             fig.suptitle(title + " [" + counter + "]")
