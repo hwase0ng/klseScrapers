@@ -11,6 +11,7 @@ Options:
     -K,--KLSE             Update KLSE related stocks
     -m,--mt4              Write and update metatrader4
     -r,--resume           Resume after crash [default: False]
+    -p,--price=<n1,n2>    Update price after stock split/consolidation/warrant exercise
     -h,--help             This page
 
 This app downloads EOD from KLSE, either for all counters or selectively
@@ -41,6 +42,20 @@ import tarfile
 import glob
 import fileinput
 import csv
+
+
+def pricesplit(sname, scode, ratio):
+    infile = S.DATA_DIR + sname + "." + scode + ".csv"
+    outfile = infile + ".new"
+    df = pd.read_csv(infile, sep=',', header=None,
+                     names=['name', 'date', 'open', 'high', 'low', 'close', 'volume'])
+    df['open'] = df['open'] * ratio
+    df['high'] = df['high'] * ratio
+    df['low'] = df['low'] * ratio
+    df['close'] = df['close'] * ratio
+    df['volume'] = pd.to_numeric(df['volume'])
+    df['volume'].astype(int)
+    df.to_csv(outfile, sep=',', header=False, index=False, float_format='%.4f')
 
 
 def dbUpdateLatest(eodlist=''):
@@ -331,7 +346,13 @@ if __name__ == '__main__':
         print "Scraping i3 stocks listing ..."
         writeStocksListing(klse)
 
-    if args['--KLSE']:
+    if args['--price']:
+        sname = args['COUNTER'][0].upper()
+        slist = formStocklist(sname, klse)
+        nums = args['--price'].split(",")
+        ratio = float(nums[0]) / float(nums[1])
+        pricesplit(sname, slist[sname], float("{:.5f}".format((ratio))))
+    elif args['--KLSE']:
         scrapeKlseRelated('scrapers/investingcom/klse.idmap')
     else:
         if args['COUNTER']:
