@@ -53,7 +53,10 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
         label = "OVS" if bbs else "Dbg"
         signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bbs, bbs_stage,
                                                        strC, strM, strP, strV)
-    print signals
+    if dbg == 2:
+        print signals.replace('\t', '')
+    else:
+        print signals
     signals = signals.replace('\t', ",")
     if "simulation" in fname:
         outfile = S.DATA_DIR + S.MVP_DIR + "simulation/signals/" + counter + "-signals.csv"
@@ -93,74 +96,82 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
         elif hstM[-2] == 'v' and hstP[-2] == 'v':
             valley = True
 
-    lastprice, lastC, lastM, lastP, lastV = \
-        lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
+    lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
+        lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
+        lastTrxn[6], lastTrxn[7], lastTrxn[8], lastTrxn[9]
     cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
     plistC, nlistC, plistM, nlistM, plistP, nlistP, plistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[2], cmpvMM[3], cmpvMP[2], cmpvMP[3], cmpvMV[2]  # 0=XP, 1=XN, 2=YP, 3=YN
 
+    if plistC is not None:
+        maxC = max(plistC) if lastC < max(plistC) else lastC
+    else:
+        maxC = firstC if firstC > lastC else lastC
+    if nlistC is not None:
+        minC = min(nlistC) if lastC > min(nlistC) else lastC
+    else:
+        minC = firstC if firstC < lastC else lastC
+    range3 = (maxC - minC) / 3
+
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         pass
-    elif (newhighC or topC) and not newlowC and posC > 1 and \
+    elif (newhighC or topC) and not newlowC and posC > 1 and firstC <= minC + range3 and \
             ((((topP or prevtopP) and not ((prevtopM or topM) or newhighM)) or
               ((topM or prevtopM) and not ((prevtopP or topP) or newhighP))) or
-                (len(plistM) > 1 and len(plistP) > 1 and peaks and
+                (len(plistM) > 1 and len(plistP) > 1 and peaks and len(plistM) == len(plistP) and
                  ((plistM[-1] >= plistM[-2] and plistP[-1] < plistP[-2]) or
                  (plistM[-1] <= plistM[-2] and plistP[-1] > plistP[-2])))):
-        # ----- TOPS with peaks divergent ----- #
+        # ----- _/ TOPS with peaks divergence ----- #
         # PETRONM 2015-08-02 filtered as posC=1
+        # KESM 2018-11-23 topC with invalid newlowC condition filtered
         if len(plistM) < 2 or len(plistP) < 2:
-            # KESM 2018-11-23 topC with invalid newlowC condition filtered
             # HEXZA 2018-11-23 with less than 3 peaks filtered
             pass
         else:
-            if topM or topP or (plistM[-1] < plistM[-2] and plistP[-1] > plistP[-2] or
-                                plistM[-1] > plistM[-2] and plistP[-1] < plistP[-2]):
-                # Divergent detected before topC
-                if plistM[-1] < 10:  # and plistP[-1] < 0:
-                    topSellSignal = 1
-                    if plistP[-1] > 0:
-                        if prevtopP and bottomP and not bottomM:
-                            # PETRONM 2016-08-02
-                            # valley divergent - to be reclassified to bottom reversal
-                            # keeping here as protection
-                            topSellSignal = -1
-                            tss_stage = 0 if lastP < 0 else 1
-                        elif topP or prevtopP:
-                            # PADINI 2012-09-03 TopP divergent with lower M
-                            # PETRONM 2012-05-25
-                            # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP with lowerM divergent
-                            # DUFU 2017-04-03 triggered,
-                            #      2017-05-02 M & P divergent with V
-                            #      2017-10-02 Second TSS2 signal in a side way market
-                            tss_stage = 1 if posC > 3 or newlowM else 2
-                        elif topM or prevtopM:
-                            # KLSE 2014-05-08 TopM divergent with lower P
-                            #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
-                            tss_stage = 1 if lastV < 0 else 2
-                        else:
-                            # ANNJOO 2017-07-03 has neither topM nor topP
-                            tss_stage = 0
+            # Divergent detected before topC
+            # LIONIND 2017-02-03 passed range check
+            if plistM[-1] < 10:  # and plistP[-1] < 0:
+                topSellSignal = 1
+                if plistP[-1] > 0:
+                    if topP or prevtopP:
+                        # PADINI 2012-09-03 TopP divergent with lower M
+                        # PETRONM 2012-05-25
+                        # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP with lowerM divergent
+                        # DUFU 2017-04-03 triggered,
+                        #      2017-05-02 M & P divergent with V
+                        #      2017-10-02 Second TSS2 signal in a side way market
+                        tss_stage = 1 if posC > 3 or newlowM else 2
+                    elif topM or prevtopM:
+                        # KLSE 2014-05-08 TopM divergent with lower P
+                        #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
+                        tss_stage = 1 if lastV < 0 else 2
                     else:
-                        print "TSS 1 TBD 1"
-                        topSellSignal, tss_stage = 999, 1
-                elif plistP[-1] > 0:
-                    if newhighM or newhighP:
-                        topSellSignal = 1
-                        tss_stage = 1 if newhighV else 2 if lastV > 0 else 3
-                    else:
-                        # LIONIND 2017-02-03, PADINI 2018-11-23
-                        # CARLSBG 2017-05-04 with M > 10
-                        topSellSignal = -1
-                        tss_stage = 1
+                        # ANNJOO 2017-07-03 has neither topM nor topP
+                        tss_stage = 0
                 else:
-                    print "TSS 1 TBD 2"
+                    # N2N 2018-11-27
+                    print "TSS 1 TBD 1"
                     topSellSignal, tss_stage = 999, 1
+            elif plistP[-1] > 0:
+                if newhighM or newhighP:
+                    topSellSignal = 1
+                    tss_stage = 1 if newhighV else 2 if lastV > 0 else 3
+                else:
+                    # DUFU 2014-09-10
+                    # LIONIND 2017-02-03, PADINI 2018-11-23
+                    # CARLSBG 2017-05-04 with M > 10
+                    topSellSignal = -1
+                    tss_stage = 1
+            else:
+                print "TSS 1 TBD 2"
+                topSellSignal, tss_stage = 999, 1
     # elif (newlowM or bottomM) and newlowP and prevtopC and posC > 2:
-    elif (topC or prevtopC) and posC > 1 and not bottomC and not prevbottomC and \
-            len(plistM) > 1 and len(plistP) > 1 and \
-            len(nlistM) > 1 and len(nlistP) > 1:
-        # TOPS with valleys divergent
+    elif (topC or prevtopC) and posC > 0 and not bottomC and firstC < minC + range3 and \
+            len(plistM) > 1 and len(plistP) > 1 and len(nlistM) > 1 and len(nlistP) > 1 and \
+            ((nlistM[-1] >= nlistM[-2] and nlistP[-1] < nlistP[-2]) or
+             (nlistM[-1] <= nlistM[-2] and nlistP[-1] > nlistP[-2])):
+        # ----- TOPS with valleys divergence ----- #
+        # YONGTAI 2018-11-27 needs to be filtered for len(nlistP) < len(nlistM)
         if nlistM[-1] >= nlistM[-2] and nlistP[-1] < nlistP[-2]:
             # Divergent 1: higher M, lower P
             #  - omits valleys check due to slower effect until new peak is formed
@@ -186,8 +197,13 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                     if lastP < 0:
                         tss_stage += 1
                 else:
-                    print "TSS 2 TBD"
-                    topSellSignal, tss_stage = 999, 2
+                    # UCREST 2017-08-02 strong break out
+                    if newlowM:
+                        topSellSignal = 2
+                        tss_stage = 1 if lastV > 0 else 2
+                    else:
+                        topSellSignal = -2
+                        tss_stage = 2 if topV else 1
         elif nlistM[-1] <= nlistM[-2] and nlistP[-1] > nlistP[-2]:
             # Divergent 2: lower M, higher P
             if plistM[-1] < 10 and nlistM[-1] < 5:
@@ -204,7 +220,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
             len(nlistM) > 1 and len(nlistP) > 1 and \
             plistM[-1] < plistM[-2] and plistP[-1] < plistP[-2] and \
             nlistM[-1] > nlistM[-2] and nlistP[-1] > nlistP[-2]:
-        # Lower peaks with higher valleys in both M and P
+        # ----- Lower peaks with higher valleys in both M and P ----- #
         if plistM[-1] < 10:
             if plistP[-1] < 0:
                 # m<10 and p<0
@@ -221,7 +237,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                         # m<10 and p>0
                         # PETRONM 2017-12-04 50% final rebound before major sell off
                         #   - very elusive catch due to lowM & midP, must sell as price goes higher
-                        tss_stage = -1
+                        tss_stage = -1 if posC < 4 else -2
                     else:
                         tss_stage = 0
                 else:
@@ -240,14 +256,20 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                         tss_stage = 1 if lastV > 0 else 0
         elif topC and plistP[-1] > 0:
             # m>10 or p>0
+            print "TSS 3 topC"
             topSellSignal = -3
             tss_stage = 1
         else:
-            print "TSS 3 TBD"
-            topSellSignal, tss_stage = 999, 3
+            # 2014-07-01 DUFU newhighC
+            # watch out for M divergence
+            tss_stage = -1 if posC < 4 else -2
+            if lastM < 2:
+                topSellSignal = 3
+            else:
+                topSellSignal = -3
     elif posC > 0 and (prevbottomC or bottomC) and (topV or prevtopV) and \
             (newhighM or topM) and (newhighP or topP):
-        # TOPS or near TOPS after V shape rebound with no divergent
+        # ----- TOPS or near TOPS after rebound with valley divergence ------ #
         if topM and topP:
             if not topC and (lastM > 5 or lastP > 0):
                 # PADINI 2014-05-08 qualified but can also be reclassified under TSS2
@@ -263,11 +285,15 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
             topSellSignal = 4
             tss_stage = 2 if posC > 3 else 1 if posC > 2 else 0
         else:
+            # Bullish break out not to be included here
+            # 2018-11-27 MISC, RANHILL
+            # DUFU 2018-08-02
             print "TSS 4 TBD"
             topSellSignal, tss_stage = 999, 4
-    elif bottomC and ((topP and not (topM or (bottomM and nlistM[-1] < 0))) or
-                      (topM and not (topP or bottomP))):
-        # BOTTOMS with peaks divergent
+    elif bottomC and posC > 1 and not newhighC and \
+            ((topP and not (topM or (bottomM and nlistM[-1] < 0))) or
+             (topM and not (topP or bottomP))):
+        # ----- BOTTOMS with peaks divergence ------ #
         if len(nlistM) > 1 and nlistM[-1] > nlistM[-2] and nlistM[-1] > 5:
             # PETRONM 2015-02-05 higher M
             topSellSignal = -5
@@ -278,8 +304,8 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
             topSellSignal = 5
             tss_stage = 2 if bottomM or bottomP else 1
     elif posC < 2 and (newlowC or bottomC) and ((bottomM and not bottomP) or (bottomP and not bottomM)):
-        range3 = (max(plistM) - min(nlistM)) / 3
-        if len(plistM) < 2 or len(plistP) < 2 or plistM[-1] < min(nlistM) + range3:
+        # ----- BOTTOMS with valleys divergence ------ #
+        if len(plistM) < 2 or len(plistP) < 2 or plistC[-1] < min(nlistC) + range3:
             # PETRONM 2012-09-19 without rebound filtered
             pass
         # if nlistM[-1] < 5 and nlistP[-1] < -0.025:
@@ -291,7 +317,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                 topSellSignal = 6
                 tss_stage = 2 if (bottomM and bottomP) else 1
             else:
-                # PETRONM 2015-01-05 plistP[-1] < 0
+                # PETRONM 2015-01-05 plistP[-1] < 0, 2012-09-19
                 # HEXZA 2018-11-23 bottomM and topP bullish signal?
                 topSellSignal = -6
                 tss_stage = 0 if lastV < 0 else 1
@@ -299,6 +325,8 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
             print "TSS 6 TBD"
             topSellSignal, tss_stage = 999, 6
     elif newhighC and newhighM and newhighP:
+        # ----- TOPS over-bought ----- #
+        # ----- lower peaks and higher valleys ? ----- #
         if len(plistC) < 2 or len(nlistC) < 2 or len(plistM) < 2 or len(nlistP) < 2:
             pass
         else:
@@ -313,12 +341,14 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                     print "TSS 7 TBD 1"
                     topSellSignal, tss_stage = 999, 7
             else:
+                # ELKDESA 2018-11-27
                 print "TSS 7 TBD 2"
                 topSellSignal, tss_stage = 999, 7
     elif posC > 1 and (newhighM or newhighP) and len(plistM) > 1 and len(nlistM) > 1 and \
             plistM[-1] > plistM[-2] and nlistM[-1] > nlistM[-2] and \
             plistP[-1] > plistP[-2] and nlistP[-1] > nlistP[-2]:
-        # U style bottom rebound to new high
+        # ----- U style bottom rebound to new high ----- #
+        # -----   higher peaks and higher valleys  ----- #
         if nlistP[-1] < 0:
             # PETRONM 2013,05-29, 2015-07-30 - HighC, HighM
             topSellSignal = 8
@@ -561,7 +591,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
     return bottomrevs, bottomBuySignal, bbs_stage
 
 
-def checkposition(pntype, pnlist, lastpos):
+def checkposition(pntype, pnlist, firstpos, lastpos):
     clist, profiling, snapshot = "", "", ""
     pos, newlow, newhigh, bottom, top, prevbottom, prevtop = \
         0, 0, False, False, False, False, False
@@ -573,55 +603,56 @@ def checkposition(pntype, pnlist, lastpos):
             return [-1, newlow, newhigh, top, bottom, prevtop, prevbottom], profiling, snapshot
 
     plist, nlist = pnlist[2], pnlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
-    if plist is None or nlist is None:
-        if plist is None:
-            # free climbing (PADINI 2012-07-30)
-            newhigh = True
-            pos = 4
-        else:
-            top = True
-        if nlist is None:
-            # free falling
-            newlow = True
-            pos = 0
-        else:
-            bottom = True
+    if plist is None:
+        # free climbing (PADINI 2012-07-30)
+        minP, maxP = firstpos, firstpos
     else:
-        clist, profiling = profilemapping(pntype, pnlist)
         minP, maxP = min(plist), max(plist)
+    if nlist is None:
+        # free falling
+        minN, maxN = firstpos, firstpos
+    else:
         minN, maxN = min(nlist), max(nlist)
-        if lastpos > maxP:
-            newhigh = True
-            pos = 4
-        if clist[-1] == maxP:
-            top = True
-        elif plist[-1] == maxP:
-            prevtop = True
+    clist, profiling = profilemapping(pntype, pnlist)
+    if lastpos > maxP:
+        newhigh = True
+        pos = 4
+    if clist[-1] == maxP:
+        top = True
+    elif plist is not None and plist[-1] == maxP:
+        prevtop = True
 
-        if lastpos < minN:
-            newlow = True
-            pos = 0
-        if clist[-1] == minN:
-            bottom = True
-        elif nlist[-1] == minN:
-            prevbottom = True
+    if lastpos < minN:
+        newlow = True
+        pos = 0
+    if clist[-1] == minN:
+        bottom = True
+    elif nlist is not None and nlist[-1] == minN:
+        prevbottom = True
 
-        if pntype == 'C':
-            if not newhigh and not newlow:
-                range3 = (maxP - minN) / 3
-                if lastpos < minN + range3:
-                    pos = 1
-                elif lastpos >= maxP - range3:
-                    pos = 3
-                else:
-                    pos = 2
-        else:
+    if pntype == 'C':
+        if not newhigh and not newlow:
+            range3 = (maxP - minN) / 3
+            if lastpos < minN + range3:
+                pos = 1
+            elif lastpos >= maxP - range3:
+                pos = 3
+            else:
+                pos = 2
+    elif pos != 4:
+        if plist is not None and nlist is not None:
             # Establish second position with value 3 (no use of 1 and 2 yet)
             if len(plist) > 1:
                 plistsorted = sorted(plist)
-                pos = 4 if lastpos > plistsorted[-1] else 3 if lastpos > plistsorted[-2] else 0
+                ppoint = plistsorted[-2]
             else:
-                pos = 4 if lastpos > plist[0] else 0
+                ppoint = plist[0]
+            if len(nlist) > 1:
+                nlistsorted = sorted(nlist)
+                npoint = nlistsorted[1]
+            else:
+                npoint = nlist[0]
+            pos = 3 if lastpos > ppoint else 2 if lastpos > npoint else 0 if newlow else 1
 
         # retrace = True if (top or prevtop) and pos > 1 else False
 
@@ -637,6 +668,14 @@ def checkposition(pntype, pnlist, lastpos):
 def profilemapping(pntype, listoflists):
     xpositive, xnegative, ypositive, ynegative = \
         listoflists[0], listoflists[1], listoflists[2], listoflists[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+    if xpositive is None:
+        xpositive = []
+    if xnegative is None:
+        xnegative = []
+    if ypositive is None:
+        ypositive = []
+    if ynegative is None:
+        ynegative = []
     datelist = sorted(xpositive + xnegative)
     psorted, nsorted = sorted(ypositive, reverse=True), sorted(ynegative)
     ylist, profiling = [], []
@@ -683,9 +722,11 @@ def formListCMPV(cmpv, pnlist):
 
 def collectCompositions(pnlist, lastTrxn):
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
-    lastprice, lastC, lastM, lastP, lastV = \
-        lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
+    lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
+        lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
+        lastTrxn[6], lastTrxn[7], lastTrxn[8], lastTrxn[9]
     if DBGMODE:
+        print "first:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, firstC, firstM, firstP, firstV)
         print "last:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, lastC, lastM, lastP, lastV)
 
     pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
@@ -694,7 +735,7 @@ def collectCompositions(pnlist, lastTrxn):
     cmpvMM = formListCMPV(1, pnM)
     cmpvMP = formListCMPV(2, pnM)
     cmpvMV = formListCMPV(3, pnM)
-    composeC, historyC, strC = checkposition('C', cmpvMC + cmpvWC, lastC)
+    composeC, historyC, strC = checkposition('C', cmpvMC + cmpvWC, firstC, lastC)
     if DBGMODE:
         [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
         print "C=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
@@ -702,9 +743,9 @@ def collectCompositions(pnlist, lastTrxn):
     posC = composeC[0]
     if posC < 0:
         return None, None, None, None
-    composeM, historyM, strM = checkposition('M', cmpvMM, lastM)
-    composeP, historyP, strP = checkposition('P', cmpvMP, lastP)
-    composeV, historyV, strV = checkposition('V', cmpvMV, lastV)
+    composeM, historyM, strM = checkposition('M', cmpvMM, firstM, lastM)
+    composeP, historyP, strP = checkposition('P', cmpvMP, firstP, lastP)
+    composeV, historyV, strV = checkposition('V', cmpvMV, firstV, lastV)
     if DBGMODE:
         [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
         print "M=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \

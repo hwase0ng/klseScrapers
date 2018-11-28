@@ -507,11 +507,12 @@ def getSynopsisDFs(counter, scode, chartDays, start=0):
             lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
             lastClosingPrice = float(df.iloc[-1]['close'])
         if dfm is not None:
-            lastTrxnC = float(dfm.iloc[-1]['close'])
-            lastTrxnM = float(dfm.iloc[-1]['M'])
-            lastTrxnP = float(dfm.iloc[-1]['P'])
-            lastTrxnV = float(dfm.iloc[-1]['V'])
-            lasttrxn = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
+            lastC, firstC = float("{:.4f}".format(dfm.iloc[-1]['close'])), float("{:.4f}".format(dfm.iloc[0]['close']))
+            lastM, firstM = float("{:.4f}".format(dfm.iloc[-1]['M'])), float("{:.4f}".format(dfm.iloc[0]['M']))
+            lastP, firstP = float("{:.4f}".format(dfm.iloc[-1]['P'])), float("{:.4f}".format(dfm.iloc[0]['P']))
+            lastV, firstV = float("{:.4f}".format(dfm.iloc[-1]['V'])), float("{:.4f}".format(dfm.iloc[0]['V']))
+            lasttrxn = [lastTrxnDate, lastClosingPrice,
+                        lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV]
             del df
         else:
             return None, None, None, None
