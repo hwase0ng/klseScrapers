@@ -43,18 +43,22 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
 
     signals = ""
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
+    [tolerance, pdays, ndays, matchlevel] = matchdate
     if tss:
         label = "RTL" if tss_state < 0 else "TBD" if tss == 999 else "TSS" if tss > 0 else "RTR"
-        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, tss, tss_state,
-                                                     strC, strM, strP, strV)
+        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s),(%d,%d,%d,%d)" % \
+            (counter, label, tss, tss_state, strC, strM, strP, strV,
+             tolerance, pdays, ndays, matchlevel)
     elif bottomrevs:
         label = "BRK" if bottomrevs == 13 else "BRV"
-        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bottomrevs, bbs_stage,
-                                                     strC, strM, strP, strV)
+        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s),(%d,%d,%d,%d)" % \
+            (counter, label, bottomrevs, bbs_stage, strC, strM, strP, strV,
+             tolerance, pdays, ndays, matchlevel)
     elif bbs or bbs_stage or dbg:
         label = "OVS" if bbs else "Dbg"
-        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bbs, bbs_stage,
-                                                     strC, strM, strP, strV)
+        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s),(%d,%d,%d,%d)" % \
+            (counter, label, bbs, bbs_stage, strC, strM, strP, strV,
+             tolerance, pdays, ndays, matchlevel)
     prefix = "" if dbg == 2 else '\t'
     print prefix + signals
     if "simulation" in fname:
@@ -122,6 +126,15 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
         elif topM and bottomP:
             print "TSS 11 TBD 2"
             topSellSignal, tss_state = 999, 11
+        elif bottomM and bottomP:
+            print "TSS 11 TBD 3"
+            topSellSignal, tss_state = 999, 11
+        elif topM and topP:
+            print "TSS 11 TBD 4"
+            topSellSignal, tss_state = 999, 11
+        else:
+            print "TSS 11 TBD 5"
+            topSellSignal, tss_state = 999, 11
     elif matchlevel > 1 and (newhighC or topC) and not newlowC and \
             posC > 1 and firstC <= minC + range3 and \
             ((((topP or prevtopP) and not ((prevtopM or topM) or newhighM)) or
@@ -188,20 +201,22 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             # Divergent 1: higher M, lower P
             #  - omits valleys check due to slower effect until new peak is formed
             if plistM[-1] < 10:
-                # weak rebound from lowerP divergent with low M
                 topSellSignal = 2
-                if nlistP[-2] < 0:
-                    # PETRONM 2016-04-20
-                    tss_state = 1
-                    # tss_state = 0 if lastP > 0 else 2 if newlowP else 1
-                else:
-                    # DUFU 2017-10-02 Second TSS signal after TSS1
-                    tss_state = 2
-                    # tss_state = 0 if lastP > 0 else 2 if newlowP else 1
+                if newlowM or newlowP:
+                    # weak rebound from lowerP divergent with low M
+                    if nlistP[-2] < 0:
+                        # PETRONM 2016-04-20
+                        tss_state = 1
+                        # tss_state = 0 if lastP > 0 else 2 if newlowP else 1
+                    else:
+                        # DUFU 2017-10-02 Second TSS signal after TSS1
+                        tss_state = 2
+                        # tss_state = 0 if lastP > 0 else 2 if newlowP else 1
+                elif bottomP and not newlowP:
+                    tss_state = 0  # bottom forming
             else:
                 # Retrace after strong rebound from strong valley divergent
-                # KESM 2017-08-09 failed due to highM > 10, use as BBS instead
-                # PETRONM 2016-06-02
+                # KESM 2017-08-09 highM > 10, use as BBS instead
                 # LIONIND 2017-01-05
                 if nlistP[-2] > 0:
                     topSellSignal = -2
@@ -244,7 +259,7 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
         if plistM[-1] < 10:
             if plistP[-1] < 0:
                 # m<10 and p<0
-                # PETRONM 2014-12-03, 2016-08-02 false positive
+                # PETRONM 2014-12-03
                 # KESM 2018-04-04 passed
                 topSellSignal = 3
                 tss_state = 1
@@ -266,7 +281,7 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
                     if newlowM and not newlowP and bottomV:
                         # Bottom rebound
                         # PETRONM 2016-08-02 30% upside
-                        #  - filtered due to higher plistP and lower nlistP
+                        #  - shifted to TSS2 due to valley divergence
                         #  - to be used in bottom reversal
                         topSellSignal = -3
                         tss_state = 1
@@ -612,7 +627,7 @@ def bottomBuySignals(lastTrxn, cmpvlists, composelist):
              bottomP and lastP > nlistP[-1]) \
             else 0
         '''
-        if not newlowC and posV > 0 and lastC > nlistC[-1] and \
+        if not newlowC and posV > 0 and nlistC is not None and lastC > nlistC[-1] and \
             (topM and min(nlistM) > 5 and lastM > nlistM[-1] or
              bottomP and lastP > nlistP[-1]):
             bottomrevs = 3
