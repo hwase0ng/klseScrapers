@@ -6,6 +6,7 @@ Created on Nov 2, 2018
 
 import settings as S
 from common import loadCfg
+from utils.dateutils import getBusDaysBtwnDates
 
 
 def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
@@ -24,13 +25,14 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
         print "Skipped len:", counter, len(pnlist)
         return ""
 
-    cmpvlists, composelist, hstlist, strlist = collectCompositions(pnlist, lastTrxnData)
+    matchdate, cmpvlists, composelist, hstlist, strlist = \
+        collectCompositions(pnlist, lastTrxnData)
     if cmpvlists is None:
         return ""
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
     posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
-    tss, tss_state = topSellSignals(posC, lastTrxnData, cmpvlists, composelist, hstlist)
+    tss, tss_state = topSellSignals(posC, lastTrxnData, matchdate, cmpvlists, composelist, hstlist)
     if not tss:
         bottomrevs, bbs, bbs_stage = \
             bottomBuySignals(lastTrxnData, cmpvlists, composelist)
@@ -43,27 +45,24 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     if tss:
         label = "RTL" if tss_state < 0 else "TBD" if tss == 999 else "TSS" if tss > 0 else "RTR"
-        signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, tss, tss_state,
-                                                       strC, strM, strP, strV)
+        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, tss, tss_state,
+                                                     strC, strM, strP, strV)
     elif bottomrevs:
         label = "BRK" if bottomrevs == 13 else "BRV"
-        signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bottomrevs, bbs_stage,
-                                                       strC, strM, strP, strV)
+        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bottomrevs, bbs_stage,
+                                                     strC, strM, strP, strV)
     elif bbs or bbs_stage or dbg:
         label = "OVS" if bbs else "Dbg"
-        signals = "\t%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bbs, bbs_stage,
-                                                       strC, strM, strP, strV)
-    if dbg == 2:
-        print signals.replace('\t', '')
-    else:
-        print signals
-    signals = signals.replace('\t', ",")
+        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s)" % (counter, label, bbs, bbs_stage,
+                                                     strC, strM, strP, strV)
+    prefix = "" if dbg == 2 else '\t'
+    print prefix + signals
     if "simulation" in fname:
         outfile = S.DATA_DIR + S.MVP_DIR + "simulation/signals/" + counter + "-signals.csv"
     else:
         outfile = S.DATA_DIR + S.MVP_DIR + "signals/" + counter + "-signals.csv"
     with open(outfile, "ab") as fh:
-        bbsline = lastTrxnData[0] + signals
+        bbsline = lastTrxnData[0] + "," + signals
         fh.write(bbsline + '\n')
     if "simulation" in fname:
         sss = S.DATA_DIR + S.MVP_DIR + "simulation/" + label + "-" + lastTrxnData[0] + ".csv"
@@ -71,12 +70,13 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
         sss = S.DATA_DIR + S.MVP_DIR + "signals/" + label + "-" + lastTrxnData[0] + ".csv"
         with open(sss, "ab") as fh:
             fh.write(signals + '\n')
-    return signals[1:]  # skip first comma
+    return signals
 
 
-def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
+def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlist):
     topSellSignal, tss_state = 0, 0
     peaks, valleys = False, False
+    [tolerance, pdays, ndays, matchlevel] = matchdate
     '''
     Wrong assumption as TSS 6 happens when newlowC or posC = 0
     if pricepos < 2:
@@ -115,7 +115,15 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
 
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         pass
-    elif (newhighC or topC) and not newlowC and posC > 1 and firstC <= minC + range3 and \
+    elif matchlevel > 6:
+        if bottomM and topP:
+            print "TSS 11 TBD 1"
+            topSellSignal, tss_state = 999, 11
+        elif topM and bottomP:
+            print "TSS 11 TBD 2"
+            topSellSignal, tss_state = 999, 11
+    elif matchlevel > 1 and (newhighC or topC) and not newlowC and \
+            posC > 1 and firstC <= minC + range3 and \
             ((((topP or prevtopP) and not ((prevtopM or topM) or newhighM)) or
               ((topM or prevtopM) and not ((prevtopP or topP) or newhighP))) or
                 (len(plistM) > 1 and len(plistP) > 1 and peaks and len(plistM) == len(plistP) and
@@ -169,7 +177,8 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                 print "TSS 1 TBD 2"
                 topSellSignal, tss_state = 999, 1
     # elif (newlowM or bottomM) and newlowP and prevtopC and posC > 2:
-    elif (topC or prevtopC) and posC > 0 and not bottomC and firstC < minC + range3 and \
+    elif matchlevel > 1 and (topC or prevtopC) and posC > 0 and \
+            not bottomC and firstC < minC + range3 and \
             len(plistM) > 1 and len(plistP) > 1 and len(nlistM) > 1 and len(nlistP) > 1 and \
             ((nlistM[-1] >= nlistM[-2] and nlistP[-1] < nlistP[-2]) or
              (nlistM[-1] <= nlistM[-2] and nlistP[-1] > nlistP[-2])):
@@ -226,7 +235,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                 tss_state = 3
                 # tss_state = 2 if newhighP else 1 if posP > 0 else 0
     # elif (newhighC or topC) and (newlowM or lastM < 5) and (newlowP or lastP < 0) and not topM and not topP:
-    elif (newhighC or topC) and not topM and not topP and \
+    elif matchlevel > 0 and (newhighC or topC) and not topM and not topP and \
             len(plistM) > 1 and len(plistP) > 1 and \
             len(nlistM) > 1 and len(nlistP) > 1 and \
             plistM[-1] < plistM[-2] and plistP[-1] < plistP[-2] and \
@@ -283,7 +292,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                 topSellSignal = 3
             else:
                 topSellSignal = -3
-    elif posC > 0 and (prevbottomC or bottomC) and (topV or prevtopV) and \
+    elif matchlevel > 3 and posC > 0 and (prevbottomC or bottomC) and (topV or prevtopV) and \
             (newhighM or topM) and (newhighP or topP):
         # ----- TOPS or near TOPS after rebound with valley divergence ------ #
         if topM and topP:
@@ -308,7 +317,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
             # DUFU 2018-08-02
             print "TSS 4 TBD"
             topSellSignal, tss_state = 999, 4
-    elif bottomC and posC > 1 and not newhighC and \
+    elif matchlevel > 1 and bottomC and posC > 1 and not newhighC and \
             ((topP and not (topM or (bottomM and nlistM[-1] < 0))) or
              (topM and not (topP or bottomP))):
         # ----- BOTTOMS with peaks divergence ------ #
@@ -321,7 +330,8 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
             # PETRONM 2014-06-04
             topSellSignal = 5
             tss_state = 2 if bottomM or bottomP else 1
-    elif posC < 2 and (newlowC or bottomC) and ((bottomM and not bottomP) or (bottomP and not bottomM)):
+    elif matchlevel > 0 and posC < 2 and (newlowC or bottomC) and \
+            ((bottomM and not bottomP) or (bottomP and not bottomM)):
         # ----- BOTTOMS with valleys divergence ------ #
         if plistC is None or nlistC is None or \
                 len(plistM) < 2 or len(plistP) < 2 or plistC[-1] < min(nlistC) + range3:
@@ -343,7 +353,7 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
         else:
             print "TSS 6 TBD"
             topSellSignal, tss_state = 999, 6
-    elif newhighC and newhighM and newhighP:
+    elif matchlevel > 1 and newhighC and newhighM and newhighP:
         # ----- TOPS over-bought ----- #
         # ----- lower peaks and higher valleys ? ----- #
         if plistC is None or nlistC is None or \
@@ -365,7 +375,8 @@ def topSellSignals(pricepos, lastTrxn, cmpvlists, composelist, hstlist):
                 # GKENT 2017-04-05 moving side way
                 print "TSS 7 TBD 2"
                 # topSellSignal, tss_state = 999, 7
-    elif posC > 1 and (newhighM or newhighP) and len(plistM) > 1 and len(nlistM) > 1 and \
+    elif matchlevel > 0 and posC > 1 and (newhighM or newhighP) and \
+            len(plistM) > 1 and len(nlistM) > 1 and \
             plistM[-1] > plistM[-2] and nlistM[-1] > nlistM[-2] and \
             plistP[-1] > plistP[-2] and nlistP[-1] > nlistP[-2]:
         # ----- U style bottom rebound to new high ----- #
@@ -740,6 +751,76 @@ def formListCMPV(cmpv, pnlist):
     return cmpvlist
 
 
+def datesmatching(mm, mp):
+    tolerance, matchlevel = 0, 0
+    mxpdates, mxndates = mm[0], mm[1]
+    pxpdates, pxndates = mp[0], mp[1]
+    if mxpdates is not None and pxpdates is not None:
+        pdays = abs(getBusDaysBtwnDates(mxpdates[-1], pxpdates[-1]))
+    else:
+        pdays = -1
+    if mxndates is not None and pxndates is not None:
+        ndays = abs(getBusDaysBtwnDates(mxndates[-1], pxndates[-1]))
+    else:
+        ndays = -1
+    if pdays == 0 or ndays == 0:
+        matchlevel = 5 if pdays == 0 and ndays == 0 else 4
+    else:
+        if DBGMODE:
+            print "pdays, ndays =", pdays, ndays
+        pdays1, ndays1 = pdays, ndays
+        if pdays > 0:
+            if len(mxpdates) > len(pxpdates):
+                pdays = getBusDaysBtwnDates(mxpdates[-2], pxpdates[-1])
+            elif len(mxpdates) < len(pxpdates):
+                pdays = getBusDaysBtwnDates(mxpdates[-1], pxpdates[-2])
+            elif len(mxpdates) > 1 and len(pxpdates) > 1:
+                pdays = getBusDaysBtwnDates(mxpdates[-2], pxpdates[-2])
+            pdays = abs(pdays)
+        if ndays > 0:
+            if len(mxndates) > len(pxndates):
+                ndays = getBusDaysBtwnDates(mxndates[-2], pxndates[-1])
+            elif len(mxndates) < len(pxndates):
+                ndays = getBusDaysBtwnDates(mxndates[-1], pxndates[-2])
+            elif len(mxndates) > 1 and len(pxndates) > 1:
+                ndays = getBusDaysBtwnDates(mxndates[-2], pxndates[-2])
+            ndays = abs(ndays)
+        matchlevel = 3 if pdays == 0 and ndays == 0 else 2 if pdays == 0 or ndays == 0 else 0
+
+        if not matchlevel and pdays != -1 and ndays != -1:
+            # match tops and bottoms
+            npdays1 = getBusDaysBtwnDates(mxndates[-1], pxpdates[-1])
+            pndays1 = getBusDaysBtwnDates(mxpdates[-1], pxndates[-1])
+            npdays2, pndays2 = -1, -1
+            if len(mxpdates) > 1 and len(mxndates) > 1 and len(pxpdates) > 1 and len(pxndates) > 1:
+                npdays2 = getBusDaysBtwnDates(mxndates[-2], pxpdates[-2])
+                pndays2 = getBusDaysBtwnDates(mxpdates[-2], pxndates[-2])
+            matchlevel = 7 if npdays1 == 0 and npdays2 == 0 or pndays1 == 0 and npdays2 == 0 else \
+                6 if (npdays1 == 0 or npdays2 == 0) and (pndays1 == 0 or pndays2 == 0) else 0
+            if DBGMODE:
+                print "npdays1,2, pndays1,2 =", npdays1, npdays2, pndays1, pndays2
+            if matchlevel:
+                pdays, ndays = 0, 0
+
+        if matchlevel:
+            if matchlevel < 6:
+                tolerance = 1
+        else:
+            if pdays1 != -1 and abs(pdays) < abs(pdays1) and abs(ndays) < abs(ndays1):
+                if pdays < 30 or ndays < 30:
+                    tolerance = 2
+                    matchlevel = 1
+            else:
+                if ndays1 != -1 and pdays1 < 30 or ndays1 < 30:
+                    pdays, ndays = pdays1, ndays1
+                    tolerance = 0
+                    matchlevel = 1
+    if DBGMODE:
+        print "mdates =", mxpdates, mxndates
+        print "pdates =", pxpdates, pxndates
+    return [tolerance, pdays, ndays, matchlevel]
+
+
 def collectCompositions(pnlist, lastTrxn):
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
@@ -762,10 +843,11 @@ def collectCompositions(pnlist, lastTrxn):
             (posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC, historyC)
     posC = composeC[0]
     if posC < 0:
-        return None, None, None, None
+        return None, None, None, None, None
     composeM, historyM, strM = checkposition('M', cmpvMM, firstM, lastM)
     composeP, historyP, strP = checkposition('P', cmpvMP, firstP, lastP)
     composeV, historyV, strV = checkposition('V', cmpvMV, firstV, lastV)
+    matchdate = datesmatching(cmpvMM, cmpvMP)
     if DBGMODE:
         [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
         print "M=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
@@ -776,6 +858,8 @@ def collectCompositions(pnlist, lastTrxn):
         [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
         print "V=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
             (posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV, historyV)
+        [tolerance, pdays, ndays, matchlevel] = matchdate
+        print "tol, pdays, ndays, matchlevel =", tolerance, pdays, ndays, matchlevel
 
     cmpvlists = []
     cmpvlists.append(cmpvMC)
@@ -797,7 +881,7 @@ def collectCompositions(pnlist, lastTrxn):
     strlist.append(strM)
     strlist.append(strP)
     strlist.append(strV)
-    return cmpvlists, composelist, hstlist, strlist
+    return matchdate, cmpvlists, composelist, hstlist, strlist
 
 
 if __name__ == '__main__':
