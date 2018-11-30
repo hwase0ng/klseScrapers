@@ -6,7 +6,7 @@ Arguments:
 Options:
     -c,--chartdays=<cd>     Days to display on chart [default: 300]
     -d,--displaychart       Display chart [default: False]
-    -D,--debug=(dbgopt)     Enable debug mode (A)ll, (S)ignal
+    -D,--debug=(dbgopt)     Enable debug mode (A)ll, (S)ignal, (T)est
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>      Set MVP blocking count value [default: 1]
     -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
@@ -169,7 +169,7 @@ def findpeaks(df, cmpvHL, dwfm=-1):
         pdist = 3 if dwfm < 0 else \
             5 if dwfm == 0 else \
             4 if dwfm == 1 else \
-            3
+            2  # 2018-11-30 was 3 but changed for PETRONM 2016-08-02
     if MVP_PEAKS_THRESHOLD > 0:
         cpt = MVP_PEAKS_THRESHOLD
         mpt = MVP_PEAKS_THRESHOLD
@@ -177,7 +177,7 @@ def findpeaks(df, cmpvHL, dwfm=-1):
         vpt = MVP_PEAKS_THRESHOLD
     else:
         cpt = ((cHigh - cLow) / 2) / 10
-        mpt = ((mHigh - mLow) / 2) / 50
+        mpt = ((mHigh - mLow) / 2) / 8   # 2018-11-30 was 50 but changed for PETRONM 2016-08-02
         ppt = ((pHigh - pLow) / 2) / 100
         vpt = ((vHigh - vLow) / 2) / 20
     cIndexesP, cIndexesN = indpeaks('C', df['close'], cpt, pdist, -1)
