@@ -32,49 +32,55 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
     posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
+    bottomrevs, bbs, bbs_stage = 0, 0, 0
     tss, tss_state = topSellSignals(posC, lastTrxnData, matchdate, cmpvlists, composelist, hstlist)
-    if not tss:
+    if tss <= 0:
         bottomrevs, bbs, bbs_stage = \
             bottomBuySignals(lastTrxnData, cmpvlists, composelist)
         if not bbs and not bbs_stage:
             # if (posC < 0 or posM < 0 or posP < 0):
-            if not dbg:
+            if not (tss or dbg):
                 return ""
 
-    signals = ""
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     [tolerance, pdays, ndays, matchlevel] = matchdate
+    signals = ""
+    signaldet = "(c%s,m%s,p%s,v%s),(%d,%d,%d,%d)" % (strC, strM, strP, strV,
+                                                     tolerance, pdays, ndays, matchlevel)
     if tss:
-        label = "RTL" if tss_state < 0 else "TBD" if tss > 900 else "TSS" if tss > 0 else "RTR"
-        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s),(%d,%d,%d,%d)" % \
-            (counter, label, tss, tss_state, strC, strM, strP, strV,
-             tolerance, pdays, ndays, matchlevel)
-    elif bottomrevs:
+        label = "TBD" if tss > 900 else "TSS" if tss > 0 else "RTR"
+        if tss > 0:
+            signals = "%s,%s,%d,%d,%s" % (counter, label, tss, tss_state, signaldet)
+        else:
+            signaldet = "%s,%d,%d,%s" % (label, tss, tss_state, signaldet)
+
+    if bottomrevs:
         label = "BRK" if bottomrevs == 13 else "BRV"
-        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s),(%d,%d,%d,%d)" % \
-            (counter, label, bottomrevs, bbs_stage, strC, strM, strP, strV,
-             tolerance, pdays, ndays, matchlevel)
+        signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
     elif bbs or bbs_stage or dbg:
         label = "OVS" if bbs else "Dbg"
-        signals = "%s,%s,%d,%d,(c%s,m%s,p%s,v%s),(%d,%d,%d,%d)" % \
-            (counter, label, bbs, bbs_stage, strC, strM, strP, strV,
-             tolerance, pdays, ndays, matchlevel)
-    prefix = "" if dbg == 2 else '\t'
-    print prefix + signals
+        signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
+
+    printsignal(counter, fname, lastTrxnData[0], label, signals)
+    return signals
+
+
+def printsignal(counter, fname, trxndate, label, signal):
+    prefix = "" if DBGMODE == 2 else '\t'
+    print prefix + signal
     if "simulation" in fname:
         outfile = S.DATA_DIR + S.MVP_DIR + "simulation/signals/" + counter + "-signals.csv"
     else:
         outfile = S.DATA_DIR + S.MVP_DIR + "signals/" + counter + "-signals.csv"
     with open(outfile, "ab") as fh:
-        bbsline = lastTrxnData[0] + "," + signals
+        bbsline = trxndate + "," + signal
         fh.write(bbsline + '\n')
     if "simulation" in fname:
-        sss = S.DATA_DIR + S.MVP_DIR + "simulation/" + label + "-" + lastTrxnData[0] + ".csv"
+        sss = S.DATA_DIR + S.MVP_DIR + "simulation/" + label + "-" + trxndate + ".csv"
     else:
-        sss = S.DATA_DIR + S.MVP_DIR + "signals/" + label + "-" + lastTrxnData[0] + ".csv"
+        sss = S.DATA_DIR + S.MVP_DIR + "signals/" + label + "-" + trxndate + ".csv"
         with open(sss, "ab") as fh:
-            fh.write(signals + '\n')
-    return signals
+            fh.write(signal + '\n')
 
 
 def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlist):
@@ -125,16 +131,16 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             topSellSignal, tss_state = 999, 11
         elif topM and bottomP:
             print "TSS 11 TBD 2"
-            topSellSignal, tss_state = 999, 11
+            topSellSignal, tss_state = 998, 11
         elif bottomM and bottomP:
             print "TSS 11 TBD 3"
-            topSellSignal, tss_state = 999, 11
+            topSellSignal, tss_state = 997, 11
         elif topM and topP:
             print "TSS 11 TBD 4"
-            topSellSignal, tss_state = 999, 11
+            topSellSignal, tss_state = 996, 11
         else:
             print "TSS 11 TBD 5"
-            topSellSignal, tss_state = 999, 11
+            topSellSignal, tss_state = 995, 11
     elif matchlevel > 1 and (newhighC or topC) and not newlowC and \
             posC > 1 and firstC <= minC + range3 and \
             ((((topP or prevtopP) and not ((prevtopM or topM) or newhighM)) or
@@ -152,8 +158,8 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             # Divergent detected before topC
             # LIONIND 2017-02-03 passed range check
             if plistM[-1] < 10:  # and plistP[-1] < 0:
-                topSellSignal = 1
-                if plistP[-1] > 0:
+                if plistP[-1] > 0 and plistP[-2] > 0:
+                    topSellSignal = 1
                     if topP or prevtopP:
                         # PADINI 2012-09-03 TopP divergent with lower M
                         # PETRONM 2012-05-25
@@ -171,10 +177,11 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
                     else:
                         # ANNJOO 2017-07-03 has neither topM nor topP
                         tss_state = 0
-                else:
+                elif topC or newhighC:
+                    # DUFU 2017-01-03
                     # N2N 2018-11-27
-                    # ASTINO 2017-04-05 nearing top
-                    tss_state = -1
+                    topSellSignal = -1
+                    tss_state = 2
             elif plistP[-1] > 0:
                 if newhighM or newhighP:
                     topSellSignal = 1
