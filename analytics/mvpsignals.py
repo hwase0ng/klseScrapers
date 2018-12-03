@@ -50,14 +50,15 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
     if tss:
         label = "TBD" if tss > 900 else "TSS" if tss > 0 else "RTR"
         if tss > 0:
-            signals = "%s,%s,%d,%d,%s" % (counter, label, tss, tss_state, signaldet)
+            signaldet = "%s,%d,%d,%s" % (label, tss, tss_state, signaldet)
+            signals = "%s,%s" % (counter, signaldet)
         else:
             signaldet = "%s,%d,%d,%s" % (label, tss, tss_state, signaldet)
 
     if bottomrevs:
         label = "BRK" if bottomrevs == 13 else "BRV"
         signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
-    elif bbs or bbs_stage or dbg:
+    elif bbs or bbs_stage or (dbg and dbg != 2):
         label = "OVS" if bbs else "Dbg"
         signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
     elif tss < 0:
