@@ -54,15 +54,14 @@ def scanSignals(dbg, counter, fname, pnlist, lastTrxnData):
         else:
             signaldet = "%s,%d,%d,%s" % (label, tss, tss_state, signaldet)
 
-    if tss < 0:
-        if bottomrevs:
-            label = "BRK" if bottomrevs == 13 else "BRV"
-            signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
-        elif bbs or bbs_stage or dbg:
-            label = "OVS" if bbs else "Dbg"
-            signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
-        else:
-            signals = "%s,%s" % (counter, signaldet)
+    if bottomrevs:
+        label = "BRK" if bottomrevs == 13 else "BRV"
+        signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
+    elif bbs or bbs_stage or dbg:
+        label = "OVS" if bbs else "Dbg"
+        signals = "%s,%s,%d,%d,%s" % (counter, label, bottomrevs, bbs_stage, signaldet)
+    elif tss < 0:
+        signals = "%s,%s" % (counter, signaldet)
 
     printsignal(counter, fname, lastTrxnData[0], label, signals)
     return signals
