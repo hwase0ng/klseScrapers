@@ -29,7 +29,7 @@ from common import retrieveCounters, loadCfg, formStocklist, \
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
 from mvpsignals import scanSignals
-from pandas import read_csv, Grouper
+from pandas import read_csv, Grouper, to_datetime
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates
 from utils.fileutils import tail2, wc_line_count, grepN
@@ -415,117 +415,140 @@ def line_divergence(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
     return cmpvXYPN
 
 
-def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False):
-    df, skiprow, fname = dfLoadMPV(counter, chartDays)
-    if skiprow < 0 or len(df.index) <= 0:
-        print "No chart for ", counter, skiprow
-        return
-    print "Charting: ", counter
-    mpvdate = getMpvDate(df.iloc[-1]['date'])
-    '''
-    if len(df.index) >= abs(chartDays):
-        firstidx = df.index.get_loc(df.iloc[chartDays].name)
-    else:
-    '''
-    if DBG_ALL:
-        print(df.tail(10))
-        print type(mpvdate), mpvdate
-        # print df.index.get_loc(df.iloc[chartDays].name)
-
-    figsize = (10, 5) if showchart else (15, 7)
-    axes = df.plot(x='date', figsize=figsize, subplots=True, grid=False)  # title=mpvdate + ': MPV Chart of ' + counter)
-    # Disguise axis X label as title to save on chart space
-    title = "MPV Chart of " + counter + "." + scode + ": " + mpvdate
-    axes[3].set_xlabel(title, fontsize=12)
-    axes[3].figure.canvas.set_window_title(title)
-    ax1 = plt.gca().axes.get_xaxis()
-    ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-    ax1.set_label_coords(0.84, -0.7)
-    '''
-    axlabel = ax1.get_label()
-    axlabel.set_visible(False)
-    '''
-
-    cHigh = df.iloc[df['close'].idxmax()]['close']
-    cLow = df.iloc[df['close'].idxmin()]['close']
-    mHigh = annotateMVP(df, axes[1], "M", 10)
-    mLow = df.iloc[df['M'].idxmin()]['M']
-    pHigh = df.iloc[df['P'].idxmax()]['P']
-    pLow = df.iloc[df['P'].idxmin()]['P']
-    vHigh = annotateMVP(df, axes[3], "V", 24)
-    vLow = df.iloc[df['V'].idxmin()]['V']
-    cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
-    try:
-        line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, cmpvHL)))
-    except Exception as e:
-        # just print error and continue without the required line in chart
-        print 'line divergence exception:'
-        print e
-    try:
-        if mHigh > 6:
-            axes[1].axhline(10, color='r', linestyle='--')
-        else:
-            axes[1].axhline(-5, color='r', linestyle='--')
-        axes[1].axhline(5, color='k', linestyle='--')
-        axes[2].axhline(0, color='k', linestyle='--')
-        if vHigh > 20:
-            axes[3].axhline(25, color='k', linestyle='--')
-    except Exception as e:
-        # just print error and continue without the required line in chart
-        print 'axhline exception:'
-        print e
-
-    plt.tight_layout()
-    if showchart:
-        plt.show()
-    else:
-        plt.savefig(fname + ".png")
-    plt.close()
+def plotSignals(counter, datevector, ax0):
+    prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
+    infile = prefix + counter + "-signals.csv"
+    df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
+                  names=['trxdt', 'counter',
+                         'tssname', 'tssval', 'tssstate',
+                         'bbsname', 'bbsval', 'bbsstate',
+                         'cmpv', 'mvals'])
+    df.set_index(df['trxdt'], inplace=True)
+    xmin, xmax, ymin, ymax = ax0.axis()
+    bbspos = ymin + 0.15
+    for dt in datevector:
+        try:
+            mpvdate = getMpvDate(dt)
+            dfsignal = df.loc[mpvdate]
+            tssname, tssval, tssstate, bbsname, bbsval, bbsstate = \
+                dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, \
+                dfsignal.bbsname, dfsignal.bbsval, dfsignal.bbsstate
+            '''
+            tssname, tssval, tssstate, bbsname, bbsval, bbsstate = \
+                df.loc[[mpvdate], ['tssname', 'tssval', 'tssstate',
+                                   'bbsname', 'bbsval', 'bbsstate']]
+            '''
+            if tssname in ["Dbg", "NUL"] and bbsname in ["Dbg", "NUL"]:
+                continue
+            try:
+                if tssval:
+                    symbolclr = "rv" if tssval > 0 else "r^"
+                    ax0.plot(dt, ymin, symbolclr)
+                    ax0.text(dt, ymin, str(tssval), color="red", fontsize=9)
+                if bbsval:
+                    ax0.plot(dt, bbspos, "bd")
+                    ax0.text(dt, bbspos, str(bbsval), color="red", fontsize=9)
+            except Exception as e:
+                print 'ax0.plot', mpvdate
+                print e
+        except KeyError as ke:
+            continue
 
 
-def getSynopsisDFs(counter, scode, chartDays, start=0):
-    fname = ""
-    try:
+def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
+    def getMpvDf(counter, scode, chartDays, start=0):
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
-        dfm = None
-        if skiprows >= 0 and df is not None:
-            dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
-            dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
-            dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+        if skiprows < 0 or len(df.index) <= 0:
+            print "No chart for ", counter, skiprows
+            return None, skiprows, fname, None
+        lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
+        return df, skiprows, fname, lastTrxnDate
 
-            if DBG_ALL:
-                print len(dfw), len(dff), len(dfm)
-                print dfw[-3:]
-                print dff[-3:]
-                print dfm[-3:]
-    except Exception as e:
-        print "Dataframe exception: ", counter, fname
-        print e
-    finally:
-        lasttrxn = []
-        if df is not None:
-            lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
-            lastClosingPrice = float(df.iloc[-1]['close'])
-        if dfm is not None:
-            lastC, firstC = float("{:.4f}".format(dfm.iloc[-1]['close'])), float("{:.4f}".format(dfm.iloc[0]['close']))
-            lastM, firstM = float("{:.4f}".format(dfm.iloc[-1]['M'])), float("{:.4f}".format(dfm.iloc[0]['M']))
-            lastP, firstP = float("{:.4f}".format(dfm.iloc[-1]['P'])), float("{:.4f}".format(dfm.iloc[0]['P']))
-            lastV, firstV = float("{:.4f}".format(dfm.iloc[-1]['V'])), float("{:.4f}".format(dfm.iloc[0]['V']))
-            lasttrxn = [lastTrxnDate, lastClosingPrice,
-                        lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV]
-            del df
+    def plotchart(df, fname):
+        mpvdate = getMpvDate(df.iloc[-1]['date'])
+        print "Charting: ", counter, mpvdate
+        '''
+        if len(df.index) >= abs(chartDays):
+            firstidx = df.index.get_loc(df.iloc[chartDays].name)
         else:
-            return None, None, None, None
+        '''
+        if DBG_ALL:
+            print(df.tail(10))
+            print type(mpvdate), mpvdate
+            # print df.index.get_loc(df.iloc[chartDays].name)
 
-    print " Synopsis:", counter, lastTrxnDate
-    dflist = {}
-    dflist[0] = dfw.fillna(0)
-    dflist[1] = dff.fillna(0)
-    dflist[2] = dfm.fillna(0)
+        figsize = (10, 5) if showchart else (15, 7)
+        axes = df.plot(x='date', figsize=figsize, subplots=True, grid=False)
+        # Disguise axis X label as title to save on chart space
+        title = "MPV Chart of " + counter + "." + scode + ": " + mpvdate
+        axes[3].set_xlabel(title, fontsize=12)
+        axes[3].figure.canvas.set_window_title(title)
+        ax1 = plt.gca().axes.get_xaxis()
+        ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+        ax1.set_label_coords(0.84, -0.7)
+        '''
+        axlabel = ax1.get_label()
+        axlabel.set_visible(False)
+        '''
 
-    title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
+        cHigh = df.iloc[df['close'].idxmax()]['close']
+        cLow = df.iloc[df['close'].idxmin()]['close']
+        mHigh = annotateMVP(df, axes[1], "M", 10)
+        mLow = df.iloc[df['M'].idxmin()]['M']
+        pHigh = df.iloc[df['P'].idxmax()]['P']
+        pLow = df.iloc[df['P'].idxmin()]['P']
+        vHigh = annotateMVP(df, axes[3], "V", 24)
+        vLow = df.iloc[df['V'].idxmin()]['V']
+        cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
+        try:
+            line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, cmpvHL)))
+            plotSignals(counter, df['date'], axes[0])
+        except Exception as e:
+            # just print error and continue without the required line in chart
+            print 'line divergence exception:'
+            print e
+        try:
+            if mHigh > 6:
+                axes[1].axhline(10, color='r', linestyle='--')
+            else:
+                axes[1].axhline(-5, color='r', linestyle='--')
+            axes[1].axhline(5, color='k', linestyle='--')
+            axes[2].axhline(0, color='k', linestyle='--')
+            if vHigh > 20:
+                axes[3].axhline(25, color='k', linestyle='--')
+        except Exception as e:
+            # just print error and continue without the required line in chart
+            print 'axhline exception:'
+            print e
 
-    return dflist, title, fname, lasttrxn
+        plt.tight_layout()
+        if showchart:
+            plt.show()
+        else:
+            plt.savefig(fname + ".png")
+        plt.close()
+
+    if simulation is None or len(simulation) == 0:
+        df, skiprow, fname, _ = getMpvDf(counter, scode, chartDays)
+        if df is None:
+            return
+        plotchart(df, fname)
+    else:
+        nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation)
+        if len(nums) <= 0:
+            print "Input not found:", simulation
+            return
+        start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
+        while True:
+            dflist, title, fname, lastdate = getMpvDf(counter, scode, chartDays, start)
+            if dflist is None:
+                continue
+            plotchart(dflist, fname + "_" + lastdate)
+            if start > end:
+                start -= step
+            else:
+                break
+        return False
 
 
 def numsFromDate(counter, datestr):
@@ -551,6 +574,50 @@ def numsFromDate(counter, datestr):
 
 
 def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
+    def getSynopsisDFs(counter, scode, chartDays, start=0):
+        fname = ""
+        try:
+            df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
+            dfm = None
+            if skiprows >= 0 and df is not None:
+                dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
+                dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
+                dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+
+                if DBG_ALL:
+                    print len(dfw), len(dff), len(dfm)
+                    print dfw[-3:]
+                    print dff[-3:]
+                    print dfm[-3:]
+        except Exception as e:
+            print "Dataframe exception: ", counter, fname
+            print e
+        finally:
+            lasttrxn = []
+            if df is not None:
+                lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
+                lastClosingPrice = float(df.iloc[-1]['close'])
+            if dfm is not None:
+                lastC, firstC = float("{:.4f}".format(dfm.iloc[-1]['close'])), float("{:.4f}".format(dfm.iloc[0]['close']))
+                lastM, firstM = float("{:.4f}".format(dfm.iloc[-1]['M'])), float("{:.4f}".format(dfm.iloc[0]['M']))
+                lastP, firstP = float("{:.4f}".format(dfm.iloc[-1]['P'])), float("{:.4f}".format(dfm.iloc[0]['P']))
+                lastV, firstV = float("{:.4f}".format(dfm.iloc[-1]['V'])), float("{:.4f}".format(dfm.iloc[0]['V']))
+                lasttrxn = [lastTrxnDate, lastClosingPrice,
+                            lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV]
+                del df
+            else:
+                return None, None, None, None
+
+        print " Synopsis:", counter, lastTrxnDate
+        dflist = {}
+        dflist[0] = dfw.fillna(0)
+        dflist[1] = dff.fillna(0)
+        dflist[2] = dfm.fillna(0)
+
+        title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
+
+        return dflist, title, fname, lasttrxn
+
     def doPlotting(outname):
         '''
         # sharex is causing the MONTH column to be out of alignment
@@ -751,6 +818,6 @@ if __name__ == '__main__':
                             args['--displaychart'], args['--simulation'])
             else:
                 mvpChart(shortname, stocklist[shortname], chartDays,
-                         args['--displaychart'])
+                         args['--displaychart'], simulation=args['--simulation'])
         except Exception:
             traceback.print_exc()
