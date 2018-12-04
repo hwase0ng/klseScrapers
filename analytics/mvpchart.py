@@ -442,12 +442,13 @@ def plotSignals(counter, datevector, ax0):
                 continue
             try:
                 if tssval:
-                    symbolclr = "rv" if tssval > 0 else "r^"
+                    symbolclr = "go" if tssstate == 0 else "rv" if tssval > 0 else "g^"
+                    fontclr = "red" if tssval > 0 else "green"
                     ax0.plot(dt, ymin, symbolclr)
-                    ax0.text(dt, ymin, str(tssval), color="red", fontsize=9)
+                    ax0.text(dt, ymin, str(tssval), color=fontclr, fontsize=9)
                 if bbsval:
                     ax0.plot(dt, bbspos, "bd")
-                    ax0.text(dt, bbspos, str(bbsval), color="red", fontsize=9)
+                    ax0.text(dt, bbspos, str(bbsval), color="blue", fontsize=9)
             except Exception as e:
                 print 'ax0.plot', mpvdate
                 print e
