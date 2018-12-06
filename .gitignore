@@ -105,6 +105,7 @@ ENV/
 /data/investingcom
 /data/yahoo
 /data/wsj
+*.png
 *.csv
 *.csvtmp
 *.fin
