@@ -3,7 +3,7 @@ Created on Apr 27, 2018
 
 @author: hwase0ng
 '''
-from utils.dateutils import getToday, getDayOffset
+from utils.dateutils import getToday, getDayOffset, generate_dates
 from utils.fileutils import wc_line_count
 import csv
 import json
@@ -381,6 +381,25 @@ def combineList(listoflists):
     return ylist
 
 
+def matchdates(list1, list2, approx=20):
+    matchdict = {}
+    for i, val in enumerate(list1):
+        try:
+            j = list2.index(val)
+        except ValueError:
+            j = -1
+            if approx:
+                dates = generate_dates(getDayOffset(val, approx * -1), getDayOffset(val, approx))
+                for k, newval in enumerate(list2):
+                    if newval in dates:
+                        if S.DBG_ALL:
+                            print len(list2), k, val, newval
+                        j = k
+                        break
+        matchdict[i - len(list1)] = 0 if j < 0 else j - len(list2)
+    return matchdict
+
+
 if __name__ == '__main__':
     '''
     line = "3A,0012,THREE-A RESOURCES BHD,507"
@@ -395,10 +414,20 @@ if __name__ == '__main__':
     with cd('scrapers/i3'):
         print getDataDir('data/')
     '''
+    '''
     lists = [['2018-03-31', '2018-04-05'], ['2018-01-05', '2018-04-01'], [1.2, 1.5], [1.1, 2.0]]
     print combineList(lists)
     lists = [['2018-03-01', '2018-03-05', '2018-04-30'], ['2018-01-05', '2018-04-01'], [1.2, 1.5, 1.7], [1.1, 2.0]]
     print combineList(lists)
     lists = [['2018-03-31', '2018-04-05'], ['2018-04-01'], [1.2, 1.5], [2.0]]
     print combineList(lists)
-    pass
+    '''
+    mdatesp = ['2013-03-31', '2013-10-31', '2013-12-31', '2014-03-03']
+    pdatesp = ['2013-01-31', '2013-03-31', '2013-06-30', '2013-09-30', '2013-12-31']
+    mdatesn = ['2013-07-31', '2013-11-30', '2014-02-28']
+    pdatesn = ['2013-02-28', '2013-04-30', '2013-07-31', '2013-11-30', '2014-02-28']
+    print matchdates(mdatesn, pdatesn)
+    m = matchdates(mdatesp, pdatesp)
+    print m
+    for k, v in enumerate(sorted(m, reverse=True)):
+        print k, v, m[v]
