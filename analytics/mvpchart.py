@@ -25,7 +25,7 @@ Created on Oct 16, 2018
 '''
 
 from common import retrieveCounters, loadCfg, formStocklist, \
-    loadKlseCounters, match_approximate2, getSkipRows
+    loadKlseCounters, match_approximate2, getSkipRows, matchdates
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
 from mvpsignals import scanSignals
@@ -169,7 +169,7 @@ def findpeaks(df, cmpvHL, dwfm=-1):
         pdist = 3 if dwfm < 0 else \
             5 if dwfm == 0 else \
             4 if dwfm == 1 else \
-            2  # 2018-11-30 was 3 but changed for PETRONM 2016-08-02
+            1  # 2018-11-30 was 3 but changed for PETRONM 2016-08-02 and DUFU 2012-05-22
     if MVP_PEAKS_THRESHOLD > 0:
         cpt = MVP_PEAKS_THRESHOLD
         mpt = MVP_PEAKS_THRESHOLD
@@ -178,7 +178,7 @@ def findpeaks(df, cmpvHL, dwfm=-1):
     else:
         cpt = ((cHigh - cLow) / 2) / 10
         mpt = ((mHigh - mLow) / 2) / 8   # 2018-11-30 was 50 but changed for PETRONM 2016-08-02
-        ppt = ((pHigh - pLow) / 2) / 100
+        ppt = ((pHigh - pLow) / 2) / 10
         vpt = ((vHigh - vLow) / 2) / 20
     cIndexesP, cIndexesN = indpeaks('C', df['close'], cpt, pdist, -1)
     mIndexesP, mIndexesN = indpeaks('M', df['M'], mpt, pdist, 1 if mLow > 0 else -1)
@@ -273,10 +273,11 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
 
 
 def formCmpvlines(cindexes, ccount):
+    del cindexes['V'], ccount['V']
     cmpvlist = sorted(ccount.items(), key=operator.itemgetter(1), reverse=True)
     cmpvlines = {}
-    for i in range(len(cmpvlist) - 1):
-        for j in range(i + 1, len(cmpvlist) - 1):
+    for i in range(len(cmpvlist)):
+        for j in range(i + 1, len(cmpvlist)):
             if DBG_ALL:
                 print i, j, cmpvlist[i][0], cmpvlist[j][0]
             cmpv = cindexes[cmpvlist[i][0]][0]
@@ -301,8 +302,7 @@ def formCmpvlines(cindexes, ccount):
 
 
 def plotlines(axes, cmpvlines, pindexes, peaks):
-    cmpv = {'C': 0, 'M': 1, 'P': 2, 'V': 3}
-    colormap = {'C': 'b', 'M': 'darkorange', 'P': 'g', 'V': 'r'}
+    divdict = {}
     for k, v in cmpvlines.iteritems():
         c1, c2 = v[0], v[1]
         if sum(val for val in c1) < 2:
@@ -331,88 +331,135 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
         p4 = np.transpose(np.asarray(p2, dtype=object))
         p1x, p1y = list(p3[0]), list(p3[1])
         p2x, p2y = list(p4[0]), list(p4[1])
-        # compute the difference between neighboring y elements
-        d1 = list(np.ediff1d(p1y))
-        d2 = list(np.ediff1d(p2y))
-        # new list for quick comparison between points
-        xlist1, xlist2 = {}, {}
-        ylist1, ylist2 = [], []
-        for k2, v2 in pindexes[k[0]][1].iteritems():
-            # parsing chart1 sequence index
-            # k2 = seq, v2 = [date, pos]
-            xlist1[v2[0]] = k2
-            ylist1.append(v2[1])
-        for k2, v2 in pindexes[k[1]][1].iteritems():
-            # parsing chart2 sequence index
-            # k2 = seq, v2 = [date, pos]
-            xlist2[v2[0]] = k2
-            ylist2.append(v2[1])
-        for i in xrange(len(d1) - 1, 0, -1):
-            # start from the back
-            if (d1[i] > 0 and d2[i] < 0) or \
-               (d1[i] < 0 and d2[i] > 0):
-                '''
-                divergence detected, filters non-sensible divergence
-                   e.g. points too far apart,
-                        too many higher/lower peaks in between points
-                '''
-                p1date1, p1date2 = p1x[i], p1x[i + 1]
-                p1y1, p1y2 = p1y[i], p1y[i + 1]
-                point1, point2 = xlist1[p1date1], xlist1[p1date2]
-                c1y = np.array(ylist1[point1:point2])
+        divcount = drawlinesV2(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y)
+        if divcount > 0:
+            divdict[k] = divcount
+    return divdict
 
-                p2date1, p2date2 = p2x[i], p2x[i + 1]
-                p2y1, p2y2 = p2y[i], p2y[i + 1]
-                point1, point2 = xlist2[p2date1], xlist2[p2date2]
-                c2y = np.array(ylist2[point1:point2])
-                if DBG_ALL:
-                    print p1date1, p1date2, min(p1y1, p1y2), max(p1y1, p1y2), c1y, peaks
-                if peaks:
-                    c1count = c1y[c1y > min(p1y1, p1y2)]
-                    c2count = c2y[c2y > min(p2y1, p2y2)]
-                    if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
-                        if DBG_ALL:
-                            print max(len(c1count), len(c2count)), c1y, c2y
-                        continue
-                    lstyle = ":" if d1[i] > 0 else "--"
-                else:
-                    c1count = c1y[c1y < max(p1y1, p1y2)]
-                    c2count = c2y[c2y < max(p2y1, p2y2)]
-                    if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
-                        if DBG_ALL:
-                            print max(len(c1count), len(c2count)), c1y, c2y
-                        continue
-                    lstyle = "--" if d1[i] > 0 else ":"
-                axes[cmpv[k[0]]].annotate("", xy=(p1date1, p1y1), xycoords='data',
-                                          xytext=(p1date2, p1y2),
-                                          arrowprops=dict(arrowstyle="-", color=colormap[k[1]],
-                                                          linestyle=lstyle,
-                                                          connectionstyle="arc3,rad=0."),
-                                          )
-                axes[cmpv[k[1]]].annotate("", xy=(p2date1, p2y1), xycoords='data',
-                                          xytext=(p2date2, p2y2),
-                                          arrowprops=dict(arrowstyle="-", color=colormap[k[0]],
-                                                          linestyle=lstyle,
-                                                          connectionstyle="arc3,rad=0."),
-                                          )
-                '''
-                axes[cmpv[k[0]]].plot([p1x[i], p1x[i + 1]],
-                                      [p1y[i], p1y[i + 1]])
-                axes[cmpv[k[1]]].plot([p2x[i], p2x[i + 1]],
-                                      [p2y[i], p2y[i + 1]])
-                '''
+
+def drawlinesV2(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y):
+    p1date1, p1date2, p2date1, p2date2 = None, None, None, None
+    matchlist = matchdates(p1x, p2x)
+    divcount = 0
+    for v in sorted(matchlist, reverse=True):
+        if matchlist[v] == 0:
+            continue
+        if p1date1 is None:
+            p1date1, p2date1 = p1x[v], p2x[matchlist[v]]
+            p1y1, p2y1 = p1y[v], p2y[matchlist[v]]
+        else:
+            p1date2, p2date2 = p1x[v], p2x[matchlist[v]]
+            p1y2, p2y2 = p1y[v], p2y[matchlist[v]]
+            if p1y1 > p1y2 and p2y1 > p2y2 or \
+                    p1y1 < p1y2 and p2y1 < p2y2:
+                continue
+            divcount += 1
+            if peaks:
+                lstyle = ":" if p1y1 > p1y2 else "--"
+            else:
+                lstyle = "--" if p1y1 < p1y2 else ":"
+            annotatelines(axes, k, lstyle,
+                          p1date1, p1date2, p2date1, p2date2,
+                          p1y1, p1y2, p2y1, p2y2)
+    return divcount
+
+
+def annotatelines(axes, k, lstyle, p1date1, p1date2, p2date1, p2date2, p1y1, p1y2, p2y1, p2y2):
+    cmpv = {'C': 0, 'M': 1, 'P': 2, 'V': 3}
+    colormap = {'C': 'b', 'M': 'darkorange', 'P': 'g', 'V': 'r'}
+    axes[cmpv[k[0]]].annotate("", xy=(p1date1, p1y1), xycoords='data',
+                              xytext=(p1date2, p1y2),
+                              arrowprops=dict(arrowstyle="-", color=colormap[k[1]],
+                                              linestyle=lstyle,
+                                              connectionstyle="arc3,rad=0."),
+                              )
+    axes[cmpv[k[1]]].annotate("", xy=(p2date1, p2y1), xycoords='data',
+                              xytext=(p2date2, p2y2),
+                              arrowprops=dict(arrowstyle="-", color=colormap[k[0]],
+                                              linestyle=lstyle,
+                                              connectionstyle="arc3,rad=0."),
+                              )
+    '''
+    axes[cmpv[k[0]]].plot([p1x[i], p1x[i + 1]],
+                          [p1y[i], p1y[i + 1]])
+    axes[cmpv[k[1]]].plot([p2x[i], p2x[i + 1]],
+                          [p2y[i], p2y[i + 1]])
+    '''
+
+
+def drawlines(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y):
+    divcount = 0
+    # compute the difference between neighboring y elements
+    d1 = list(np.ediff1d(p1y))
+    d2 = list(np.ediff1d(p2y))
+    # new list for quick comparison between points
+    xlist1, xlist2 = {}, {}
+    ylist1, ylist2 = [], []
+    for k2, v2 in pindexes[k[0]][1].iteritems():
+        # parsing chart1 sequence index
+        # k2 = seq, v2 = [date, pos]
+        xlist1[v2[0]] = k2
+        ylist1.append(v2[1])
+    for k2, v2 in pindexes[k[1]][1].iteritems():
+        # parsing chart2 sequence index
+        # k2 = seq, v2 = [date, pos]
+        xlist2[v2[0]] = k2
+        ylist2.append(v2[1])
+    for i in xrange(len(d1) - 1, 0, -1):
+        # start from the back
+        if (d1[i] > 0 and d2[i] < 0) or \
+           (d1[i] < 0 and d2[i] > 0):
+            divcount += 1
+            '''
+            divergence detected, filters non-sensible divergence
+               e.g. points too far apart,
+                    too many higher/lower peaks in between points
+            '''
+            p1date1, p1date2 = p1x[i], p1x[i + 1]
+            p1y1, p1y2 = p1y[i], p1y[i + 1]
+            point1, point2 = xlist1[p1date1], xlist1[p1date2]
+            c1y = np.array(ylist1[point1:point2])
+
+            p2date1, p2date2 = p2x[i], p2x[i + 1]
+            p2y1, p2y2 = p2y[i], p2y[i + 1]
+            point1, point2 = xlist2[p2date1], xlist2[p2date2]
+            c2y = np.array(ylist2[point1:point2])
+            if DBG_ALL:
+                print p1date1, p1date2, min(p1y1, p1y2), max(p1y1, p1y2), c1y, peaks
+            if peaks:
+                c1count = c1y[c1y > min(p1y1, p1y2)]
+                c2count = c2y[c2y > min(p2y1, p2y2)]
+                if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
+                    if DBG_ALL:
+                        print max(len(c1count), len(c2count)), c1y, c2y
+                    continue
+                lstyle = ":" if d1[i] > 0 else "--"
+            else:
+                c1count = c1y[c1y < max(p1y1, p1y2)]
+                c2count = c2y[c2y < max(p2y1, p2y2)]
+                if max(len(c1count), len(c2count)) > MVP_DIVERGENCE_BLOCKING_COUNT:
+                    if DBG_ALL:
+                        print max(len(c1count), len(c2count)), c1y, c2y
+                    continue
+                lstyle = "--" if d1[i] > 0 else ":"
+            annotatelines(axes, k, lstyle,
+                          p1date1, p1date2, p2date1, p2date2,
+                          p1y1, p1y2, p2y1, p2y2)
+    return divcount
 
 
 def line_divergence(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
     cmpvlinesP = formCmpvlines(cIP, cCP)
     cmpvlinesN = formCmpvlines(cIN, cCN)
-    plotlines(axes, cmpvlinesP, cIP, True)
-    plotlines(axes, cmpvlinesN, cIN, False)
+    pdiv = plotlines(axes, cmpvlinesP, cIP, True)
+    ndiv = plotlines(axes, cmpvlinesN, cIN, False)
     del cIP
     del cIN
     del cCP
     del cCN
-    return cmpvXYPN
+    del cmpvlinesP
+    del cmpvlinesN
+    return cmpvXYPN, pdiv, ndiv
 
 
 def plotSignals(counter, datevector, ax0):
@@ -636,14 +683,15 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         figsize = (10, 5) if showchart else (15, 7)
         fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=title)
         fig.canvas.set_window_title(title)
-        _, pnList = plotSynopsis(dflist, axes)
+        _, pnList, pdiv, ndiv = plotSynopsis(dflist, axes)
 
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, lasttrxn)
+        signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, pdiv, ndiv, lasttrxn)
         if len(signals):
             fig.suptitle(title + " [" + signals + "]")
         else:
             fig.suptitle(title + " [" + counter + "]")
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         if showchart:
             plt.show()
         else:
@@ -699,6 +747,7 @@ def plotSynopsis(dflist, axes):
     pHigh = dfw.loc[dfw['P'].idxmax()]['P']
     '''
     hlList, pnList = [], []
+    pdiv, ndiv = {}, {}
     try:
         for i in range(3):
             ax = {}
@@ -731,8 +780,8 @@ def plotSynopsis(dflist, axes):
 
             cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
             # hlList.append(cmpvHL)
-            cmpvXYPN = line_divergence(ax, *plotpeaks(dflist[i], ax,
-                                                      *findpeaks(dflist[i], cmpvHL, i)))
+            cmpvXYPN, pdiv, ndiv = line_divergence(ax, *plotpeaks(dflist[i], ax,
+                                                                  *findpeaks(dflist[i], cmpvHL, i)))
             pnList.append(cmpvXYPN)
     except Exception as e:
         # just print error and continue without the required line in chart
@@ -757,7 +806,7 @@ def plotSynopsis(dflist, axes):
         print 'axhline exception:'
         print e
 
-    return hlList, pnList
+    return hlList, pnList, pdiv, ndiv
 
 
 def globals_from_args(args):
