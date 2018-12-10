@@ -384,19 +384,21 @@ def combineList(listoflists):
 def matchdates(list1, list2, approx=20):
     matchdict = {}
     for i, val in enumerate(list1):
+        matchtolerance = 0
         try:
             j = list2.index(val)
         except ValueError:
             j = -1
             if approx:
-                dates = generate_dates(getDayOffset(val, approx * -1), getDayOffset(val, approx))
-                for k, newval in enumerate(list2):
-                    if newval in dates:
-                        if S.DBG_ALL:
-                            print len(list2), k, val, newval
-                        j = k
+                startdate = getDayOffset(val, approx * -1)
+                enddate = getDayOffset(val, approx)
+                for newval in list2:
+                    if newval >= startdate and val <= enddate:
+                        matchtolerance = 1
+                        j = list2.index(newval)
                         break
-        matchdict[i - len(list1)] = 0 if j < 0 else j - len(list2)
+        matchval = 0 if j < 0 else j - len(list2)
+        matchdict[i - len(list1)] = [matchval, matchtolerance]
     return matchdict
 
 
