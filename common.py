@@ -381,7 +381,7 @@ def combineList(listoflists):
     return ylist
 
 
-def matchdates(list1, list2, approx=20):
+def matchdates(list1, list2, approx=30):
     matchdict = {}
     for i, val in enumerate(list1):
         matchtolerance = 0
@@ -398,7 +398,10 @@ def matchdates(list1, list2, approx=20):
                         j = list2.index(newval)
                         break
         matchval = 0 if j < 0 else j - len(list2)
-        matchdict[i - len(list1)] = [matchval, matchtolerance]
+        matchdict[i - len(list1)] = [matchval, matchtolerance, val]
+        if len(matchdict[i - len(list1)]) > 4:
+            # avoid too many matchings
+            break
     return matchdict
 
 
