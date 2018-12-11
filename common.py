@@ -399,9 +399,6 @@ def matchdates(list1, list2, approx=30):
                         break
         matchval = 0 if j < 0 else j - len(list2)
         matchdict[i - len(list1)] = [matchval, matchtolerance, val]
-        if len(matchdict[i - len(list1)]) > 4:
-            # avoid too many matchings
-            break
     return matchdict
 
 

@@ -364,7 +364,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
 
     def find_divergence(matchlist):
         p1date1, p1date2, p2date1, p2date2 = None, None, None, None
-        matchdt, divcount, tolerance = None, 0, 0
+        matchdt, divcount, tolerance, nodiv = None, 0, 0, 0
         for v in sorted(matchlist, reverse=True):
             if matchlist[v][0] == 0:
                 continue
@@ -377,6 +377,9 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 p1y2, p2y2 = p1y[v], p2y[matchlist[v][0]]
                 if p1y1 > p1y2 and p2y1 > p2y2 or \
                         p1y1 < p1y2 and p2y1 < p2y2:
+                    nodiv += 1
+                    if nodiv > 3:
+                        break
                     continue
                 divcount += 1
                 tolerance += matchlist[v][1]
@@ -396,6 +399,9 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 annotatelines(axes, k, lstyle,
                               p1date1, p1date2, p2date1, p2date2,
                               p1y1, p1y2, p2y1, p2y2)
+                if divcount > 2:
+                    # avoid too many matchings
+                    break
         return matchdt, 1, divcount, tolerance
 
     if p1x is None or p2x is None:
