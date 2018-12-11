@@ -331,37 +331,10 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
         p4 = np.transpose(np.asarray(p2, dtype=object))
         p1x, p1y = list(p3[0]), list(p3[1])
         p2x, p2y = list(p4[0]), list(p4[1])
-        divcount = drawlinesV2(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y)
+        divcount = drawlines(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y)
         if divcount > 0:
             divdict[k] = divcount
     return divdict
-
-
-def drawlinesV2(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y):
-    p1date1, p1date2, p2date1, p2date2 = None, None, None, None
-    matchlist = matchdates(p1x, p2x)
-    divcount = 0
-    for v in sorted(matchlist, reverse=True):
-        if matchlist[v] == 0:
-            continue
-        if p1date1 is None:
-            p1date1, p2date1 = p1x[v], p2x[matchlist[v]]
-            p1y1, p2y1 = p1y[v], p2y[matchlist[v]]
-        else:
-            p1date2, p2date2 = p1x[v], p2x[matchlist[v]]
-            p1y2, p2y2 = p1y[v], p2y[matchlist[v]]
-            if p1y1 > p1y2 and p2y1 > p2y2 or \
-                    p1y1 < p1y2 and p2y1 < p2y2:
-                continue
-            divcount += 1
-            if peaks:
-                lstyle = ":" if p1y1 > p1y2 else "--"
-            else:
-                lstyle = "--" if p1y1 < p1y2 else ":"
-            annotatelines(axes, k, lstyle,
-                          p1date1, p1date2, p2date1, p2date2,
-                          p1y1, p1y2, p2y1, p2y2)
-    return divcount
 
 
 def annotatelines(axes, k, lstyle, p1date1, p1date2, p2date1, p2date2, p1y1, p1y2, p2y1, p2y2):
@@ -385,6 +358,133 @@ def annotatelines(axes, k, lstyle, p1date1, p1date2, p2date1, p2date2, p1y1, p1y
     axes[cmpv[k[1]]].plot([p2x[i], p2x[i + 1]],
                           [p2y[i], p2y[i + 1]])
     '''
+
+
+def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
+
+    def find_divergence(matchlist):
+        p1date1, p1date2, p2date1, p2date2 = None, None, None, None
+        matchdt, divcount, tolerance = None, 0, 0
+        for v in sorted(matchlist, reverse=True):
+            if matchlist[v][0] == 0:
+                continue
+            if p1date1 is None:
+                p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
+                p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
+                matchdt = matchlist[v][2]
+            else:
+                p1date2, p2date2 = p1x[v], p2x[matchlist[v][0]]
+                p1y2, p2y2 = p1y[v], p2y[matchlist[v][0]]
+                if p1y1 > p1y2 and p2y1 > p2y2 or \
+                        p1y1 < p1y2 and p2y1 < p2y2:
+                    continue
+                divcount += 1
+                tolerance += matchlist[v][1]
+                '''
+                # Regular divergence                   Hidden divergence:
+                #   Bias,     Price,       Oscillator      Bias,     Price,       Oscillator
+                #   ----------------------------------    -----------------------------------
+                #   Bullish,  Lower Low,   Higher Low      Bullish,  Higher Low,  Lower Low
+                #   Bearish,  Higher High, Lower High      Bearish,  Lower High,  Higher High
+                #
+                #  i.e. PEAK divergence = Bearish, VALLEY divergence = BULLISH
+                '''
+                if matchlist[v][1] == 0:
+                    lstyle = "-" if peaks else "-."
+                else:
+                    lstyle = "--" if peaks else ":"
+                annotatelines(axes, k, lstyle,
+                              p1date1, p1date2, p2date1, p2date2,
+                              p1y1, p1y2, p2y1, p2y2)
+        return matchdt, 1, divcount, tolerance
+
+    if p1x is None or p2x is None:
+        return None, 0, 0, 0
+    matchlist = matchdates(p1x, p2x)
+    matchdt, divtype, divcount, tolerance = find_divergence(matchlist)
+    return matchlist, matchdt, divtype, divcount, tolerance
+
+
+def plotlinesV2(axes, cmpvXYPN):
+
+    def find_nondivergence(pmatch, nmatch):
+        [plist, p1x, p2x, p1y, p2y] = pmatch
+        [nlist, n1x, n2x, n1y, n2y] = nmatch
+        if len(p1x) < 2 or len(p2x) < 2 or len(n1x) < 2 or len(n2x) < 2:
+            return None, 0, 0, 0
+        matchdt, divcount, tolerance, divtype = None, 0, 0, 0
+        p1y1, p2y1 = p1y[-1], p2y[-1]
+        p1y2, p2y2 = p1y[-2], p2y[-2]
+        n1y1, n2y1 = n1y[-1], n2y[-1]
+        n1y2, n2y2 = n1y[-2], n2y[-2]
+        if p1y1 < p1y2 and p2y1 < p2y2 and n1y1 >= n1y2 and n2y1 >= n2y2:
+            # Lower peaks with higher valleys
+            divtype = 3
+        elif p1y1 > p1y2 and p2y1 > p2y2 and n1y1 >= n1y2 and n2y1 >= n2y2:
+            # Higher peaks with higher valleys
+            divtype = 4
+        elif p1y1 > p1y2 and p2y1 > p2y2 and n1y1 <= n1y2 and n2y1 <= n2y2:
+            # Higher peaks with lower valleys
+            divtype = 5
+        elif p1y1 < p1y2 and p2y1 < p2y2 and n1y1 <= n1y2 and n2y1 <= n2y2:
+            # Lower peaks with lower valleys
+            divtype = 6
+
+        if divtype:
+            p1date1, p2date1 = p1x[-1], p2x[-1]
+            p1date2, p2date2 = p1x[-2], p2x[-2]
+            n1date1, n2date1 = n1x[-1], n2x[-1]
+            n1date2, n2date2 = n1x[-2], n2x[-2]
+            divcount = 1
+            lstyle = "--" if peaks else ":"
+            annotatelines(axes, k, lstyle,
+                          p1date1, p1date2, p2date1, p2date2,
+                          p1y1, p1y2, p2y1, p2y2)
+            annotatelines(axes, k, lstyle,
+                          n1date1, n1date2, n2date1, n2date2,
+                          n1y1, n1y2, n2y1, n2y2)
+        return "", divtype, divcount, tolerance
+
+    [cmpvXP, cmpvXN, cmpvYP, cmpvYN] = cmpvXYPN
+    '''
+    cxp, mxp, pxp = cmpvXP[0], cmpvXP[1], cmpvXP[2]
+    cxn, mxn, pxn = cmpvXN[0], cmpvXN[1], cmpvXN[2]
+    cyp, myp, pyp = cmpvYP[0], cmpvYP[1], cmpvYP[2]
+    cyn, myn, pyn = cmpvYN[0], cmpvYN[1], cmpvYN[2]
+    '''
+    lineseq = [['CM', True, 0, 1], ['CM', False, 0, 1],
+               ['CP', True, 0, 2], ['CP', False, 0, 2],
+               ['MP', True, 1, 2], ['MP', False, 1, 2]]
+    pmatch, nmatch = {}, {}
+    pdiv, ndiv, odiv = {}, {}, {}
+    for i in lineseq:
+        peaks = i[1]
+        if peaks:
+            k, p1x, p2x, p1y, p2y = i[0], cmpvXP[i[2]], cmpvXP[i[3]], cmpvYP[i[2]], cmpvYP[i[3]]
+        else:
+            k, p1x, p2x, p1y, p2y = i[0], cmpvXN[i[2]], cmpvXN[i[3]], cmpvYN[i[2]], cmpvYN[i[3]]
+        matchlist, matchdt, divtype, divcount, matchtol = drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
+        if divcount > 0:
+            if peaks:
+                pdiv[k] = [matchdt, divtype, divcount, matchtol]
+            else:
+                ndiv[k] = [matchdt, divtype, divcount, matchtol]
+        else:
+            if peaks:
+                pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
+            else:
+                nmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
+    if "MP" in pmatch and "MP" in nmatch:
+        matchdt, divtype, divcount, matchtol = find_nondivergence(pmatch["MP"], nmatch["MP"])
+        if divcount > 0:
+            odiv[k] = [matchdt, divtype, divcount, matchtol]
+    return pdiv, ndiv, odiv
+
+
+def line_divergenceV2(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
+    del cIP, cIN, cCP, cCN
+    pdiv, ndiv, odiv = plotlinesV2(axes, cmpvXYPN)
+    return cmpvXYPN, pdiv, ndiv, odiv
 
 
 def drawlines(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y):
@@ -683,9 +783,9 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         figsize = (10, 5) if showchart else (15, 7)
         fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=title)
         fig.canvas.set_window_title(title)
-        _, pnList, pdiv, ndiv = plotSynopsis(dflist, axes)
+        _, pnList, pdiv, ndiv, odiv = plotSynopsis(dflist, axes)
 
-        signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, pdiv, ndiv, lasttrxn)
+        signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, pdiv, ndiv, odiv, lasttrxn)
         if len(signals):
             fig.suptitle(title + " [" + signals + "]")
         else:
@@ -747,46 +847,46 @@ def plotSynopsis(dflist, axes):
     pHigh = dfw.loc[dfw['P'].idxmax()]['P']
     '''
     hlList, pnList = [], []
-    pdiv, ndiv = {}, {}
-    try:
-        for i in range(3):
-            ax = {}
-            for j in range(4):
-                if j != 3:
-                    axlabel = axes[j, i].get_xaxis()
-                    axlabel.set_visible(False)
-                '''
-                axes[j, i].xaxis.grid(True)
+    pdiv, ndiv, odiv = {}, {}, {}
+    for i in range(3):
+        ax = {}
+        for j in range(4):
+            if j != 3:
+                axlabel = axes[j, i].get_xaxis()
+                axlabel.set_visible(False)
+            '''
+            axes[j, i].xaxis.grid(True)
 
-                mHigh = annotateMVP(dflist[i], axes[j, i], "M", 7)
-                vHigh = annotateMVP(dflist[i], axes[j, i], "V", 20)
-                pHigh = dflist[i].loc[dflist[i]['P'].idxmax()]['P']
-
-                # ax[0] = axes[0, 0], axes[0, 1], axes[0, 2]
-                # ax[1] = axes[1, 0], axes[1, 1], axes[1, 2]
-                # ax[2] = axes[2, 0], axes[2, 1], axes[2, 2]
-                # ax[3] = axes[3, 0], axes[3, 1], axes[3, 2]
-                '''
-                ax[j] = axes[j, i]
-
-            cHigh = dflist[i].loc[dflist[i]['close'].idxmax()]['close']
-            cLow = dflist[i].loc[dflist[i]['close'].idxmin()]['close']
-            mHigh = dflist[i].loc[dflist[i]['M'].idxmax()]['M']
-            mLow = dflist[i].loc[dflist[i]['M'].idxmin()]['M']
+            mHigh = annotateMVP(dflist[i], axes[j, i], "M", 7)
+            vHigh = annotateMVP(dflist[i], axes[j, i], "V", 20)
             pHigh = dflist[i].loc[dflist[i]['P'].idxmax()]['P']
-            pLow = dflist[i].loc[dflist[i]['P'].idxmin()]['P']
-            vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
-            vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
-            cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
-            # hlList.append(cmpvHL)
-            cmpvXYPN, pdiv, ndiv = line_divergence(ax, *plotpeaks(dflist[i], ax,
-                                                                  *findpeaks(dflist[i], cmpvHL, i)))
+            # ax[0] = axes[0, 0], axes[0, 1], axes[0, 2]
+            # ax[1] = axes[1, 0], axes[1, 1], axes[1, 2]
+            # ax[2] = axes[2, 0], axes[2, 1], axes[2, 2]
+            # ax[3] = axes[3, 0], axes[3, 1], axes[3, 2]
+            '''
+            ax[j] = axes[j, i]
+
+        cHigh = dflist[i].loc[dflist[i]['close'].idxmax()]['close']
+        cLow = dflist[i].loc[dflist[i]['close'].idxmin()]['close']
+        mHigh = dflist[i].loc[dflist[i]['M'].idxmax()]['M']
+        mLow = dflist[i].loc[dflist[i]['M'].idxmin()]['M']
+        pHigh = dflist[i].loc[dflist[i]['P'].idxmax()]['P']
+        pLow = dflist[i].loc[dflist[i]['P'].idxmin()]['P']
+        vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
+        vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
+
+        cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
+        # hlList.append(cmpvHL)
+        try:
+            cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(ax, *plotpeaks(dflist[i], ax,
+                                                                          *findpeaks(dflist[i], cmpvHL, i)))
             pnList.append(cmpvXYPN)
-    except Exception as e:
-        # just print error and continue without the required line in chart
-        print 'line divergence exception:', i
-        print e
+        except Exception as e:
+            # just print error and continue without the required line in chart
+            print 'line divergence exception:', i
+            print e
     try:
         for i in range(3):
             axes[1, i].axhline(5, color='k', linestyle=':')
@@ -806,7 +906,7 @@ def plotSynopsis(dflist, axes):
         print 'axhline exception:'
         print e
 
-    return hlList, pnList, pdiv, ndiv
+    return hlList, pnList, pdiv, ndiv, odiv
 
 
 def globals_from_args(args):

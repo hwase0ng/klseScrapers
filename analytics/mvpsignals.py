@@ -9,7 +9,7 @@ from common import loadCfg
 from utils.dateutils import getBusDaysBtwnDates
 
 
-def scanSignals(dbg, counter, fname, pnlist, pdiv, ndiv, lastTrxnData):
+def scanSignals(dbg, counter, fname, pnlist, pdiv, ndiv, odiv, lastTrxnData):
     global DBGMODE
     DBGMODE = dbg
     if dbg == 2:
@@ -33,9 +33,12 @@ def scanSignals(dbg, counter, fname, pnlist, pdiv, ndiv, lastTrxnData):
         composelist[0], composelist[1], composelist[2], composelist[3]
     posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
     bottomrevs, bbs, bbs_stage = 0, 0, 0
-    tss, tss_state = topSellSignals(posC, lastTrxnData, matchdate, cmpvlists, composelist, hstlist, pdiv, ndiv)
+    tss, tss_state = topSellSignals(posC, lastTrxnData, matchdate, cmpvlists,
+                                    composelist, hstlist, pdiv, ndiv, odiv)
+    '''
     bottomrevs, bbs, bbs_stage = \
-        bottomBuySignals(lastTrxnData, matchdate, cmpvlists, composelist, pdiv, ndiv)
+        bottomBuySignals(lastTrxnData, matchdate, cmpvlists, composelist, pdiv, ndiv, odiv)
+    '''
     if not (tss or bbs or bbs_stage):
         if not dbg:
             return ""
@@ -78,7 +81,7 @@ def printsignal(counter, fname, trxndate, label, signal):
             fh.write(signal + '\n')
 
 
-def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlist, pdiv, ndiv):
+def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlist, pdiv, ndiv, odiv):
     topSellSignal, tss_state = 0, 0
     peaks, valleys = False, False
     [tolerance, pdays, ndays, matchlevel] = matchdate
@@ -94,12 +97,33 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
     [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
     [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
 
-    hstM, hstP = hstlist[1], hstlist[2]
-    if hstM is not None and len(hstM) and len(hstP):
-        if hstM[-2] == 'p' and hstP[-2] == 'p':
+    if 'MP' in pdiv:
+        if 'MP' in ndiv:
+            pdate, ndate = pdiv['MP'][0], ndiv['MP'][0]
+            if pdate > ndate:
+                peaks = True
+            else:
+                valley = True
+        else:
             peaks = True
-        elif hstM[-2] == 'v' and hstP[-2] == 'v':
-            valley = True
+        if peaks:
+            return 1, pdiv["MP"][3]
+        else:
+            return 2, ndiv["MP"][3]
+    elif 'MP' in ndiv:
+        valleys = True
+        return 2, ndiv["MP"][3]
+    else:
+        hstM, hstP = hstlist[1], hstlist[2]
+        if hstM is not None and len(hstM) and len(hstP):
+            if hstM[-2] == 'p' and hstP[-2] == 'p':
+                peaks = True
+            elif hstM[-2] == 'v' and hstP[-2] == 'v':
+                valley = True
+        if "MP" in odiv:
+            return odiv["MP"][1], odiv["MP"][2]
+        else:
+            return topSellSignal, tss_state
 
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
@@ -534,7 +558,7 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
     return topSellSignal, tss_state
 
 
-def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv):
+def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, odiv):
     bottomBuySignal, bbs_stage, bottomrevs = 0, 0, 0
     lastprice, lastC, lastM, lastP, lastV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5]
