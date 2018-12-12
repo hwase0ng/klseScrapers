@@ -367,11 +367,13 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
         matchdt, divcount, tolerance, nodiv = None, 0, 0, 0
         for v in sorted(matchlist, reverse=True):
             if matchlist[v][0] == 0:
+                nodiv += 1
                 continue
             if p1date1 is None:
                 p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
                 p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
                 matchdt = matchlist[v][2]
+                nodiv = 0
             else:
                 p1date2, p2date2 = p1x[v], p2x[matchlist[v][0]]
                 p1y2, p2y2 = p1y[v], p2y[matchlist[v][0]]
