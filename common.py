@@ -381,7 +381,7 @@ def combineList(listoflists):
     return ylist
 
 
-def matchdates(list1, list2, approx=30):
+def matchdates(list1, list2, approx=31):
     matchdict = {}
     for i, val in enumerate(list1):
         matchtolerance = 0
@@ -390,13 +390,16 @@ def matchdates(list1, list2, approx=30):
         except ValueError:
             j = -1
             if approx:
-                startdate = getDayOffset(val, approx * -1)
-                enddate = getDayOffset(val, approx)
+                dtstart = getDayOffset(val, approx * -1)
+                dtend = getDayOffset(val, approx)
                 for newval in list2:
-                    if newval >= startdate and newval <= enddate:
-                        matchtolerance = 1
-                        j = list2.index(newval)
+                    if newval < dtstart:
+                        continue
+                    if newval > dtend:
                         break
+                    matchtolerance = 1
+                    j = list2.index(newval)
+                    break
         matchval = 0 if j < 0 else j - len(list2)
         matchdict[i - len(list1)] = [matchval, matchtolerance, val]
     return matchdict
