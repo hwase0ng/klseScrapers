@@ -393,7 +393,7 @@ def matchdates(list1, list2, approx=30):
                 startdate = getDayOffset(val, approx * -1)
                 enddate = getDayOffset(val, approx)
                 for newval in list2:
-                    if newval >= startdate and val <= enddate:
+                    if newval >= startdate and newval <= enddate:
                         matchtolerance = 1
                         j = list2.index(newval)
                         break
