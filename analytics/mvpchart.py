@@ -373,7 +373,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
                 p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
                 matchdt = matchlist[v][2]
-                nodiv = 0
+                tolerance, nodiv = matchlist[v][1], 0
             else:
                 p1date2, p2date2 = p1x[v], p2x[matchlist[v][0]]
                 p1y2, p2y2 = p1y[v], p2y[matchlist[v][0]]
@@ -413,7 +413,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
     return matchlist, matchdt, divtype, divcount, tolerance
 
 
-def plotlinesV2(axes, cmpvXYPN):
+def plotlinesV2(wfm, axes, cmpvXYPN):
 
     def find_nondivergence(pmatch, nmatch):
         [plist, p1x, p2x, p1y, p2y] = pmatch
@@ -459,6 +459,9 @@ def plotlinesV2(axes, cmpvXYPN):
                           n1y1, n1y2, n2y1, n2y2)
         return "", divtype, divcount, tolerance
 
+    if wfm == 2:
+        if S.DBG_ALL:
+            print "For setting breakpoint to debug month chart only"
     [cmpvXP, cmpvXN, cmpvYP, cmpvYN] = cmpvXYPN
     '''
     cxp, mxp, pxp = cmpvXP[0], cmpvXP[1], cmpvXP[2]
@@ -499,9 +502,9 @@ def plotlinesV2(axes, cmpvXYPN):
     return pdiv, ndiv, odiv
 
 
-def line_divergenceV2(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
+def line_divergenceV2(wfm, axes, cIP, cIN, cCP, cCN, cmpvXYPN):
     del cIP, cIN, cCP, cCN
-    pdiv, ndiv, odiv = plotlinesV2(axes, cmpvXYPN)
+    pdiv, ndiv, odiv = plotlinesV2(wfm, axes, cmpvXYPN)
     return cmpvXYPN, pdiv, ndiv, odiv
 
 
@@ -897,11 +900,11 @@ def plotSynopsis(dflist, axes):
 
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
         # hlList.append(cmpvHL)
-        # cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(ax, *plotpeaks(dflist[i], ax,
-        #                                                               *findpeaks(dflist[i], cmpvHL, i)))
+        # cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(i, ax, *plotpeaks(dflist[i], ax,
+        #                                                                  *findpeaks(dflist[i], cmpvHL, i)))
         try:
-            cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(ax, *plotpeaks(dflist[i], ax,
-                                                                          *findpeaks(dflist[i], cmpvHL, i)))
+            cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(i, ax, *plotpeaks(dflist[i], ax,
+                                                                             *findpeaks(dflist[i], cmpvHL, i)))
             pnList.append(cmpvXYPN)
         except Exception as e:
             # just print error and continue without the required line in chart
