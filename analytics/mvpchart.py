@@ -378,7 +378,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 if p1y1 > p1y2 and p2y1 > p2y2 or \
                         p1y1 < p1y2 and p2y1 < p2y2:
                     nodiv += 1
-                    if nodiv > 3:
+                    if nodiv > 2:
                         break
                     continue
                 divcount += 1
@@ -400,7 +400,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                               p1date1, p1date2, p2date1, p2date2,
                               p1y1, p1y2, p2y1, p2y2)
                 if divcount > 2:
-                    # avoid too many matchings
+                    # restrict matchings to max 3
                     break
         return matchdt, 1, divcount, tolerance
 
@@ -424,17 +424,23 @@ def plotlinesV2(axes, cmpvXYPN):
         n1y1, n2y1 = n1y[-1], n2y[-1]
         n1y2, n2y2 = n1y[-2], n2y[-2]
         if p1y1 < p1y2 and p2y1 < p2y2 and n1y1 >= n1y2 and n2y1 >= n2y2:
-            # Lower peaks with higher valleys
+            # P&M Lower peaks with higher valleys
             divtype = 3
         elif p1y1 > p1y2 and p2y1 > p2y2 and n1y1 >= n1y2 and n2y1 >= n2y2:
-            # Higher peaks with higher valleys
+            # P&M Higher peaks with higher valleys
             divtype = 4
         elif p1y1 > p1y2 and p2y1 > p2y2 and n1y1 <= n1y2 and n2y1 <= n2y2:
-            # Higher peaks with lower valleys
+            # P&M Higher peaks with lower valleys
             divtype = 5
         elif p1y1 < p1y2 and p2y1 < p2y2 and n1y1 <= n1y2 and n2y1 <= n2y2:
-            # Lower peaks with lower valleys
+            # P&M Lower peaks with lower valleys
             divtype = 6
+        elif p1y1 > p1y2 and n1y1 > n1y2 and p2y1 < p2y2 and n1y1 < n1y2:
+            # Higher Ms vs Lower Ps
+            divtype = 7
+        elif p1y1 < p1y2 and n1y1 < n1y2 and p2y1 > p2y2 and n1y1 > n1y2:
+            # Lower Ms vs Higher Ps
+            divtype = 8
 
         if divtype:
             p1date1, p2date1 = p1x[-1], p2x[-1]
@@ -473,8 +479,12 @@ def plotlinesV2(axes, cmpvXYPN):
         if divcount > 0:
             if peaks:
                 pdiv[k] = [matchdt, divtype, divcount, matchtol]
+                if p1x[-1] > matchdt:
+                    pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
             else:
                 ndiv[k] = [matchdt, divtype, divcount, matchtol]
+                if p1x[-1] > matchdt or p2x[-1] > matchdt:
+                    nmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
         else:
             if peaks:
                 pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
@@ -885,6 +895,8 @@ def plotSynopsis(dflist, axes):
 
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
         # hlList.append(cmpvHL)
+        # cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(ax, *plotpeaks(dflist[i], ax,
+        #                                                               *findpeaks(dflist[i], cmpvHL, i)))
         try:
             cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(ax, *plotpeaks(dflist[i], ax,
                                                                           *findpeaks(dflist[i], cmpvHL, i)))

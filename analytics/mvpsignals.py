@@ -97,7 +97,9 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
     [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
     [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
 
-    if 'MP' in pdiv:
+    if "MP" in odiv:
+        return odiv["MP"][1], odiv["MP"][2]
+    elif 'MP' in pdiv:
         if 'MP' in ndiv:
             pdate, ndate = pdiv['MP'][0], ndiv['MP'][0]
             if pdate > ndate:
@@ -120,10 +122,7 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
                 peaks = True
             elif hstM[-2] == 'v' and hstP[-2] == 'v':
                 valley = True
-        if "MP" in odiv:
-            return odiv["MP"][1], odiv["MP"][2]
-        else:
-            return topSellSignal, tss_state
+        return topSellSignal, tss_state
 
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
