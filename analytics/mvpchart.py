@@ -10,6 +10,7 @@ Options:
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>      Set MVP blocking count value [default: 1]
     -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
+    -o,--ohlc               OHLC chart [default: True]
     -s,--synopsis           Synopsis of MVP [default: False]
     -t,--tolerance=<mt>     Set MVP matching tolerance value [default: 3]
     -p,--plotpeaks          Switch ON plotting peaks [default: False]
@@ -27,7 +28,9 @@ Created on Oct 16, 2018
 from common import retrieveCounters, loadCfg, formStocklist, \
     loadKlseCounters, match_approximate2, getSkipRows, matchdates
 from docopt import docopt
+from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator
 from matplotlib import pyplot as plt, dates as mdates
+from mpl_finance import candlestick_ohlc
 from mvpsignals import scanSignals
 from pandas import read_csv, Grouper, to_datetime
 from peakutils import peak
@@ -69,8 +72,11 @@ def dfLoadMPV(counter, chartDays, start=0):
         print "File not available:", incsv
         return None, skiprow, None
     # series = Series.from_csv(incsv, sep=',', parse_dates=[1], header=None)
-    df = read_csv(incsv, sep=',', header=None, parse_dates=['date'],
-                  skiprows=skiprow, usecols=['date', 'close', 'M', 'P', 'V'],
+    if OHLC:
+        usecols = ['date', 'open', 'high', 'low', 'close', 'volume', 'M', 'P', 'V']
+    else:
+        usecols = ['date', 'close', 'M', 'P', 'V']
+    df = read_csv(incsv, sep=',', header=None, parse_dates=['date'], skiprows=skiprow, usecols=usecols,
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
     return df, skiprow, outname
@@ -610,8 +616,8 @@ def plotSignals(counter, datevector, ax0):
                 continue
             try:
                 if tssval:
-                    symbolclr = "go" if tssstate == 0 else "rv" if tssval > 0 else "g^"
-                    fontclr = "red" if tssval > 0 else "green"
+                    symbolclr = "go" if tssstate == 0 else "rX" if tssval > 0 else "g^"
+                    fontclr = "black" if tssval > 0 else "green"
                     ax0.plot(dt, ymin, symbolclr)
                     ax0.text(dt, ymin, str(tssval), color=fontclr, fontsize=9)
                 if bbsval:
@@ -647,16 +653,60 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             # print df.index.get_loc(df.iloc[chartDays].name)
 
         figsize = (10, 5) if showchart else (15, 7)
-        axes = df.plot(x='date', figsize=figsize, subplots=True, grid=False)
+        mondays = WeekdayLocator(MONDAY)
+        alldays = DayLocator()
+        weekFormatter = DateFormatter('%b %d')
+        if not OHLC:
+            axes = df.plot(x='date', figsize=figsize, subplots=True, grid=True)
+            ax = plt.gca().axes.get_xaxis()
+            ax.set_label_coords(0.84, -0.7)
+            # axis1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+            ax.set_major_locator(mondays)
+            ax.set_minor_locator(alldays)
+            ax.set_major_formatter(weekFormatter)
+        else:
+            fig = plt.figure(figsize=figsize)
+            ax1 = plt.subplot2grid((6, 1), (0, 0), rowspan=3, fig=fig)
+            ax2 = plt.subplot2grid((6, 1), (3, 0), sharex=ax1)
+            ax3 = plt.subplot2grid((6, 1), (4, 0), sharex=ax1)
+            ax4 = plt.subplot2grid((6, 1), (5, 0), sharex=ax1)
+            axes = []
+            axes.append(ax1)
+            axes.append(ax2)
+            axes.append(ax3)
+            axes.append(ax4)
+            # ax4.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+            # ax4.xaxis.set_major_locator(mticker.MaxNLocator(10))
+            # ax4.fmt_xdata = mdates.DateFormatter("%Y-%m-%d")
+            ax4.xaxis.set_major_locator(mondays)
+            ax4.xaxis.set_minor_locator(alldays)
+            ax4.xaxis.set_major_formatter(weekFormatter)
+            # dayFormatter = DateFormatter('%d')
+            # ax4.xaxis.set_minor_formatter(dayFormatter)
+            ax1.grid(True)
+            ax2.grid(True)
+            ax3.grid(True)
+            ax4.grid(True)
+            candlestick_ohlc(ax1, zip(mdates.date2num(df['date'].dt.to_pydatetime()),
+                                      df['open'], df['high'], df['low'], df['close']),
+                             width=0.5, colorup='#77d879', colordown='#db3f3f')
+            ax4.xaxis_date()
+            # ax1.plot_date(df['date'], df['close'], '-', color='b', label='C')
+            ax2.plot_date(df['date'], df['M'], '-', color='orange', label='M')
+            ax3.plot_date(df['date'], df['P'], '-', color='g', label='P')
+            ax4.plot_date(df['date'], df['V'], '-', color='r', label='V')
+
+            # for label in ax4.xaxis.get_ticklabels():
+            #     label.set_rotation(45)
+            plt.setp(ax1.get_xticklabels(), visible=False)
+            plt.setp(ax2.get_xticklabels(), visible=False)
+            plt.setp(ax3.get_xticklabels(), visible=False)
         # Disguise axis X label as title to save on chart space
         title = "MPV Chart of " + counter + "." + scode + ": " + mpvdate
         axes[3].set_xlabel(title, fontsize=12)
         axes[3].figure.canvas.set_window_title(title)
-        ax1 = plt.gca().axes.get_xaxis()
-        ax1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-        ax1.set_label_coords(0.84, -0.7)
         '''
-        axlabel = ax1.get_label()
+        axlabel = axis1.get_label()
         axlabel.set_visible(False)
         '''
 
@@ -854,10 +904,10 @@ def plotSynopsis(dflist, axes):
         dflist[i]['P'].plot(ax=axes[2, i], color='g', label='P')
         dflist[i]['V'].plot(ax=axes[3, i], color='r', label='V')
 
-    axes[0, 2].legend(loc="upper left")
-    axes[1, 2].legend(loc="upper left")
-    axes[2, 2].legend(loc="upper left")
-    axes[3, 2].legend(loc="upper left")
+    axes[0, 0].legend(loc="upper left")
+    axes[1, 0].legend(loc="upper left")
+    axes[2, 0].legend(loc="upper left")
+    axes[3, 0].legend(loc="upper left")
     axes[3, 0].set_xlabel("Week")
     axes[3, 1].set_xlabel("Forthnight")
     axes[3, 2].set_xlabel("Month")
@@ -935,7 +985,7 @@ def plotSynopsis(dflist, axes):
 def globals_from_args(args):
     global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
     global MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE
-    global klse, DBG_ALL, DBG_SIGNAL, SYNOPSIS
+    global klse, DBG_ALL, DBG_SIGNAL, SYNOPSIS, OHLC
     klse = "scrapers/i3investor/klse.txt"
 
     dbgmode = "" if args['--debug'] is None else args['--debug']
@@ -947,6 +997,7 @@ def globals_from_args(args):
     MVP_DIVERGENCE_MATCH_FILTER = True if args['--filter'] else False
     MVP_DIVERGENCE_BLOCKING_COUNT = int(args['--blocking']) if args['--blocking'] else 1
     MVP_DIVERGENCE_MATCH_TOLERANCE = int(args['--tolerance']) if args['--tolerance'] else 3
+    OHLC = True if args['--ohlc'] else False
     SYNOPSIS = True if args['--synopsis'] else False
     chartDays = int(args['--chartdays']) if args['--chartdays'] else S.MVP_CHART_DAYS
     '''

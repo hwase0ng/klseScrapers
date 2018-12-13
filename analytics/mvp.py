@@ -200,6 +200,7 @@ def load_mvp_args(synopsis=False):
     params['--blocking'] = 1
     params['--tolerance'] = 3
     params['--synopsis'] = synopsis
+    params['--ohlc'] = False
     params['--chartdays'] = S.MVP_CHART_DAYS
     params['--list'] = ""
     params['--simulation'] = ""
