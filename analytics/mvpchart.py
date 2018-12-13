@@ -930,7 +930,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
             if len(dates) < 2 or end > dates[1]:
                 break
             else:
-                start = getDayOffset(end, step)
+                end = getDayOffset(end, step)
             '''
             if start > end:
                 start -= step
