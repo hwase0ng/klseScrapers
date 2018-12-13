@@ -59,10 +59,10 @@ def dfLoadMPV(counter, chartDays, start=0):
             skiprow = -1
         else:
             lines = tail2(incsv, start)
-            heads = lines[:chartDays] if SYNOPSIS else lines
+            # heads = lines[:chartDays] if SYNOPSIS else lines
             incsv += "tmp"
             with open(incsv, 'wb') as f:
-                for item in heads:
+                for item in lines:
                     f.write("%s" % item)
             skiprow = 0
     else:
@@ -84,7 +84,6 @@ def dfLoadMPV(counter, chartDays, start=0):
 
 def dfGetDates(df, start, end):
     dfmpv = df[(df['date'] >= start) & (df['date'] <= end)]
-    # dfmpv = df.loc[start:end]
     dfmpv = dfmpv.reset_index()
     return dfmpv
 
@@ -646,7 +645,7 @@ def plotSignals(counter, datevector, ax0):
 
 
 def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
-    def getMpvDf(counter, scode, chartDays, start=0):
+    def getMpvDf(counter, chartDays, start=0):
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
         if skiprows < 0 or len(df.index) <= 0:
             print "No chart for ", counter, skiprows
@@ -766,7 +765,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
         plt.close()
 
     if simulation is None or len(simulation) == 0:
-        df, skiprow, fname, _ = getMpvDf(counter, scode, chartDays)
+        df, skiprow, fname, _ = getMpvDf(counter, chartDays)
         if df is None:
             return
         plotchart(df, fname)
@@ -776,7 +775,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             print "Input not found:", simulation
             return
         start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
-        dfmpv, title, fname, lastdate = getMpvDf(counter, scode, chartDays, start)
+        dfmpv, title, fname, lastdate = getMpvDf(counter, chartDays, start)
         dates = simulation.split(":")
         start = dates[0]
         while True:
@@ -819,10 +818,13 @@ def numsFromDate(counter, datestr):
 
 
 def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
-    def getSynopsisDFs(counter, scode, chartDays, start=0):
-        fname = ""
+    def getMpvDf(counter, chartDays, start):
+        df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
+        return df, skiprows, fname
+
+    def getSynopsisDFs(counter, scode, chartDays, df, skiprows):
         try:
-            df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
+            # df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
             dfm = None
             if skiprows >= 0 and df is not None:
                 dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
@@ -835,7 +837,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                     print dff[-3:]
                     print dfm[-3:]
         except Exception as e:
-            print "Dataframe exception: ", counter, fname
+            print "Dataframe exception: ", counter
             print e
         finally:
             lasttrxn = []
@@ -861,7 +863,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
 
         title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
 
-        return dflist, title, fname, lasttrxn
+        return dflist, title, lasttrxn
 
     def doPlotting(outname):
         '''
@@ -900,8 +902,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         return len(signals) > 0
 
     if simulation is None or len(simulation) == 0:
-        nums = []
-        dflist, title, fname, lasttrxn = getSynopsisDFs(counter, scode, chartDays)
+        df, skiprow, fname = getMpvDf(counter, chartDays)
+        dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, df, skiprow)
         if dflist is None:
             return
         return doPlotting(fname)
@@ -911,15 +913,26 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
             print "Input not found:", simulation
             return
         start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
+        df, skiprow, fname = getMpvDf(counter, chartDays, start)
+        dates = simulation.split(":")
+        start = dates[0]
         while True:
-            dflist, title, fname, lasttrxn = getSynopsisDFs(counter, scode, chartDays, start)
+            end = getDayOffset(start, chartDays)
+            dfmpv = dfGetDates(df, start, end)
+            dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, dfmpv, skiprow)
             if dflist is None:
                 continue
             doPlotting(fname)
+            if len(dates) < 2 or start > dates[1]:
+                break
+            else:
+                start = getDayOffset(start, step)
+            '''
             if start > end:
                 start -= step
             else:
                 break
+            '''
         return False
 
 
