@@ -34,7 +34,7 @@ from mpl_finance import candlestick_ohlc
 from mvpsignals import scanSignals
 from pandas import read_csv, Grouper, to_datetime
 from peakutils import peak
-from utils.dateutils import getDaysBtwnDates
+from utils.dateutils import getDaysBtwnDates, getDayOffset
 from utils.fileutils import tail2, wc_line_count, grepN
 import numpy as np
 import operator
@@ -59,7 +59,7 @@ def dfLoadMPV(counter, chartDays, start=0):
             skiprow = -1
         else:
             lines = tail2(incsv, start)
-            heads = lines[:chartDays]
+            heads = lines[:chartDays] if SYNOPSIS else lines
             incsv += "tmp"
             with open(incsv, 'wb') as f:
                 for item in heads:
@@ -80,6 +80,13 @@ def dfLoadMPV(counter, chartDays, start=0):
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
     return df, skiprow, outname
+
+
+def dfGetDates(df, start, end):
+    dfmpv = df[(df['date'] >= start) & (df['date'] <= end)]
+    # dfmpv = df.loc[start:end]
+    dfmpv = dfmpv.reset_index()
+    return dfmpv
 
 
 def annotateMVP(df, axes, MVP, cond):
@@ -232,8 +239,12 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
     viP, viN = cIP['V'], cIN['V']
     if SYNOPSIS:
         df = df.reset_index()
-    cxp, cyp, ciP, sciP = locatepeaks(df['date'], df['close'], ciP)
-    cxn, cyn, ciN, sciN = locatepeaks(df['date'], df['close'], ciN)
+    if OHLC:
+        cxp, cyp, ciP, sciP = None, None, None, None
+        cxn, cyn, ciN, sciN = None, None, None, None
+    else:
+        cxp, cyp, ciP, sciP = locatepeaks(df['date'], df['close'], ciP)
+        cxn, cyn, ciN, sciN = locatepeaks(df['date'], df['close'], ciN)
     mxp, myp, miP, smiP = locatepeaks(df['date'], df['M'], miP)
     mxn, myn, miN, smiN = locatepeaks(df['date'], df['M'], miN)
     pxp, pyp, piP, spiP = locatepeaks(df['date'], df['P'], piP)
@@ -413,7 +424,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
         return matchdt, 1, divcount, tolerance
 
     if p1x is None or p2x is None:
-        return None, 0, 0, 0
+        return None, None, 0, 0, 0
     matchlist = matchdates(p1x, p2x)
     matchdt, divtype, divcount, tolerance = find_divergence(matchlist)
     return matchlist, matchdt, divtype, divcount, tolerance
@@ -424,7 +435,8 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
     def find_nondivergence(pmatch, nmatch):
         [plist, p1x, p2x, p1y, p2y] = pmatch
         [nlist, n1x, n2x, n1y, n2y] = nmatch
-        if len(p1x) < 2 or len(p2x) < 2 or len(n1x) < 2 or len(n2x) < 2:
+        if p1x is None or p2x is None or n1x is None or n2x is None or \
+                len(p1x) < 2 or len(p2x) < 2 or len(n1x) < 2 or len(n2x) < 2:
             return None, 0, 0, 0
         matchdt, divcount, tolerance, divtype = None, 0, 0, 0
         p1y1, p2y1 = p1y[-1], p2y[-1]
@@ -612,6 +624,9 @@ def plotSignals(counter, datevector, ax0):
                 df.loc[[mpvdate], ['tssname', 'tssval', 'tssstate',
                                    'bbsname', 'bbsval', 'bbsstate']]
             '''
+            if type(tssname) is not str or type(bbsname) is not str:
+                print "ERR: bad signal file, duplicates detected in", infile
+                continue
             if tssname in ["Dbg", "NUL"] and bbsname in ["Dbg", "NUL"]:
                 continue
             try:
@@ -639,25 +654,25 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
         lastTrxnDate = getMpvDate(df.iloc[-1]['date'])
         return df, skiprows, fname, lastTrxnDate
 
-    def plotchart(df, fname):
-        mpvdate = getMpvDate(df.iloc[-1]['date'])
+    def plotchart(dfchart, fname):
+        mpvdate = getMpvDate(dfchart.iloc[-1]['date'])
         print "Charting: ", counter, mpvdate
         '''
-        if len(df.index) >= abs(chartDays):
-            firstidx = df.index.get_loc(df.iloc[chartDays].name)
+        if len(dfchart.index) >= abs(chartDays):
+            firstidx = dfchart.index.get_loc(dfchart.iloc[chartDays].name)
         else:
         '''
         if DBG_ALL:
-            print(df.tail(10))
+            print(dfchart.tail(10))
             print type(mpvdate), mpvdate
-            # print df.index.get_loc(df.iloc[chartDays].name)
+            # print dfchart.index.get_loc(dfchart.iloc[chartDays].name)
 
         figsize = (10, 5) if showchart else (15, 7)
         mondays = WeekdayLocator(MONDAY)
         alldays = DayLocator()
         weekFormatter = DateFormatter('%b %d')
         if not OHLC:
-            axes = df.plot(x='date', figsize=figsize, subplots=True, grid=True)
+            axes = dfchart.plot(x='date', figsize=figsize, subplots=True, grid=True)
             ax = plt.gca().axes.get_xaxis()
             ax.set_label_coords(0.84, -0.7)
             # axis1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
@@ -666,6 +681,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             ax.set_major_formatter(weekFormatter)
         else:
             fig = plt.figure(figsize=figsize)
+            fig.set_canvas(plt.gcf().canvas)
             ax1 = plt.subplot2grid((6, 1), (0, 0), rowspan=3, fig=fig)
             ax2 = plt.subplot2grid((6, 1), (3, 0), sharex=ax1)
             ax3 = plt.subplot2grid((6, 1), (4, 0), sharex=ax1)
@@ -687,14 +703,14 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             ax2.grid(True)
             ax3.grid(True)
             ax4.grid(True)
-            candlestick_ohlc(ax1, zip(mdates.date2num(df['date'].dt.to_pydatetime()),
-                                      df['open'], df['high'], df['low'], df['close']),
+            candlestick_ohlc(ax1, zip(mdates.date2num(dfchart['date'].dt.to_pydatetime()),
+                                      dfchart['open'], dfchart['high'], dfchart['low'], dfchart['close']),
                              width=0.5, colorup='#77d879', colordown='#db3f3f')
             ax4.xaxis_date()
-            # ax1.plot_date(df['date'], df['close'], '-', color='b', label='C')
-            ax2.plot_date(df['date'], df['M'], '-', color='orange', label='M')
-            ax3.plot_date(df['date'], df['P'], '-', color='g', label='P')
-            ax4.plot_date(df['date'], df['V'], '-', color='r', label='V')
+            # ax1.plot_date(dfchart['date'], dfchart['close'], '-', color='b', label='C')
+            ax2.plot_date(dfchart['date'], dfchart['M'], '-', color='orange', label='M')
+            ax3.plot_date(dfchart['date'], dfchart['P'], '-', color='g', label='P')
+            ax4.plot_date(dfchart['date'], dfchart['V'], '-', color='r', label='V')
 
             # for label in ax4.xaxis.get_ticklabels():
             #     label.set_rotation(45)
@@ -710,18 +726,20 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
         axlabel.set_visible(False)
         '''
 
-        cHigh = df.iloc[df['close'].idxmax()]['close']
-        cLow = df.iloc[df['close'].idxmin()]['close']
-        mHigh = annotateMVP(df, axes[1], "M", 10)
-        mLow = df.iloc[df['M'].idxmin()]['M']
-        pHigh = df.iloc[df['P'].idxmax()]['P']
-        pLow = df.iloc[df['P'].idxmin()]['P']
-        vHigh = annotateMVP(df, axes[3], "V", 24)
-        vLow = df.iloc[df['V'].idxmin()]['V']
+        cHigh = dfchart.iloc[dfchart['close'].idxmax()]['close']
+        cLow = dfchart.iloc[dfchart['close'].idxmin()]['close']
+        mHigh = annotateMVP(dfchart, axes[1], "M", 10)
+        mLow = dfchart.iloc[dfchart['M'].idxmin()]['M']
+        pHigh = dfchart.iloc[dfchart['P'].idxmax()]['P']
+        pLow = dfchart.iloc[dfchart['P'].idxmin()]['P']
+        vHigh = annotateMVP(dfchart, axes[3], "V", 24)
+        vLow = dfchart.iloc[dfchart['V'].idxmin()]['V']
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
+        # line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL)))
+        # plotSignals(counter, dfchart['date'], axes[0])
         try:
-            line_divergence(axes, *plotpeaks(df, axes, *findpeaks(df, cmpvHL)))
-            plotSignals(counter, df['date'], axes[0])
+            line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL)))
+            plotSignals(counter, dfchart['date'], axes[0])
         except Exception as e:
             # just print error and continue without the required line in chart
             print 'line divergence exception:'
@@ -735,12 +753,12 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             axes[2].axhline(0, color='k', linestyle='--')
             if vHigh > 20:
                 axes[3].axhline(25, color='k', linestyle='--')
+            plt.tight_layout()
         except Exception as e:
             # just print error and continue without the required line in chart
             print 'axhline exception:'
             print e
 
-        plt.tight_layout()
         if showchart:
             plt.show()
         else:
@@ -758,15 +776,19 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             print "Input not found:", simulation
             return
         start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
+        dfmpv, title, fname, lastdate = getMpvDf(counter, scode, chartDays, start)
+        dates = simulation.split(":")
+        start = dates[0]
         while True:
-            dflist, title, fname, lastdate = getMpvDf(counter, scode, chartDays, start)
+            end = getDayOffset(start, chartDays)
+            dflist = dfGetDates(dfmpv, start, end)
             if dflist is None:
                 continue
-            plotchart(dflist, fname + "_" + lastdate)
-            if start > end:
-                start -= step
-            else:
+            plotchart(dflist, fname + "_" + end)
+            if len(dates) < 2 or end > dates[1]:
                 break
+            else:
+                start = end
         return False
 
 
@@ -776,6 +798,8 @@ def numsFromDate(counter, datestr):
     row_count = wc_line_count(incsv)
     dates = datestr.split(":") if ":" in datestr else [datestr]
     linenum = grepN(incsv, dates[0])  # e.g. 2018-10-30
+    if linenum < 0:
+        linenum = grepN(incsv, dates[0][:9])  # e.g. 2018-10
     if DBG_ALL:
         print incsv, row_count, dates, linenum
     if linenum < 0:
@@ -784,6 +808,8 @@ def numsFromDate(counter, datestr):
     stop = start + 1
     if len(dates) > 1:
         linenum = grepN(incsv, dates[1])  # e.g. 2018-10-30
+        if linenum < 0:
+            linenum = grepN(incsv, dates[1][:9])  # e.g. 2018-10-3
         if linenum > 0:
             stop = row_count - linenum + S.MVP_CHART_DAYS
     step = int(dates[2]) if len(dates) > 2 else 1
