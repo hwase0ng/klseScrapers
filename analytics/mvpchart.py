@@ -32,7 +32,8 @@ from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator
 from matplotlib import pyplot as plt, dates as mdates
 from mpl_finance import candlestick_ohlc
 from mvpsignals import scanSignals
-from pandas import read_csv, Grouper, to_datetime
+from pandas import read_csv, Grouper, datetime
+from pandas.tseries.offsets import BDay
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates, getDayOffset
 from utils.fileutils import tail2, wc_line_count, grepN
@@ -791,7 +792,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
         return False
 
 
-def numsFromDate(counter, datestr):
+def numsFromDate(counter, datestr, cdays=S.MVP_CHART_DAYS):
     prefix = S.DATA_DIR + S.MVP_DIR
     incsv = prefix + counter + ".csv"
     row_count = wc_line_count(incsv)
@@ -803,14 +804,14 @@ def numsFromDate(counter, datestr):
         print incsv, row_count, dates, linenum
     if linenum < 0:
         return []
-    start = row_count - linenum + S.MVP_CHART_DAYS
+    start = row_count - linenum + cdays
     stop = start + 1
     if len(dates) > 1:
         linenum = grepN(incsv, dates[1])  # e.g. 2018-10-30
         if linenum < 0:
             linenum = grepN(incsv, dates[1][:9])  # e.g. 2018-10-3
         if linenum > 0:
-            stop = row_count - linenum + S.MVP_CHART_DAYS
+            stop = row_count - linenum + cdays
     step = int(dates[2]) if len(dates) > 2 else 1
     nums = str(start) + "," + str(stop) + "," + str(step)
     print "Start,Stop,Step =", nums
@@ -908,25 +909,28 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
             return
         return doPlotting(fname)
     else:
-        nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation)
+        nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation, chartDays)
         if len(nums) <= 0:
             print "Input not found:", simulation
             return
         start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
         df, skiprow, fname = getMpvDf(counter, chartDays, start)
         dates = simulation.split(":")
-        start = dates[0]
+        end = dates[0]
         while True:
-            end = getDayOffset(start, chartDays)
+            # start = getDayOffset(end, chartDays * -1)
+            yr, mth, day = int(end[:4]), int(end[5:7]), int(end[8:10])
+            start = datetime(yr, mth, day) - BDay(chartDays)
+            start = getMpvDate(start)
             dfmpv = dfGetDates(df, start, end)
             dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, dfmpv, skiprow)
             if dflist is None:
                 continue
             doPlotting(fname)
-            if len(dates) < 2 or start > dates[1]:
+            if len(dates) < 2 or end > dates[1]:
                 break
             else:
-                start = getDayOffset(start, step)
+                start = getDayOffset(end, step)
             '''
             if start > end:
                 start -= step
