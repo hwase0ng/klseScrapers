@@ -819,7 +819,7 @@ def numsFromDate(counter, datestr, cdays=S.MVP_CHART_DAYS):
 
 
 def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
-    def getMpvDf(counter, chartDays, start):
+    def getMpvDf(counter, chartDays, start=0):
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
         return df, skiprows, fname
 
