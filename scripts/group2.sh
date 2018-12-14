@@ -5,20 +5,15 @@ DIVIDEND="FPI LCTITAN MAGNI UCHITEC KMLOONG MPI DUFU TONGHER CSCSTEL LIHEN TGUAN
 MVP="DUFU PADINI PETRONM KLSE MAGNI"
 GENISTA="APEX BURSA CBIP CIMB HIBISCS IOICORP IOIPG IVORY KPS PCHEM PRESBHD RSENA"
 SNIPER="UCREST YONGTAI NGGB"
-DATA=/z/data
 
 TEST=$MVP
-STARTDT="2012-01-03"
+STARTDT="2011-09-03"
 ENDDT="2018-12-13"
 
 for i in $TEST
 do
  echo Profiling $i
- ${DATA}/mpv/simulation/profiling/newprofiling2.sh $i ${STARTDT}:${ENDDT}:3
-done
-
-for i in $TEST
-do
+ ./scripts/newprofiling2.sh $i ${STARTDT}:${ENDDT}:3
  echo Charting $i
- ${DATA}/mpv/simulation/profiling/charting.sh $i ${STARTDT}:${ENDDT}
+ ./scripts/charting.sh $i ${STARTDT}:${ENDDT}
 done

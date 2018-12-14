@@ -8,5 +8,5 @@ SNIPER="UCREST YONGTAI NGGB"
 for i in $MVP
 do
  echo $i
- /z/data/mpv/simulation/profiling/newprofiling.sh $i 2011-10-03:2018-11-30:3
+ ./scripts/newprofiling.sh $i 2011-10-03:2018-11-30:3
 done
