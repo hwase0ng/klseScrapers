@@ -606,8 +606,9 @@ def plotSignals(counter, datevector, ax0):
                          'cmpv', 'mvals'])
     df.set_index(df['trxdt'], inplace=True)
     xmin, xmax, ymin, ymax = ax0.axis()
-    bbspos = ymin + 0.15
-    othpos = bbspos + 0.15
+    ttspos = ymax
+    bbspos = ymin
+    othpos = (ymax + ymin) / 2
     for dt in datevector:
         try:
             mpvdate = pdTimestamp2strdate(dt)
@@ -632,15 +633,15 @@ def plotSignals(counter, datevector, ax0):
                 continue
             try:
                 if tssval:
-                    symbolclr = "go" if tssstate == 0 else "rX" if tssval > 0 else "g^"
+                    symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
                     fontclr = "black" if tssval > 0 else "green"
-                    ax0.plot(dt, ymin, symbolclr)
-                    ax0.text(dt, ymin, str(tssval), color=fontclr, fontsize=9)
+                    ax0.plot(dt, ttspos, symbolclr)
+                    ax0.text(dt, ttspos, str(tssval), color=fontclr, fontsize=9)
                 if bbsval:
                     ax0.plot(dt, bbspos, "bd")
                     ax0.text(dt, bbspos, str(bbsval), color="blue", fontsize=9)
                 if othval:
-                    ax0.plot(dt, othpos, "o+")
+                    ax0.plot(dt, othpos, "c+")
                     ax0.text(dt, othpos, str(othval), color="black", fontsize=9)
             except Exception as e:
                 print 'ax0.plot', mpvdate
@@ -740,10 +741,8 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
         vLow = dfchart.iloc[dfchart['V'].idxmin()]['V']
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
         # line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL)))
-        # plotSignals(counter, dfchart['date'], axes[0])
         try:
             line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL)))
-            plotSignals(counter, dfchart['date'], axes[0])
         except Exception as e:
             # just print error and continue without the required line in chart
             print 'line divergence exception:'
@@ -757,6 +756,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             axes[2].axhline(0, color='k', linestyle='--')
             if vHigh > 20:
                 axes[3].axhline(25, color='k', linestyle='--')
+            plotSignals(counter, dfchart['date'], axes[0])
             plt.tight_layout()
         except Exception as e:
             # just print error and continue without the required line in chart
