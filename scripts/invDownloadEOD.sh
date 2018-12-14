@@ -13,7 +13,7 @@ if ! test -s $CSVFILE || ! test -z "$3"
 then
  if [ -z "$DATE" ]
  then
-  DATE="2012-01-03"
+  DATE="2010-01-03"
  fi
  > $CSVFILE 
  echo Start downloading from $DATE
