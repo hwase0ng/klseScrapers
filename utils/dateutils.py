@@ -9,6 +9,7 @@ from matplotlib.dates import date2num
 from datetime import date, datetime, timedelta
 from utils.fileutils import tail
 from time import time, ctime
+from pandas.tseries.offsets import BDay
 
 
 def get_now_epoch():
@@ -75,6 +76,20 @@ def getDayOffset(pdate, offset):
     result = str(result)
 #   result = result.replace("-","")
     return result
+
+
+def pdTimestamp2strdate(dfdate):
+    strdt = str(dfdate.to_pydatetime()).split()
+    return strdt[0]
+
+
+def pdDaysOffset(pdate, offset):
+    yr, mth, day = int(pdate[:4]), int(pdate[5:7]), int(pdate[8:10])
+    if offset > 0:
+        newdate = datetime(yr, mth, day) + BDay(abs(offset))
+    else:
+        newdate = datetime(yr, mth, day) - BDay(abs(offset))
+    return pdTimestamp2strdate(newdate)
 
 
 def getLastDate(fn):
