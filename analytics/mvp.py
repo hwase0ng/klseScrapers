@@ -190,7 +190,7 @@ def updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice):
     return True
 
 
-def load_mvp_args(synopsis=False):
+def load_mvp_args(synopsis=False, ohlc=False):
     params = {}
     params['--debug'] = ""
     params['--plotpeaks'] = True
@@ -225,10 +225,10 @@ def mvpUpdateMPV(counter, scode):
     lines = tail2(inputfl, days)
     for eod in lines:
         if updateMPV(counter, scode, eod):
-            chartdays = load_mvp_args()
-            mvpChart(counter, scode, chartdays)
-            chartdays = load_mvp_args(True)
+            chartdays = load_mvp_args(True, False)
             mvpSynopsis(counter, scode, chartdays)
+            chartdays = load_mvp_args(False, True)
+            mvpChart(counter, scode, chartdays)
 
 
 def mpvUpdateKlseRelated():
