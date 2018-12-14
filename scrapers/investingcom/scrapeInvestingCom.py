@@ -28,6 +28,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import math
+import time
 from scrapers.investingcom.scrapeStocksListing import writeStocksListing
 from utils.dateutils import getLastDate, getToday, getDaysBtwnDates,\
     getDayOffset, getNextDay
@@ -361,13 +362,15 @@ if __name__ == '__main__':
             enddt = getToday('%Y-%m-%d')
             print 'Scraping {0},{1}: lastdt={2}, End={3}'.format(
                 shortname, stock_code, lastdt, enddt)
+            failcount = 0
             while True:
-                startdt = lastdt
-                if getDaysBtwnDates(lastdt, enddt) > 22 * 3:  # do 3 months at a time
-                    stopdt = getDayOffset(startdt, 22 * 3)
-                    lastdt = getNextDay(stopdt)
-                else:
-                    stopdt = enddt
+                if failcount == 0:
+                    startdt = lastdt
+                    if getDaysBtwnDates(lastdt, enddt) > 22 * 3:  # do 3 months at a time
+                        stopdt = getDayOffset(startdt, 22 * 3)
+                        lastdt = getNextDay(stopdt)
+                    else:
+                        stopdt = enddt
                 print "\tstart=%s, stop=%s" % (startdt, stopdt)
                 eod = InvestingQuote(idmap, shortname, startdt, stopdt)
                 if DBG_ALL:
@@ -382,28 +385,43 @@ if __name__ == '__main__':
                     # q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
                     q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", startdt, stopdt)
                     if len(q.getCsvErr()) > 0:
+                        failcount += 1
+                        time.sleep(5)
                         st_code, st_reason = q.getCsvErr().split(":")
                         rtn_code = int(st_code)
+                        cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/\'?guccounter=1')
                     else:
-                        print q
+                        failcount = 0
+                        # print q
                         if WRITE_CSV:
                             q.write_csv(TMP_FILE)
                 elif isinstance(eod.response, unicode):
                     dfEod = eod.to_df()
                     if isinstance(dfEod, pd.DataFrame):
+                        failcount = 0
                         if DBG_ALL:
                             print dfEod[:5]
                         if WRITE_CSV:
                             dfEod.index.name = 'index'
                             dfEod.to_csv(TMP_FILE, index=False, header=False)
                     else:
+                        failcount += 1
+                        time.sleep(3)
                         print "ERR:" + dfEod + ": " + shortname + "," + lastdt
                         rtn_code = -2
                 else:
+                    failcount += 1
+                    time.sleep(3)
                     print "ERR:" + eod.response + "," + lastdt
                     rtn_code = -1
 
-                appendCsv(rtn_code, OUTPUT_FILE)
+                if failcount == 0:
+                    time.sleep(2)
+                    appendCsv(rtn_code, OUTPUT_FILE)
+                else:
+                    print "\tFailed: ", failcount
+                    if failcount > 5:
+                        break
 
                 if stopdt == enddt:
                     break
