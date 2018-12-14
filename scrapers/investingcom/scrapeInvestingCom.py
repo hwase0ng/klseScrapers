@@ -377,7 +377,8 @@ if __name__ == '__main__':
                     print eod.getCsvErr()
                     # If KeyError, counter not available in investing.com, try yahoo finance
                     print "Scraping from yahoo: ", shortname
-                    cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
+                    # cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/')
+                    cookie, crumb = getYahooCookie('https://uk.finance.yahoo.com/quote/AAPL/\'?guccounter=1')
                     # q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", lastdt, enddt)
                     q = YahooQuote(cookie, crumb, shortname, stock_code + ".KL", startdt, stopdt)
                     if len(q.getCsvErr()) > 0:
