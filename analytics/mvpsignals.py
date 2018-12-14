@@ -7,9 +7,10 @@ Created on Nov 2, 2018
 import settings as S
 from common import loadCfg
 from utils.dateutils import getBusDaysBtwnDates
+from utils.fileutils import grepN
 
 
-def scanSignals(dbg, counter, fname, pnlist, pdiv, ndiv, odiv, lastTrxnData):
+def scanSignals(dbg, counter, fname, pnlist, div, lastTrxnData):
     global DBGMODE
     DBGMODE = dbg
     if dbg == 2:
@@ -34,10 +35,10 @@ def scanSignals(dbg, counter, fname, pnlist, pdiv, ndiv, odiv, lastTrxnData):
     posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
     bottomrevs, bbs, bbs_stage = 0, 0, 0
     tss, tss_state = topSellSignals(posC, lastTrxnData, matchdate, cmpvlists,
-                                    composelist, hstlist, pdiv, ndiv, odiv)
+                                    composelist, hstlist, div)
     '''
     bottomrevs, bbs, bbs_stage = \
-        bottomBuySignals(lastTrxnData, matchdate, cmpvlists, composelist, pdiv, ndiv, odiv)
+        bottomBuySignals(lastTrxnData, matchdate, cmpvlists, composelist, div)
     '''
     if not (tss or bbs or bbs_stage):
         if not dbg:
@@ -45,8 +46,8 @@ def scanSignals(dbg, counter, fname, pnlist, pdiv, ndiv, odiv, lastTrxnData):
 
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     [tolerance, pdays, ndays, matchlevel] = matchdate
-    signaldet = "c%s.m%s.p%s.v%s,%d.%d.%d.%d" % (strC, strM, strP, strV,
-                                                 tolerance, pdays, ndays, matchlevel)
+    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d)" % (strC, strM, strP, strV,
+                                                     tolerance, pdays, ndays, matchlevel)
     signaltss, signalbbs = "NUL,0,0", "NUL,0,0"
     if tss:
         label = "TBD" if tss > 900 else "TSS" if tss > 0 else "RTR"
@@ -58,7 +59,13 @@ def scanSignals(dbg, counter, fname, pnlist, pdiv, ndiv, odiv, lastTrxnData):
         label = "OVS" if bbs else "Dbg"
         signalbbs = "%s,%d,%d" % (label, bottomrevs, bbs_stage)
 
-    signals = "%s,%s,%s,%s" % (counter, signaltss, signalbbs, signaldet)
+    [_, _, odiv] = div
+    label, otype, ocount = "OTH", 0, -1
+    if "MP" in odiv:
+        otype, ocount = odiv["MP"][1], odiv["MP"][2]
+    signaloth = "%s,%d,%d" % (label, otype, ocount)
+
+    signals = "%s,%s,%s,%s,%s" % (counter, signaltss, signalbbs, signaloth, signaldet)
     printsignal(counter, fname, lastTrxnData[0], label, signals)
     return signals
 
@@ -70,21 +77,27 @@ def printsignal(counter, fname, trxndate, label, signal):
         outfile = S.DATA_DIR + S.MVP_DIR + "simulation/signals/" + counter + "-signals.csv"
     else:
         outfile = S.DATA_DIR + S.MVP_DIR + "signals/" + counter + "-signals.csv"
+    linenum = grepN(outfile, trxndate)  # e.g. 2012-01-01
+    if linenum > 0:
+        # Already registered
+        return
     with open(outfile, "ab") as fh:
         bbsline = trxndate + "," + signal
         fh.write(bbsline + '\n')
     if "simulation" in fname:
         sss = S.DATA_DIR + S.MVP_DIR + "simulation/" + label + "-" + trxndate + ".csv"
+        # skip writing for simulation
     else:
         sss = S.DATA_DIR + S.MVP_DIR + "signals/" + label + "-" + trxndate + ".csv"
         with open(sss, "ab") as fh:
             fh.write(signal + '\n')
 
 
-def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlist, pdiv, ndiv, odiv):
+def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
     topSellSignal, tss_state = 0, 0
     peaks, valleys = False, False
     [tolerance, pdays, ndays, matchlevel] = matchdate
+    [pdiv, ndiv, odiv] = div
     '''
     Wrong assumption as TSS 6 happens when newlowC or posC = 0
     if pricepos < 2:
@@ -97,9 +110,12 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
     [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
     [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
 
+    '''
     if "MP" in odiv:
         return odiv["MP"][1], odiv["MP"][2]
     elif 'MP' in pdiv:
+    '''
+    if 'MP' in pdiv:
         if 'MP' in ndiv:
             pdate, ndate = pdiv['MP'][0], ndiv['MP'][0]
             if pdate > ndate:
@@ -108,13 +124,15 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
                 valley = True
         else:
             peaks = True
-        if peaks:
-            return 1, pdiv["MP"][3]
-        else:
-            return 2, ndiv["MP"][3]
+        if DBGMODE == 3:
+            if peaks:
+                return 1, pdiv["MP"][3]
+            else:
+                return 2, ndiv["MP"][3]
     elif 'MP' in ndiv:
         valleys = True
-        return 2, ndiv["MP"][3]
+        if DBGMODE == 3:
+            return 2, ndiv["MP"][3]
     else:
         hstM, hstP = hstlist[1], hstlist[2]
         if hstM is not None and len(hstM) and len(hstP):
@@ -122,7 +140,8 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
                 peaks = True
             elif hstM[-2] == 'v' and hstP[-2] == 'v':
                 valley = True
-        return topSellSignal, tss_state
+        if DBGMODE == 3:
+            return topSellSignal, tss_state
 
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
@@ -615,7 +634,7 @@ def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, od
             nlistP[-1] > nlistP[-2] and nlistP[-2] > nlistP[-3] and nlistP[-1] < 0:
         # ----- bottom break out ----- #
         # ----- Higher M peaks and higher P valleys ----- #
-        # DUFU 2014-05-08
+        # DUFU 2014-05-02
         bottomBuySignal = 14
     '''
     elif topC or prevtopC:
