@@ -164,9 +164,10 @@ def appendCsv(rtn_code, OUTPUT_FILE):
 
     TMP_FILE = OUTPUT_FILE + 'tmp'
 
-    f = open(OUTPUT_FILE, "ab")
-    ftmp = open(TMP_FILE, "r")
+    f = open(OUTPUT_FILE, "ab+")
+    ftmp = open(TMP_FILE, "rb")
     f.write(ftmp.read())
+    f.flush()
     f.close()
     ftmp.close()
 

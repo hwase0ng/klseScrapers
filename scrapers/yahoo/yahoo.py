@@ -109,8 +109,9 @@ class Quote(object):
             for bar in xrange(len(self.close))])
 
     def write_csv(self, filename):
-        with open(filename, 'w') as f:
+        with open(filename, 'wb') as f:
             f.write(self.to_csv())
+            f.flush()
 
     def read_csv(self, filename):
         # self.symbol = ''
