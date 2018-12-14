@@ -877,7 +877,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
 
         return dflist, title, lasttrxn
 
-    def doPlotting(outname):
+    def doPlotting(outname, nums=[]):
         '''
         # sharex is causing the MONTH column to be out of alignment
         # Adding/removing records does not help to rectify this issue
@@ -936,7 +936,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                 dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, dfmpv, skiprow)
                 if dflist is None:
                     continue
-                doPlotting(fname)
+                doPlotting(fname, nums)
             if len(dates) < 2 or end > dates[1]:
                 break
             else:
