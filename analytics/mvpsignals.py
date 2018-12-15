@@ -110,11 +110,6 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
     [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
     [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
 
-    '''
-    if "MP" in odiv:
-        return odiv["MP"][1], odiv["MP"][2]
-    elif 'MP' in pdiv:
-    '''
     if 'MP' in pdiv:
         if 'MP' in ndiv:
             pdate, ndate = pdiv['MP'][0], ndiv['MP'][0]
@@ -162,163 +157,92 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
 
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         pass
-    elif matchlevel > 6:
-        if bottomM and topP:
-            print "TSS 11 TBD 1"
-            topSellSignal, tss_state = 999, 11
-        elif topM and bottomP:
-            print "TSS 11 TBD 2"
-            topSellSignal, tss_state = 998, 11
-        elif bottomM and bottomP:
-            print "TSS 11 TBD 3"
-            topSellSignal, tss_state = 997, 11
-        elif topM and topP:
-            print "TSS 11 TBD 4"
-            topSellSignal, tss_state = 996, 11
-        else:
-            if posC < 2 and len(plistM) > 1 and len(plistP) > 1 and plistM[-1] < 10 and \
-                    plistM[-1] < plistM[-2] and plistP[-1] > plistP[-2]:
-                # ((bottomC or prevbottomC) and plistC[-1] < nlistC[-1] + range3) and \
-                # P peaks and M peaks divergent
-                # DUFU 2013-01-07 bearish
-                topSellSignal = 11
-                tss_state = 5
-            else:
-                print "TSS 11 TBD 5"
-                topSellSignal, tss_state = 995, 11
-    elif matchlevel > 0 and peaks and len(plistM) > 1 and len(plistP) > 1 and \
-            (len(plistM) == len(plistP) or (len(plistM) > 2 and len(plistP) > 2)) and \
-            ((plistM[-1] >= plistM[-2] and plistP[-1] < plistP[-2]) or
-             (plistM[-1] <= plistM[-2] and plistP[-1] > plistP[-2])):
-        # ----- _/ TOPS with peaks divergence ----- #
+    elif matchlevel > 0 and peaks and "MP" in pdiv:
+        # ----- PEAKS divergence ----- #
         # PETRONM 2015-08-02 filtered as posC=1
         # KESM 2018-11-23 topC with invalid newlowC condition filtered
-            # HEXZA 2018-11-23 with less than 3 peaks filtered
+        # HEXZA 2018-11-23 with less than 3 peaks filtered
         # Divergent detected before topC
         # LIONIND 2017-02-03 passed range check
-        if plistM[-1] < 10:  # and plistP[-1] < 0:
-            if plistP[-1] > 0 and plistP[-2] > 0:
-                topSellSignal = 1
-                if topP or prevtopP:
-                    # PADINI 2012-09-03 TopP divergent with lower M
-                    # PETRONM 2012-05-25
-                    # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP with lowerM divergent
-                    # DUFU 2017-04-03 triggered,
-                    #      2017-05-02 M & P divergent with V
-                    #      2017-10-02 Second TSS2 signal in a side way market
-                    tss_state = 1
-                    # tss_state = 1 if posC > 3 or newlowM else 2
-                elif topM or prevtopM:
-                    # KLSE 2014-05-08 TopM divergent with lower P
-                    #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
-                    tss_state = 2
-                    # tss_state = 1 if lastV < 0 else 2
-                else:
-                    # ANNJOO 2017-07-03 has neither topM nor topP
+        if len(plistM) > 3 and len(plistP) > 3 and \
+                plistM[-1] > 10 and plistM[-2] > 10 and plistM[-3] > 10:
+            topSellSignal = -1
+            if posC > 2 and plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
+                # MAGNI 2013-03-01 top retrace with CM and CP valley divergence follow by break out
+                tss_state = 1
+            elif posC < 2:
+                # --- bottom reversal --- #
+                # DUFU 2014-05-05, 2014-06-04 (plistP[-1] < 0) bottom break out
+                # DUFU 2014-09-10 (5 plistM vs 4 plistP)
+                tss_state = -1
+            elif topC:
+                if len(ndiv):
+                    pdate = pdiv['MP'][0]
+                    if "CP" in ndiv:
+                        ndate = ndiv['CP'][0]
+                    else:
+                        ndate = ndiv['CM'][0]
+                if pdate > ndate:
+                    # DUFU 2014-09-03 retracing
                     tss_state = 0
-            elif topC or newhighC:
+                else:
+                    # DUFU 2014-11-21 retrace completed
+                    tss_state = -2
+            else:
+                tss_state = 0
+            # tss_state = 2 if "CM" in ndiv or "CP" in ndiv else 1
+        elif "CM" in pdiv and "CP" in pdiv:
+            # DUFU 2017-10-03 with double tops
+            topSellSignal = 1
+            tss_state = 1
+            if posC > 1 and \
+                    len(plistP) > 2 and plistP[-1] > 0 and plistP[-2] > 0 or plistP[-3] > 0 and \
+                    len(nlistP) > 2 and nlistP[-1] > nlistP[-2] and nlistP[-2] > nlistP[-3]:
                 # DUFU 2017-01-03
-                # N2N 2018-11-27
                 topSellSignal = -1
                 tss_state = 2
-        elif plistP[-1] > 0:
-            if newhighM or newhighP:
-                topSellSignal = 1
+        elif "CM" not in pdiv and "CP" not in pdiv and posC > 1:
+            # Filtered DUFU 2013-04-17 newlowC after CM divergence disappears
+            if len(ndiv) or newhighC:
+                # DUFU 2017-01-03 newhighC with no valley divergence
+                # DUFU 2015-12-30, 2017-04-05
+                # PADINI 2012-08-29 - HighC, HighP with lowerM divergent
+                topSellSignal = -1
                 tss_state = 3
-                # tss_state = 1 if newhighV else 2 if lastV > 0 else 3
-            elif (topC or newhighC) and not newlowC:
-                # DUFU 2013-05-15 with newlowC filtered
-                if plistC is not None and len(plistC) > 1 and \
-                        plistC[-1] > maxC - range3 and plistC[-2] > maxC - range3:
-                    # LIONIND 2017-02-03, PADINI 2018-11-23
-                    # CARLSBG 2017-05-04 with M > 10
-                    topSellSignal = -1
-                    tss_state = 1
-                else:
-                    # DUFU 2014-09-10 (5 plistM vs 4 plistP)
-                    # PETRONM 2017-08-02
-                    topSellSignal = -1
-                    tss_state = 0
-            elif newlowC or plistM[-1] > plistM[-2]:
-                # DUFU 2013-04-02 newlowC
+            else:
+                # PADINI topC with CM divergence disappears after 2012-10-10
                 topSellSignal = 1
+                tss_state = 2
+        else:
+            if "CM" in pdiv:
+                # PADINI 2012-09-03 TopP divergent with lower M
+                #        CM divergence disappears after 2012-10-10
+                pdate = pdiv['CM'][0]
+            elif "CP" in pdiv:
+                # LIONIND 2017-02-03
+                pdate = pdiv['CP'][0]
+            ndate = ""
+            if "CP" in ndiv:
+                ndate = ndiv['CP'][0]
+            elif "CM" in ndiv:
+                ndate = ndiv['CM'][0]
+            if posC > 1 and len(ndate) and ndate > pdate:
+                # DUFU 2018-07-27 with CP and CM valley divergent
+                # KLSE 2014-05-08 TopM divergent with lower P
+                # LIONIND 2017-02-03
+                # CARLSBG 2017-05-04 with M > 10
+                topSellSignal = -1
                 tss_state = 4
             else:
-                # DUFU 20140-06-04 retrace after bottom break out
-                topSellSignal = -1
-                tss_state = 2
-        elif newlowC:
-            # DUFU 2012-05-22 topM, newhighV
-            # DUFU 2014-02-05 topM, V < 0, prevtopP, plistM[-2] > 10
-            topSellSignal = 1
-            tss_state = 5
-        else:
-            print "TSS 1 TBD 2"
-            topSellSignal, tss_state = 998, 1
-    elif matchlevel > 1 and peaks and (newhighC or topC) and not newlowC and \
-            posC > 1 and firstC <= minC + range3 and \
-            (((topP or prevtopP) and not ((prevtopM or topM) or newhighM)) or
-             ((topM or prevtopM) and not ((prevtopP or topP) or newhighP))):
-        # ----- _/ TOPS with peaks divergence ----- #
-        # PETRONM 2015-08-02 filtered as posC=1
-        # KESM 2018-11-23 topC with invalid newlowC condition filtered
-            # HEXZA 2018-11-23 with less than 3 peaks filtered
-        # Divergent detected before topC
-        # LIONIND 2017-02-03 passed range check
-        if plistM[-1] < 10:  # and plistP[-1] < 0:
-            if plistP[-1] > 0 and plistP[-2] > 0:
-                topSellSignal = 12
-                if topP or prevtopP:
-                    # PADINI 2012-09-03 TopP divergent with lower M
-                    # PETRONM 2012-05-25
-                    # DUFU 2015-12-30, PADINI 2012-08-29 - HighC, HighP with lowerM divergent
-                    # DUFU 2017-04-03 triggered,
-                    #      2017-05-02 M & P divergent with V
-                    #      2017-10-02 Second TSS2 signal in a side way market
-                    tss_state = 1
-                    # tss_state = 1 if posC > 3 or newlowM else 2
-                elif topM or prevtopM:
-                    # KLSE 2014-05-08 TopM divergent with lower P
-                    #   Note: DUFU 2016-04-14 has M < 5 and P < 0 with successful rebound after short retrace
-                    tss_state = 2
-                    # tss_state = 1 if lastV < 0 else 2
-                else:
-                    # ANNJOO 2017-07-03 has neither topM nor topP
-                    tss_state = 0
-            elif topC or newhighC:
-                # DUFU 2017-01-03
-                # N2N 2018-11-27
-                topSellSignal = -12
-                tss_state = 2
-        elif plistP[-1] > 0:
-            if newhighM or newhighP:
-                topSellSignal = 12
+                topSellSignal = 1
                 tss_state = 3
-                # tss_state = 1 if newhighV else 2 if lastV > 0 else 3
-            elif topC or newhighC:
-                if plistC is not None and len(plistC) > 1 and \
-                        plistC[-1] > maxC - range3 and plistC[-2] > maxC - range3:
-                    # LIONIND 2017-02-03, PADINI 2018-11-23
-                    # CARLSBG 2017-05-04 with M > 10
-                    topSellSignal = -12
-                    tss_state = 1
-                else:
-                    # DUFU 2014-09-10, PETRONM 2017-08-02
-                    topSellSignal = -12
-                    tss_state = 0
-            else:
-                print "TSS 12 TBD 1"
-                topSellSignal, tss_state = 999, 12
-        else:
-            print "TSS 12 TBD 2"
-            topSellSignal, tss_state = 998, 12
-    # elif (newlowM or bottomM) and newlowP and prevtopC and posC > 2:
     elif matchlevel > 1 and (topC or prevtopC) and posC > 0 and \
             not bottomC and firstC < minC + range3 and \
             len(plistM) > 1 and len(plistP) > 1 and len(nlistM) > 1 and len(nlistP) > 1 and \
             ((nlistM[-1] >= nlistM[-2] and nlistP[-1] < nlistP[-2]) or
              (nlistM[-1] <= nlistM[-2] and nlistP[-1] > nlistP[-2])):
         # ----- TOPS with valleys divergence ----- #
+        # PETRONM 2015-08-02
         # YONGTAI 2018-11-27 needs to be filtered for len(nlistP) < len(nlistM)
         if nlistM[-1] >= nlistM[-2] and nlistP[-1] < nlistP[-2]:
             # Divergent 1: higher M, lower P
@@ -524,6 +448,7 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             plistP[-1] > plistP[-2] and nlistP[-1] > nlistP[-2]:
         # ----- U style bottom rebound to new high ----- #
         # -----   higher peaks and higher valleys  ----- #
+        # PETRONM 2012-05-25
         if nlistP[-1] < 0:
             # PETRONM 2013,05-29, 2015-07-30 - HighC, HighM
             topSellSignal = 8
@@ -532,6 +457,12 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             # PADINI 2012-05-21
             topSellSignal = -8
             tss_state = 2 if newhighV else 1
+    elif matchlevel > 0 and "MP" in odiv and odiv['MP'][1] == 5 and \
+            (newhighC or topC) and topM and topP and prevbottomM and prevbottomP:
+        # -----   higher peaks and Lower valleys  ----- #
+        # 2018-08-01 PADINI
+        topSellSignal = 9
+        tss_state = 2 if newhighV else 1
     '''
     elif topC and topM and topP:
         # LIONIND 2017-04-03 TSS,7,2 failed
