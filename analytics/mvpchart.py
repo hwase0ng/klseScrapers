@@ -375,7 +375,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
 
     def find_divergence(matchlist):
         p1date1, p1date2, p2date1, p2date2 = None, None, None, None
-        matchdt, divcount, tolerance, nodiv = None, 0, 0, 0
+        matchdt, divcount, tolerance, nodiv, matchpos = None, 0, 0, 0, -1
         for v in sorted(matchlist, reverse=True):
             if matchlist[v][0] == 0:
                 nodiv += 1
@@ -384,6 +384,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
                 p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
                 matchdt = matchlist[v][2]
+                matchpos = matchlist[v][0]
                 tolerance, nodiv = matchlist[v][1], 0
             else:
                 p1date2, p2date2 = p1x[v], p2x[matchlist[v][0]]
@@ -415,13 +416,13 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 if divcount > 2:
                     # restrict matchings to max 3
                     break
-        return matchdt, 1, divcount, tolerance
+        return matchdt, 1, divcount, tolerance, matchpos
 
     if p1x is None or p2x is None:
         return None, None, 0, 0, 0
     matchlist = matchdates(p1x, p2x)
-    matchdt, divtype, divcount, tolerance = find_divergence(matchlist)
-    return matchlist, matchdt, divtype, divcount, tolerance
+    matchdt, divtype, divcount, tolerance, matchpos = find_divergence(matchlist)
+    return matchlist, matchdt, divtype, divcount, tolerance, matchpos
 
 
 def plotlinesV2(wfm, axes, cmpvXYPN):
@@ -492,16 +493,18 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
             k, p1x, p2x, p1y, p2y = i[0], cmpvXP[i[2]], cmpvXP[i[3]], cmpvYP[i[2]], cmpvYP[i[3]]
         else:
             k, p1x, p2x, p1y, p2y = i[0], cmpvXN[i[2]], cmpvXN[i[3]], cmpvYN[i[2]], cmpvYN[i[3]]
-        matchlist, matchdt, divtype, divcount, matchtol = drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
+        matchlist, matchdt, divtype, divcount, matchtol, matchpos = \
+            drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
         if divcount > 0:
-            if peaks:
-                pdiv[k] = [matchdt, divtype, divcount, matchtol]
-                if p1x[-1] > matchdt:
-                    pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
-            else:
-                ndiv[k] = [matchdt, divtype, divcount, matchtol]
-                if p1x[-1] > matchdt or p2x[-1] > matchdt:
-                    nmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
+            if matchpos > -3:
+                if peaks:
+                    pdiv[k] = [matchdt, divtype, divcount, matchtol]
+                    if p1x[-1] > matchdt:
+                        pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
+                else:
+                    ndiv[k] = [matchdt, divtype, divcount, matchtol]
+                    if p1x[-1] > matchdt or p2x[-1] > matchdt:
+                        nmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
         else:
             if peaks:
                 pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
@@ -971,7 +974,8 @@ def plotSynopsis(dflist, axes):
     pHigh = dfw.loc[dfw['P'].idxmax()]['P']
     '''
     hlList, pnList = [], []
-    pdiv, ndiv, odiv = {}, {}, {}
+    # pdiv, ndiv, odiv = {}, {}, {}
+    div = {}
     for i in range(3):
         ax = {}
         for j in range(4):
