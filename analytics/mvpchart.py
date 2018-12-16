@@ -219,8 +219,9 @@ def locatepeaks(datesVector, cmpvVector, indexes):
     '''
     posindex, seqindex = {}, {}
     for i, index in enumerate(indexes):
+        y3 = float("{:.3f}".format(cmpvVector[index]))
         x.append(pdTimestamp2strdate(datesVector[index]))
-        y.append(cmpvVector[index])
+        y.append(y3)
         posindex[index] = [x[-1], y[-1]]
         seqindex[i] = [pdTimestamp2strdate(datesVector[index]), cmpvVector[index]]
     return x, y, posindex, seqindex
@@ -472,9 +473,6 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
                           n1y1, n1y2, n2y1, n2y2)
         return "", divtype, divcount, tolerance
 
-    if wfm == 2:
-        if S.DBG_ALL:
-            print "For setting breakpoint to debug month chart only"
     [cmpvXP, cmpvXN, cmpvYP, cmpvYN] = cmpvXYPN
     '''
     cxp, mxp, pxp = cmpvXP[0], cmpvXP[1], cmpvXP[2]
@@ -482,6 +480,9 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
     cyp, myp, pyp = cmpvYP[0], cmpvYP[1], cmpvYP[2]
     cyn, myn, pyn = cmpvYN[0], cmpvYN[1], cmpvYN[2]
     '''
+    if wfm == 2:
+        if S.DBG_ALL:
+            print "For setting breakpoint to debug month chart only"
     lineseq = [['CM', True, 0, 1], ['CM', False, 0, 1],
                ['CP', True, 0, 2], ['CP', False, 0, 2],
                ['MP', True, 1, 2], ['MP', False, 1, 2]]
@@ -493,16 +494,20 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
             k, p1x, p2x, p1y, p2y = i[0], cmpvXP[i[2]], cmpvXP[i[3]], cmpvYP[i[2]], cmpvYP[i[3]]
         else:
             k, p1x, p2x, p1y, p2y = i[0], cmpvXN[i[2]], cmpvXN[i[3]], cmpvYN[i[2]], cmpvYN[i[3]]
+        if wfm == 2 and k == 'MP':
+            if S.DBG_ALL:
+                print "For setting breakpoint to debug month chart only"
         matchlist, matchdt, divtype, divcount, matchtol, matchpos = \
             drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
         if divcount > 0:
             if matchpos > -3:
+                # Only consider first 3 peaks/valleys
                 if peaks:
-                    pdiv[k] = [matchdt, divtype, divcount, matchtol]
+                    pdiv[k] = [matchdt, divtype, divcount, matchtol, matchpos]
                     if p1x[-1] > matchdt:
                         pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
                 else:
-                    ndiv[k] = [matchdt, divtype, divcount, matchtol]
+                    ndiv[k] = [matchdt, divtype, divcount, matchtol, matchpos]
                     if p1x[-1] > matchdt or p2x[-1] > matchdt:
                         nmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
         else:
@@ -513,7 +518,7 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
     if "MP" in pmatch and "MP" in nmatch:
         matchdt, divtype, divcount, matchtol = find_nondivergence(pmatch["MP"], nmatch["MP"])
         if divcount > 0:
-            odiv[k] = [matchdt, divtype, divcount, matchtol]
+            odiv[k] = [matchdt, divtype, divcount, matchtol, -1]
     return pdiv, ndiv, odiv
 
 
@@ -638,6 +643,7 @@ def plotSignals(counter, datevector, ax0):
                 if tssval:
                     symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
                     fontclr = "black" if tssval > 0 else "green"
+                    ttspos = ymin if tssval < 0 else ymax
                     ax0.plot(dt, ttspos, symbolclr)
                     ax0.text(dt, ttspos, str(tssval), color=fontclr, fontsize=9)
                 if bbsval:
