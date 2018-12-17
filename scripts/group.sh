@@ -1,6 +1,6 @@
 if [ $# -lt 1 ]
 then
- echo "group.sh <1|2> where 1=actual, 2=pattern scanning, others=daily charting only"
+ echo "group.sh <1|2> [steps] where 1=actual, 2=pattern scanning, others=daily charting only"
  exit 1
 fi
 
@@ -23,11 +23,17 @@ TEST=$MVP
 STARTDT="2011-05-02"
 ENDDT="2018-12-14"
 OPT=$1
+if [ -z $2 ]
+then
+ STEPS=2
+else
+ STEPS=$2
+fi
 
 for i in $TEST
 do
  echo Profiling $i
- ./scripts/newprofiling.sh $i ${STARTDT}:${ENDDT}:2 $OPT
+ ./scripts/newprofiling.sh $i ${STARTDT}:${ENDDT}:${STEPS} $OPT
  echo Daily Charting $i
  ./scripts/charting.sh $i ${STARTDT}:${ENDDT}
 done

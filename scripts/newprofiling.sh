@@ -4,9 +4,9 @@ opt=$3
 
 if [ $opt -eq 1 ]
 then
- params="-ps -c 400"
+ params="-ps -c 425"
 else
- params="-ps -c 400 -D p"
+ params="-ps -c 425 -D p"
 fi
 
 DATA=/z/data
