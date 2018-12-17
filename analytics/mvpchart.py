@@ -420,7 +420,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
         return matchdt, 1, divcount, tolerance, matchpos
 
     if p1x is None or p2x is None:
-        return None, None, 0, 0, 0
+        return None, None, 0, 0, 0, 0
     matchlist = matchdates(p1x, p2x)
     matchdt, divtype, divcount, tolerance, matchpos = find_divergence(matchlist)
     return matchlist, matchdt, divtype, divcount, tolerance, matchpos
@@ -874,7 +874,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                             lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV]
                 del df
             else:
-                return None, None, None, None
+                return None, None, None
 
         print " Synopsis:", counter, lastTrxnDate
         dflist = {}
