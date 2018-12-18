@@ -819,11 +819,13 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             dflist = dfGetDates(dfmpv, start, end)
             if dflist is not None and len(dflist) > 100:
                 plotchart(dflist, fname + "_" + end)
-            if len(dates) < 2 or end > dates[1]:
+            if len(dates) < 2 or end >= dates[1]:
                 break
             else:
                 # end = getDayOffset(end, step)
                 end = pdDaysOffset(end, step)
+                if end > dates[1]:
+                    end = dates[1]
         return False
 
 
