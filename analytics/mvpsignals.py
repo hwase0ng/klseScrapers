@@ -32,10 +32,10 @@ def scanSignals(dbg, counter, fname, pnlist, div, lastTrxnData):
         return ""
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
-    posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
+    # posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
     bottomrevs, bbs, bbs_stage = 0, 0, 0
-    tss, tss_state = topSellSignals(posC, lastTrxnData, matchdate, cmpvlists,
-                                    composelist, hstlist, div)
+    tss, tss_state, patterns = topSellSignals(lastTrxnData, matchdate, cmpvlists,
+                                              composelist, hstlist, div)
     '''
     bottomrevs, bbs, bbs_stage = \
         bottomBuySignals(lastTrxnData, matchdate, cmpvlists, composelist, div)
@@ -45,25 +45,29 @@ def scanSignals(dbg, counter, fname, pnlist, div, lastTrxnData):
             return ""
 
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
-    [tolerance, pdays, ndays, matchlevel] = matchdate
-    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d)" % (strC, strM, strP, strV,
-                                                     tolerance, pdays, ndays, matchlevel)
+    # [tolerance, pdays, ndays, matchlevel] = matchdate
+    [p1, p2, p3, p4] = patterns
+    lastprice = lastTrxnData[1]
+    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d),%.2f" % (strC, strM, strP, strV,
+                                                          p1, p2, p3, p4, lastprice)
+    # tolerance, pdays, ndays, matchlevel)
     signaltss, signalbbs = "NUL,0,0", "NUL,0,0"
+    [_, _, odiv, _] = div
+    label, otype, ocount = "OTH", 0, -1
+    if "MP" in odiv:
+        otype, ocount = odiv["MP"][1], odiv["MP"][2]
+    signaloth = "%s,%d,%d" % (label, otype, ocount)
     if tss:
-        label = "TBD" if tss > 900 else "TSS" if tss > 0 else "RTR"
+        label = "TBD" if tss > 900 else "TSS" if tss > 0 else "RTR" if tss_state > 0 else "BRV"
         signaltss = "%s,%d,%d" % (label, tss, tss_state)
+    '''
     if bottomrevs:
         label = "BRK" if bottomrevs == 13 else "BRV"
         signalbbs = "%s,%d,%d" % (label, bottomrevs, bbs_stage)
     elif bbs or bbs_stage or (dbg and dbg != 2):
         label = "OVS" if bbs else "Dbg"
         signalbbs = "%s,%d,%d" % (label, bottomrevs, bbs_stage)
-
-    [_, _, odiv] = div
-    label, otype, ocount = "OTH", 0, -1
-    if "MP" in odiv:
-        otype, ocount = odiv["MP"][1], odiv["MP"][2]
-    signaloth = "%s,%d,%d" % (label, otype, ocount)
+    '''
 
     signals = "%s,%s,%s,%s,%s" % (counter, signaltss, signalbbs, signaloth, signaldet)
     printsignal(counter, fname, lastTrxnData[0], label, signals)
@@ -93,11 +97,50 @@ def printsignal(counter, fname, trxndate, label, signal):
             fh.write(signal + '\n')
 
 
-def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
+def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
+
+    def patternsMatching(mpdates, plistC, nlistC, plistM, nlistM):
+        retraceM10, prevRetraceM10, tripleM10, tripleFallC = 0, 0, 0, 0
+
+        firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
+        firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
+        firstpp = mpdates["Pp"][-1] if "Pp" in mpdates else "1970-01-01"
+        firstpn = mpdates["Pn"][-1] if "Pn" in mpdates else "1970-01-01"
+
+        if plistC is not None and nlistC is not None and len(plistC) > 2 and len(nlistC) > 2:
+            if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3] and \
+                    nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3]:
+                tripleFallC = 1
+                if len(nlistC) > 3 and nlistC[-3] < nlistC[-4]:
+                    tripleFallC = 2
+
+        if plistM is not None and nlistM is not None and len(plistM) > 2 and len(nlistM) > 2:
+            if plistM[-1] >= 10 and plistM[-2] >= 10 and plistM[-3] >= 10:
+                tripleM10 = 1
+            m10date, m10pos = "", 0
+            for i in range(1, len(plistM) + 1):
+                j = i * -1
+                if plistM[j] >= 10:
+                    m10date = mpdates["Mp"][j]
+                    m10pos = j
+                    break
+            if m10pos and m10pos > -3 and not (newlowC or newhighC):
+                mnfirst = True
+                if m10date > firstmn:
+                    mnfirst = False
+                if mnfirst:
+                    retraceM10 = 1 if nlistM[-1] > 7 else 2 if nlistM[-1] > 5 else -1
+            if not retraceM10 and m10pos and m10pos < -2:
+                if nlistM[-1] > 5 and nlistM[-2] > 5:
+                    prevRetraceM10 = 1
+
+        return [retraceM10, prevRetraceM10, tripleM10, tripleFallC], \
+            [firstmp, firstmn, firstpp, firstpn]
+
     topSellSignal, tss_state = 0, 0
     peaks, valleys = False, False
-    [tolerance, pdays, ndays, matchlevel] = matchdate
-    [pdiv, ndiv, odiv] = div
+    # [tolerance, pdays, ndays, matchlevel] = matchdate
+    [pdiv, ndiv, odiv, mpdates] = div
     '''
     Wrong assumption as TSS 6 happens when newlowC or posC = 0
     if pricepos < 2:
@@ -131,7 +174,7 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             if pdate > ndate:
                 peaks = True
             else:
-                valley = True
+                valleys = True
         else:
             peaks = True
         if DBGMODE == 3:
@@ -149,7 +192,7 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             if hstM[-2] == 'p' and hstP[-2] == 'p':
                 peaks = True
             elif hstM[-2] == 'v' and hstP[-2] == 'v':
-                valley = True
+                valleys = True
         if DBGMODE == 3:
             return topSellSignal, tss_state
 
@@ -170,8 +213,69 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
         minC = firstC if firstC < lastC else lastC
     range3 = float("{:.2f}".format((maxC - minC) / 3))
 
+    retraceM10, prevRetraceM10, tripleM10, tripleFallC = 0, 0, 0, 0
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
+        nosignal = True
+    else:
+        nosignal = False
+        p1, p2 = patternsMatching(mpdates, plistC, nlistC, plistM, nlistM)
+        [retraceM10, prevRetraceM10, tripleM10, tripleFallC] = p1
+        [firstmp, firstmn, firstpp, firstpn] = p2
+
+    if nosignal:
         pass
+    elif plistP is not None and len(plistP) > 3 and tripleM10:
+        # 3 consecutive M above 10 - powerful break out / bottom reversal signal
+        topSellSignal = -1 if peaks else -2
+        if plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
+            # MAGNI 2013-03-01 top retrace with CM and CP valley divergence follow by break out
+            tss_state = 1
+        # elif posC < 2:
+            # --- bottom reversal --- #
+            # DUFU 2014-05-05, 2014-06-04 (plistP[-1] < 0) bottom break out
+            # DUFU 2014-09-10 (5 plistM vs 4 plistP)
+        elif topC or topM:
+            pdate, ndate = "", ""
+            if len(ndiv):
+                pdate = mpPdate
+                if "CP" in ndiv:
+                    ndate = cpNdate
+                elif "CM" in ndiv:
+                    ndate = cmNdate
+            if pdate > ndate:
+                # DUFU 2014-09-03 retracing
+                tss_state = 0
+            else:
+                # DUFU 2014-11-21 retrace completed
+                # UCREST 2017-08-02 topM valley divergence
+                tss_state = 2
+        else:
+            tss_state = 0
+        # tss_state = 2 if "CM" in ndiv or "CP" in ndiv else 1
+    elif tripleFallC:
+        topSellSignal = -1 if peaks else -2
+        if tripleFallC == 1:
+            tss_state = 3
+        else:
+            if peaks and "MP" in ndiv:
+                # DUFU 2018-06-13 retrace with valley follow by peak divergence
+                tss_state = -3
+            elif not newlowC:
+                # DANCO 2018-07-23
+                tss_state = -3
+            else:
+                # PADINI 2014-02-05 newlowC
+                # PETRONM 2014-04-25
+                tss_state = 3
+    elif retraceM10:
+        onetwo = 1 if peaks else 2
+        if retraceM10 == 2:
+            # PADINI 2011-10-03
+            topSellSignal = onetwo * -1
+        else:
+            # PADINI 2011-08-05
+            # PETRONM 2013-07-18
+            topSellSignal = onetwo
     elif "MP" in pdiv and mpPpos > -3:
         # elif "MP" in pdiv and mpPdate >= cmPdate and mpPdate >= cpPdate:
         # ----- PEAKS divergence ----- #
@@ -179,56 +283,30 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
         # KESM 2018-11-23 topC with invalid newlowC condition filtered
         # HEXZA 2018-11-23 with less than 3 peaks filtered
         # Divergent detected before topC
-        if len(plistM) > 3 and len(plistP) > 3 and \
-                plistM[-1] > 10 and plistM[-2] > 10 and plistM[-3] > 10:
-            # 3 consecutive M above 10 - powerful break out / bottom reversal signal
-            topSellSignal = -1 if peaks else -2
-            if posC > 2 and plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
-                # MAGNI 2013-03-01 top retrace with CM and CP valley divergence follow by break out
-                tss_state = 1
-            elif posC < 2:
-                # --- bottom reversal --- #
-                # DUFU 2014-05-05, 2014-06-04 (plistP[-1] < 0) bottom break out
-                # DUFU 2014-09-10 (5 plistM vs 4 plistP)
-                tss_state = -1
-            elif topC or topM:
-                ndate = ""
-                if len(ndiv):
-                    pdate = mpPdate
-                    if "CP" in ndiv:
-                        ndate = cpNdate
-                    else:
-                        ndate = cmNdate
-                if pdate > ndate:
-                    # DUFU 2014-09-03 retracing
-                    tss_state = 0
-                else:
-                    # DUFU 2014-11-21 retrace completed
-                    # UCREST 2017-08-02 topM valley divergence
-                    tss_state = -2
-            else:
-                tss_state = 0
-            # tss_state = 2 if "CM" in ndiv or "CP" in ndiv else 1
-        elif "CM" in pdiv and "CP" in pdiv:
+        if "CM" in pdiv and "CP" in pdiv:
+            tss_state = 4
             if peaks:
                 # DUFU 2017-10-03 with double tops
                 topSellSignal = 1
             else:
                 # PETRONM 2013-12-12
                 topSellSignal = 2
-            tss_state = 1
-            if newhighC or (topC and posV < 3):
-                if peaks:
-                    # DUFU 2017-01-03
-                    # PADINI 2017-07-03
-                    topSellSignal = -1
-                else:
-                    topSellSignal = -2
-                tss_state = 2
+            if not prevRetraceM10:
+                if newhighC or (topC and posV < 3):
+                    if peaks:
+                        # DUFU 2017-01-03
+                        # PADINI 2017-07-03
+                        topSellSignal = -1
+                    else:
+                        topSellSignal = -2
         elif "CM" not in pdiv and "CP" not in pdiv and posC > 1:
+            tss_state = 5
             # Filtered DUFU 2013-04-17 newlowC after CM divergence disappears
             if len(ndiv) or newhighC:
-                if peaks:
+                if prevRetraceM10:
+                    # PETRONM 2018-01-11
+                    topSellSignal = 1 if peaks else 2
+                elif peaks:
                     # DUFU 2017-01-03 newhighC with no valley divergence
                     # DUFU 2015-12-30, 2017-04-05
                     # PADINI 2018-02-19, 2012-08-29 - HighC, HighP with lowerM divergent
@@ -237,16 +315,39 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
                 else:
                     # PETRONM 2015-11-26
                     topSellSignal = -2
-                tss_state = 3
             else:
                 # PADINI topC with CM divergence disappears after 2012-10-10
                 topSellSignal = 1 if peaks else 2
-                tss_state = 2
-        elif cpPdate > mpPdate or cmPdate > mpPdate:
-            # PADINI 2014-11-10 cpPdate later than mpPdate
-            topSellSignal = 1 if peaks else 2
-            tss_state = 3
+        elif valleys and len(plistM) > 1:
+            tss_state = 6
+            if bottomM and not (bottomC and bottomP) and nlistM[-1] > 5 and not newlowC:
+                # PETRONM 2015-04-01
+                topSellSignal = -2
+            elif bottomP and not (bottomC and bottomM) and nlistM[-1] > 5 and not newlowC:
+                topSellSignal, tss_state = 999, 6
+            elif not newlowC and posC < 3:
+                if "CP" in pdiv and firstpp > firstpn:
+                    # PETRONM 2013-07-05
+                    topSellSignal = 2
+                elif "CM" in pdiv and firstmp > firstmn:
+                    topSellSignal = 2
+                elif "CP" in ndiv or "CM" in ndiv:
+                    # PETRONM 2013-03-27
+                    topSellSignal = -2
+                else:
+                    topSellSignal = 2
+            else:
+                # PADINI 2014-11-10 cpPdate later than mpPdate
+                topSellSignal = 2
+        elif prevtopC and bottomC and bottomM and bottomP:
+            tss_state = 7
+            if nlistM[-1] > 5:
+                # DANCO 2017-05-03 oversold rebound
+                topSellSignal = -1 if peaks else -2
+            else:
+                topSellSignal = 1 if peaks else 2
         else:
+            pdate, ndate = "", ""
             if "CM" in pdiv:
                 # PADINI 2012-09-03 TopP divergent with lower M
                 #        CM divergence disappears after 2012-10-10
@@ -254,260 +355,90 @@ def topSellSignals(pricepos, lastTrxn, matchdate, cmpvlists, composelist, hstlis
             elif "CP" in pdiv:
                 # LIONIND 2017-02-03
                 pdate = cpPdate
-            ndate = ""
             if "CP" in ndiv:
                 ndate = cpNdate
             elif "CM" in ndiv:
                 ndate = cmNdate
-            if posC > 1 and len(ndate) and ndate > pdate:
+            tss_state = 8
+            if len(ndate) and ndate > pdate and not (newlowC or bottomC):
                 # DUFU 2018-07-27 with CP and CM valley divergent
                 # LIONIND 2017-02-03
                 # CARLSBG 2017-05-04 with M > 10
+                # PETRONM 2013-03-11 posC = 1
                 # PETRONM 2016-05-20 with CP divergence temporarily
                 topSellSignal = -1 if peaks else -2
-                tss_state = 4
             else:
                 if peaks:
                     # KLSE 2014-05-08 TopM divergent with lower P
+                    # DANCO 2018-01-10 with bottomC
                     topSellSignal = 1
-                elif valley:
+                elif valleys:
                     # PETRONM 2016-04-20
                     topSellSignal = 2
-                tss_state = 4
 
     if "MP" in ndiv and not topSellSignal:
-        if "CP" in pdiv and cpPdate > mpNdate or \
-                "CM" in pdiv and cmPdate > mpNdate:
-            # PADINI 2016-10-06 with CP and CM
+        # ----- VALLEY divergence ----- #
+        if retraceM10:
+            tss_state = 20
+            if retraceM10 == 2:
+                # PETRONM 2015-10-07, 2015-12-04
+                # DANCO 2018-12-17
+                topSellSignal = -2
+            else:
+                topSellSignal = 2
+        elif plistP is not None and len(plistP) > 3 and tripleM10:
+            # 3 consecutive M above 10 - powerful break out / bottom reversal signal
+            topSellSignal = -2
+            tss_state = 21
+        elif tripleFallC:
+            topSellSignal = -2
+            if tripleFallC == 1:
+                tss_state = 22
+            else:
+                tss_state = -22
+        elif "CP" in pdiv and "CM" in pdiv:
             topSellSignal = 2
-            tss_state = 10
+            tss_state = 23
         elif "CP" in ndiv and cpNpos == -1:
             topSellSignal = -2
-            if newlowP or bottomP:
+            if posC < 2 and tripleFallC:
+                # PADINI 2015-08-03
+                tss_state = 24
+            elif newlowP or bottomP:
                 # PADINI 2017-02-22 retrace complete
-                tss_state = 10
+                tss_state = 25
             else:
                 tss_state = 0
-        elif len(plistM) > 1 and (plistM[-1] > 10 or plistM[-2] > 10):
-            # PETRONM 2015-10-07, 2015-12-04
-            topSellSignal = -2
-            tss_state = -10
+        elif "CP" in pdiv and cpPdate > mpNdate or \
+                "CM" in pdiv and cmPdate > mpNdate:
+            tss_state = 26
+            if topC and not (topM or topP):
+                # PADINI 2016-10-06 with CP and CM
+                topSellSignal = 2
+            elif (topM or topP) and not topC:
+                # PADINI 2016-01-04 topP
+                topSellSignal = -2
         else:
-            # PADINI 2016-10-27
-            topSellSignal = -2
+            if not (newlowC or newhighC):
+                # PADINI 2016-10-27
+                topSellSignal = -2
+            else:
+                # DANCO 2017-03-30
+                # LAYHONG 2018-12-14
+                topSellSignal = 2
             if newlowP or bottomP:
-                tss_state = 11
+                tss_state = 27
             else:
                 # PADINI 2018-03-15
                 tss_state = 0
-    elif matchlevel > 0 and (newhighC or topC) and not topM and not topP and \
-            len(plistM) > 1 and len(plistP) > 1 and \
-            len(nlistM) > 1 and len(nlistP) > 1 and \
-            plistM[-1] < plistM[-2] and plistP[-1] < plistP[-2] and \
-            nlistM[-1] > nlistM[-2] and nlistP[-1] > nlistP[-2]:
-        # ----- Lower peaks with higher valleys in both M and P ----- #
-        if plistM[-1] < 10:
-            if plistP[-1] < 0:
-                # m<10 and p<0
-                # DUFU 2013-09-25, PETRONM 2014-12-03
-                # KESM 2018-04-04
-                topSellSignal = 3
-                tss_state = 0
-                # tss_state = 2 if topC else 1
-            else:
-                # p>0
-                if posC > 2 and (topC or newhighC):
-                    # TOP retrace
-                    topSellSignal = -3
-                    if len(plistM) > 1 and plistM[-2] < 10:
-                        # m<10 and p>0
-                        # PETRONM 2017-12-04 50% final rebound before major sell off
-                        #   - very elusive catch due to lowM & midP, must sell as price goes higher
-                        tss_state = -1
-                        # tss_state = -1 if posC < 4 else -2
-                    else:
-                        tss_state = 0
-                else:
-                    if newlowM and not newlowP and bottomV and (topC or newhighC):
-                        # Bottom rebound
-                        # PETRONM 2016-08-02 30% upside
-                        #  - shifted to TSS2 due to valley divergence
-                        #  - to be used in bottom reversal
-                        topSellSignal = -3
-                        tss_state = 1
-                        # tss_state = 1 if lastV < 0 else 2
-                    else:
-                        # Bottom selling resume
-                        # PETRONM 2016-06-02 reclassified under TSS2 -> TSS1
-                        topSellSignal = 3
-                        # likely hit bottom when volume is low, next wait for rebound signal
-                        tss_state = 2
-                        # tss_state = 1 if lastV > 0 else 0
-        elif topC and plistP[-1] > 0 and (topC or newhighC):
-            # m>10 or p>0
-            print "TSS 3 topC"
-            topSellSignal = -3
-            tss_state = 2
-        else:
-            # 2014-07-01 DUFU newhighC
-            # watch out for M divergence
-            tss_state = -2
-            # tss_state = -1 if posC < 4 else -2
-            if lastM < 2:
-                topSellSignal = 3
-            elif topC or newhighC:
-                topSellSignal = -3
-    elif matchlevel > 3 and posC > 0 and (prevbottomC or bottomC) and (topV or prevtopV) and \
-            (newhighM or topM) and (newhighP or topP):
-        # ----- TOPS or near TOPS after rebound with valley divergence ------ #
-        if topM and topP:
-            if not topC and (lastM > 5 or lastP > 0):
-                if topV and lastV < 0:
-                    # DUFU 2018-09-04 continues to climb with little retrace
-                    topSellSignal = -4
-                    tss_state = 1
-                else:
-                    # PADINI 2014-05-08 qualified but can also be reclassified under TSS2
-                    topSellSignal = 4
-                    tss_state = 1
-                    # tss_state = 2 if posC > 3 else 1 if posC > 2 else 0
-            else:
-                if (plistM[-1] > 10 or nlistM[-1] > 5) and (topC or newhighC):
-                    # PETRONM 2015-08-20
-                    topSellSignal = -4
-                    tss_state = 0
-        elif (topC or topM or topP) and (lastM > 5 or lastP > 0):
-            # DUFU 2013-11-01
-            # PADINI 2014-05-08 qualified but can also be reclassified under TSS2
-            topSellSignal = 4
-            tss_state = 2
-            # tss_state = 2 if posC > 3 else 1 if posC > 2 else 0
-        else:
-            # Bullish break out
-            # 2018-11-27 MISC, RANHILL
-            # DUFU 2018-08-02
-            topSellSignal = -4
-            tss_state = 1
-    elif matchlevel > 1 and bottomC and posC > 1 and not newhighC and \
-            ((topP and not (topM or (bottomM and nlistM[-1] < 0))) or
-             (topM and not (topP or bottomP))):
-        # ----- BOTTOMS with peaks divergence ------ #
-        if len(nlistM) > 1 and nlistM[-1] > nlistM[-2] and nlistM[-1] > 5 \
-                and (topC or newhighC):
-            # PETRONM 2015-02-05 higher M
-            topSellSignal = -5
-            tss_state = 1 if lastM < 5 or lastP < 0 else 0
-        else:
-            # KLSE 2015-03-05, 2015-04-28, 2018-09-28 - major sell off
-            # PETRONM 2014-06-04
-            topSellSignal = 5
-            tss_state = 2 if bottomM or bottomP else 1
-    elif matchlevel > 0 and posC < 2 and (newlowC or bottomC) and \
-            ((bottomM and not bottomP) or (bottomP and not bottomM)) and \
-            (plistC is not None and nlistC is not None and
-             len(plistM) > 1 and len(plistP) > 1 and plistC[-1] > min(nlistC) + range3):
-        # ----- BOTTOMS with valleys divergence ------ #
-        # PETRONM 2012-09-19 without rebound filtered
-        # KESM 2018-11-19 should not be filtered
-        # if nlistM[-1] < 5 and nlistP[-1] < -0.025:
-        if (nlistM[-1] < 5 or nlistP[-1] < 0):
-            if plistP[-1] > 0 and lastM < 10:
-                # topV - BTM 2018-11-15
-                # KLSE 2015-07-16, 2015-08-03 - bottomM divergent with P, major sell off continuation
-                # KESM 2018-11-19 bottomP divergent with M (to observe further)
-                topSellSignal = 6
-                tss_state = 2 if (bottomM and bottomP) else 1
-            elif topC or newhighC:
-                # PETRONM 2015-01-05 plistP[-1] < 0, 2012-09-19
-                # HEXZA 2018-11-23 bottomM and topP bullish signal?
-                topSellSignal = -6
-                tss_state = 0 if lastV < 0 else 1
-        else:
-            print "TSS 6 TBD"
-            topSellSignal, tss_state = 999, 6
-    elif matchlevel > 1 and newhighC and newhighM and newhighP and \
-            plistC is not None and nlistC is not None and \
-            len(plistC) > 1 and len(nlistC) > 1 and len(plistM) > 1 and len(nlistP) > 1:
-        # ----- TOPS over-bought ----- #
-        # ----- lower peaks and higher valleys ? ----- #
-        if plistC[-1] > plistC[-2] and nlistC[-1] > nlistC[-2] and \
-                plistM[-1] < plistM[-2] and plistP[-1] < plistP[-2] and \
-                nlistP[-1] > nlistP[-2]:
-            if not newhighV and lastV < 0:
-                # CARLSBG 2018-03-05
-                topSellSignal = 7
-                tss_state = 1 if newlowV else 2
-            elif newhighV:
-                print "TSS 7 TBD 1"
-                topSellSignal, tss_state = 999, 7
-        else:
-            # ELKDESA 2018-11-27
-            # GKENT 2017-04-05 moving side way
-            print "TSS 7 TBD 2"
-            # topSellSignal, tss_state = 999, 7
-    elif matchlevel > 0 and posC > 1 and (newhighM or newhighP) and \
-            len(plistM) > 1 and len(nlistM) > 1 and \
-            plistM[-1] > plistM[-2] and nlistM[-1] > nlistM[-2] and \
-            plistP[-1] > plistP[-2] and nlistP[-1] > nlistP[-2]:
-        # ----- U style bottom rebound to new high ----- #
-        # -----   higher peaks and higher valleys  ----- #
-        # PETRONM 2012-05-25
-        if nlistP[-1] < 0:
-            # PETRONM 2013,05-29, 2015-07-30 - HighC, HighM
-            topSellSignal = 8
-            tss_state = 2 if newhighV else 1
-        elif topC or newhighC:
-            # PADINI 2012-05-21
-            topSellSignal = -8
-            tss_state = 2 if newhighV else 1
-    elif matchlevel > 0 and "MP" in odiv and odiv['MP'][1] == 5 and \
-            (newhighC or topC) and topM and topP and prevbottomM and prevbottomP:
-        # -----   higher peaks and Lower valleys  ----- #
-        # 2018-08-01 PADINI
-        topSellSignal = 9
-        tss_state = 2 if newhighV else 1
-    '''
-    elif topC and topM and topP:
-        # LIONIND 2017-04-03 TSS,7,2 failed
-        tss_state = 2
-        if topV:
-            # still very strong breakout
-            topSellSignal = -7
-        else:
-            topSellSignal = 7
-            tss_state = 2
-    elif bottomC and prevtopC:
-        if (topM and not topP) or (topP and not topM):
-            # KLSE 2018-09-28 - prevtopC, topM with lowerP (divergent), prevbottomP, prevtopV
-            topSellSignal = 3
-    elif newlowC or bottomC:
-        if (bottomM and nlistM[-1] < 5) and prevtopP and not topV:
-            # and lastP < 0: stage 1 lastP turned positive
-            # topV - BTM 2018-11-15
-            # KLSE 2015-07-16, 2015-08-03 - major sell off continuation
-            topSellSignal = 6
-            tss_state = 0 if newlowC else 1
 
-    if not topSellSignal:
-        pnM = pnlist[2]
-        xpM, xnM, ypM, ynM = pnM[0], pnM[1], pnM[2], pnM[3]  # 0=XP, 1=XN, 2=YP, 3=YN
-        ynmC, ypmC, ypmM, ypmV = ynM[0], ypM[0], ypM[1], ypM[3]  # 0=C, 1=M, 2=P, 3=V
-        if ypmC is None or ynmC is None:
-            # if len(ypmM) > 1 and ypmM[-1] < ypmM[-2]:
-            #     topSellSignal = 1
-            return topSellSignal
-        xnmC, xpmC, xpmM, xpmV = xnM[0], xpM[0], xpM[1], xpM[3]  # 0=C, 1=M, 2=P, 3=V
-        minYN, maxYP = min(ynmC), max(ypmC)
-        xpmCdate = xpmC[ypmC.index(maxYP)]
-        xnmCdate = xnmC[ynmC.index(minYN)]
-        # 4. PETRONM 2017-12-15
-        if ypmM is not None and len(ypmM) > 1 and ypmM[-1] < ypmM[-2]:
-            topSellSignal = 3
-            if xpmCdate > xnmCdate:
-                topSellSignal = 4
+    '''
+    if topSellSignal < 0 and tss_state and posC < 2:
+        if tss_state > 0:
+            tss_state *= -1
     '''
 
-    return topSellSignal, tss_state
+    return topSellSignal, tss_state, [retraceM10, prevRetraceM10, tripleM10, tripleFallC]
 
 
 def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, odiv):
@@ -725,11 +656,21 @@ def checkposition(pntype, pnlist, firstpos, lastpos):
         minP, maxP = firstpos, firstpos
     else:
         minP, maxP = min(plist), max(plist)
+        if minP > firstpos:
+            # PADINI 2013-04-18
+            minP = firstpos
+        if maxP < firstpos:
+            maxP = firstpos
     if nlist is None:
         # free falling
         minN, maxN = firstpos, firstpos
     else:
         minN, maxN = min(nlist), max(nlist)
+        if minN > firstpos:
+            # PADINI 2013-04-18
+            minN = firstpos
+        if maxN < firstpos:
+            maxN = firstpos
     clist, profiling = profilemapping(pntype, pnlist)
     if lastpos > maxP:
         newhigh = True
