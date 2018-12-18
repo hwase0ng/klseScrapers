@@ -420,21 +420,15 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
         return matchdt, 1, divcount, tolerance, matchpos
 
     if p1x is None or p2x is None:
-        return None, None, 0, 0, 0, 0
+        return []
     matchlist = matchdates(p1x, p2x)
     matchdt, divtype, divcount, tolerance, matchpos = find_divergence(matchlist)
-    return matchlist, matchdt, divtype, divcount, tolerance, matchpos
+    return [matchlist, matchdt, divtype, divcount, tolerance, matchpos]
 
 
 def plotlinesV2(wfm, axes, cmpvXYPN):
 
-    def find_nondivergence(pmatch, nmatch):
-        [plist, p1x, p2x, p1y, p2y] = pmatch
-        [nlist, n1x, n2x, n1y, n2y] = nmatch
-        if p1x is None or p2x is None or n1x is None or n2x is None or \
-                len(p1x) < 2 or len(p2x) < 2 or len(n1x) < 2 or len(n2x) < 2:
-            return None, 0, 0, 0
-        matchdt, divcount, tolerance, divtype = None, 0, 0, 0
+    def match_nondiv(p1y, p2y, n1y, n2y):
         p1y1, p2y1 = p1y[-1], p2y[-1]
         p1y2, p2y2 = p1y[-2], p2y[-2]
         n1y1, n2y1 = n1y[-1], n2y[-1]
@@ -457,6 +451,19 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
         elif p1y1 < p1y2 and n1y1 < n1y2 and p2y1 > p2y2 and n1y1 > n1y2:
             # Lower Ms vs Higher Ps
             divtype = 8
+        else:
+            divtype = 0
+        return divtype, p1y1, p1y2, p2y1, p2y2, n1y1, n1y2, n2y1, n2y2
+
+    def find_nondivergence(pmatch, nmatch):
+        [plist, p1x, p2x, p1y, p2y] = pmatch
+        [nlist, n1x, n2x, n1y, n2y] = nmatch
+        if p1x is None or p2x is None or n1x is None or n2x is None or \
+                len(p1x) < 2 or len(p2x) < 2 or len(n1x) < 2 or len(n2x) < 2:
+            return None, 0, 0, 0
+        matchdt, divcount, tolerance, divtype = None, 0, 0, 0
+        divtype, p1y1, p1y2, p2y1, p2y2, n1y1, n1y2, n2y1, n2y2 = \
+            match_nondiv(p1y, p2y, n1y, n2y)
 
         if divtype:
             p1date1, p2date1 = p1x[-1], p2x[-1]
@@ -485,20 +492,34 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
             print "For setting breakpoint to debug month chart only"
     lineseq = [['CM', True, 0, 1], ['CM', False, 0, 1],
                ['CP', True, 0, 2], ['CP', False, 0, 2],
+               ['CV', True, 0, 3], ['CV', False, 0, 3],
                ['MP', True, 1, 2], ['MP', False, 1, 2]]
     pmatch, nmatch = {}, {}
-    pdiv, ndiv, odiv = {}, {}, {}
+    pdiv, ndiv, odiv, mpdates = {}, {}, {}, {}
     for i in lineseq:
         peaks = i[1]
         if peaks:
             k, p1x, p2x, p1y, p2y = i[0], cmpvXP[i[2]], cmpvXP[i[3]], cmpvYP[i[2]], cmpvYP[i[3]]
+            if k == 'MP':
+                if p1x is not None and len(p1x):
+                    mpdates['Mp'] = p1x
+                if p2x is not None and len(p2x):
+                    mpdates['Pp'] = p2x
         else:
             k, p1x, p2x, p1y, p2y = i[0], cmpvXN[i[2]], cmpvXN[i[3]], cmpvYN[i[2]], cmpvYN[i[3]]
+            if k == 'MP':
+                if p1x is not None and len(p1x):
+                    mpdates['Mn'] = p1x
+                if p2x is not None and len(p2x):
+                    mpdates['Pn'] = p2x
         if wfm == 2 and k == 'MP':
             if S.DBG_ALL:
                 print "For setting breakpoint to debug month chart only"
-        matchlist, matchdt, divtype, divcount, matchtol, matchpos = \
-            drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
+        matchdata = drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
+        if len(matchdata):
+            [matchlist, matchdt, divtype, divcount, matchtol, matchpos] = matchdata
+        else:
+            matchlist, matchdt, divtype, divcount, matchtol, matchpos = None, None, 0, 0, 0, 0
         if divcount > 0:
             if matchpos > -3:
                 # Only consider first 3 peaks/valleys
@@ -519,13 +540,13 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
         matchdt, divtype, divcount, matchtol = find_nondivergence(pmatch["MP"], nmatch["MP"])
         if divcount > 0:
             odiv[k] = [matchdt, divtype, divcount, matchtol, -1]
-    return pdiv, ndiv, odiv
+    return pdiv, ndiv, odiv, mpdates
 
 
 def line_divergenceV2(wfm, axes, cIP, cIN, cCP, cCN, cmpvXYPN):
     del cIP, cIN, cCP, cCN
-    pdiv, ndiv, odiv = plotlinesV2(wfm, axes, cmpvXYPN)
-    return cmpvXYPN, [pdiv, ndiv, odiv]
+    pdiv, ndiv, odiv, mpdates = plotlinesV2(wfm, axes, cmpvXYPN)
+    return cmpvXYPN, [pdiv, ndiv, odiv, mpdates]
 
 
 def drawlines(axes, k, peaks, pindexes, p1x, p2x, p1y, p2y):
@@ -1012,9 +1033,9 @@ def plotSynopsis(dflist, axes):
         vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
-        # hlList.append(cmpvHL)
-        # cmpvXYPN, pdiv, ndiv, odiv = line_divergenceV2(i, ax, *plotpeaks(dflist[i], ax,
-        #                                                                  *findpeaks(dflist[i], cmpvHL, i)))
+        hlList.append(cmpvHL)
+        # cmpvXYPN, div = line_divergenceV2(i, ax, *plotpeaks(dflist[i], ax,
+        #                                                     *findpeaks(dflist[i], cmpvHL, i)))
         try:
             cmpvXYPN, div = line_divergenceV2(i, ax, *plotpeaks(dflist[i], ax,
                                                                 *findpeaks(dflist[i], cmpvHL, i)))
