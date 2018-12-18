@@ -7,8 +7,10 @@ fi
 COUNTER=$1
 SCODE=$2
 DATE=$3
-CSVFILE=../../data/investingcom/$COUNTER.$SCODE.csv
+DATA=/c/git/klseScrapers/data
+CSVFILE=${DATA}/investingcom/$COUNTER.$SCODE.csv
 export PYTHONPATH=../..
+cd scrapers/investingcom
 if ! test -s $CSVFILE || ! test -z "$3"
 then
  if [ -z "$DATE" ]
@@ -22,5 +24,6 @@ else
  echo Resuming file
  python scrapeInvestingCom.py -r $1
 fi
+cd -
 echo
 tail -3 $CSVFILE
