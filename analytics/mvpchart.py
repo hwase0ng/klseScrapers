@@ -632,7 +632,7 @@ def plotSignals(counter, datevector, ax0):
                          'tssname', 'tssval', 'tssstate',
                          'bbsname', 'bbsval', 'bbsstate',
                          'othname', 'othval', 'othstate',
-                         'cmpv', 'mvals'])
+                         'cmpv', 'mvals', 'lastp'])
     df.set_index(df['trxdt'], inplace=True)
     xmin, xmax, ymin, ymax = ax0.axis()
     ttspos = ymax
@@ -780,8 +780,6 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
         try:
             if mHigh > 6:
                 axes[1].axhline(10, color='r', linestyle='--')
-            else:
-                axes[1].axhline(-5, color='r', linestyle='--')
             axes[1].axhline(5, color='k', linestyle='--')
             axes[2].axhline(0, color='k', linestyle='--')
             if vHigh > 20:
@@ -871,8 +869,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
             # df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
             dfm = None
             if skiprows >= 0 and df is not None:
-                dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
-                dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
+                dfw = df.groupby([Grouper(key='date', freq='2W')]).mean()
+                dff = df.groupby([Grouper(key='date', freq='2M')]).mean()
                 dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
 
                 if DBG_ALL:
@@ -945,6 +943,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         plt.close()
         return len(signals) > 0
 
+    # -----------------------------------------------------------#
+
     if simulation is None or len(simulation) == 0:
         df, skiprow, fname = getMpvDf(counter, chartDays)
         dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, df, skiprow)
@@ -993,9 +993,9 @@ def plotSynopsis(dflist, axes):
     axes[1, 0].legend(loc="upper left")
     axes[2, 0].legend(loc="upper left")
     axes[3, 0].legend(loc="upper left")
-    axes[3, 0].set_xlabel("Week")
-    axes[3, 1].set_xlabel("Forthnight")
-    axes[3, 2].set_xlabel("Month")
+    axes[3, 0].set_xlabel("2W")
+    axes[3, 1].set_xlabel("2M")
+    axes[3, 2].set_xlabel("1M")
 
     '''
     mHigh = annotateMVP(dfw, axes[1, 1], "M", 7)
