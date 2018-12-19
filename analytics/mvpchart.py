@@ -31,6 +31,7 @@ from docopt import docopt
 from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator
 from matplotlib import pyplot as plt, dates as mdates
 from mpl_finance import candlestick_ohlc
+from multiprocessing import Process
 from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
@@ -907,42 +908,6 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
 
         return dflist, title, lasttrxn
 
-    def doPlotting(outname, nums=[]):
-        '''
-        # sharex is causing the MONTH column to be out of alignment
-        # Adding/removing records does not help to rectify this issue
-        lastdfm = dfm.index[len(dfm) - 1]
-        lastdff = dff.index[len(dff) - 1]
-        lastdfw = dfw.index[len(dfw) - 1]
-        if lastdfw > lastdfm or lastdff > lastdfm:
-            new_date = datetools.to_datetime('2018-11-30')
-            newrow = DataFrame(dfm[-1:].values, index=[new_date], columns=dfm.columns)
-            dfm = dfm.append(newrow)
-            print dfm[-3:]
-        '''
-
-        figsize = (10, 5) if showchart else (15, 7)
-        fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=title)
-        fig.canvas.set_window_title(title)
-        _, pnList, div = plotSynopsis(dflist, axes)
-
-        signals = scanSignals(DBG_SIGNAL, counter, outname, pnList, div, lasttrxn)
-        if len(signals):
-            fig.suptitle(title + " [" + signals + "]")
-        else:
-            fig.suptitle(title + " [" + counter + "]")
-
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        if showchart:
-            plt.show()
-        else:
-            if len(signals):
-                if len(nums) > 0:
-                    outname = outname + "-" + lasttrxn[0]
-                plt.savefig(outname + "-synopsis.png")
-        plt.close()
-        return len(signals) > 0
-
     # -----------------------------------------------------------#
 
     if simulation is None or len(simulation) == 0:
@@ -950,7 +915,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, df, skiprow)
         if dflist is None:
             return
-        return doPlotting(fname)
+        return doPlotting(S.DATA_DIR + S.MVP_DIR, DBG_SIGNAL,
+                          dflist, showchart, counter, title, lasttrxn, fname, [])
     else:
         nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation, chartDays)
         if len(nums) <= 0:
@@ -960,6 +926,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         df, skiprow, fname = getMpvDf(counter, chartDays, start)
         dates = simulation.split(":")
         end = dates[0]
+        parallel, plotlist = True, []
         while True:
             # start = getDayOffset(end, chartDays * -1)
             start = pdDaysOffset(end, chartDays * -1)
@@ -968,8 +935,18 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                 dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, dfmpv, skiprow)
                 if dflist is None:
                     continue
-                doPlotting(fname, nums)
+                if parallel:
+                    p = Process(target=doPlotting,
+                                args=(S.DATA_DIR + S.MVP_DIR, DBG_SIGNAL,
+                                      dflist, showchart, counter, title, lasttrxn, fname, nums))
+                    p.start()
+                    plotlist.append(p)
+                else:
+                    doPlotting(S.DATA_DIR + S.MVP_DIR, DBG_SIGNAL,
+                               dflist, showchart, counter, title, lasttrxn, fname, nums)
             if len(dates) < 2 or end > dates[1]:
+                for p in plotlist:
+                    p.join()
                 break
             else:
                 end = pdDaysOffset(end, step)
@@ -980,6 +957,52 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                 break
             '''
         return False
+
+
+def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outname, numslen):
+    global SYNOPSIS, DBG_ALL, OHLC
+    global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
+    global MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE
+    SYNOPSIS, OHLC, DBG_ALL = True, False, False
+    MVP_PLOT_PEAKS = True
+    MVP_PEAKS_DISTANCE = -1
+    MVP_PEAKS_THRESHOLD = -1
+    MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE = \
+        False, 1, 3
+    '''
+    # sharex is causing the MONTH column to be out of alignment
+    # Adding/removing records does not help to rectify this issue
+    lastdfm = dfm.index[len(dfm) - 1]
+    lastdff = dff.index[len(dff) - 1]
+    lastdfw = dfw.index[len(dfw) - 1]
+    if lastdfw > lastdfm or lastdff > lastdfm:
+        new_date = datetools.to_datetime('2018-11-30')
+        newrow = DataFrame(dfm[-1:].values, index=[new_date], columns=dfm.columns)
+        dfm = dfm.append(newrow)
+        print dfm[-3:]
+    '''
+
+    figsize = (10, 5) if showchart else (15, 7)
+    fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=plttitle)
+    fig.canvas.set_window_title(plttitle)
+    _, pnList, div = plotSynopsis(dfplot, axes)
+
+    signals = scanSignals(datadir, dbg, counter, outname, pnList, div, lsttxn)
+    if len(signals):
+        fig.suptitle(plttitle + " [" + signals + "]")
+    else:
+        fig.suptitle(plttitle + " [" + counter + "]")
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    if showchart:
+        plt.show()
+    else:
+        if len(signals):
+            if len(numslen) > 0:
+                outname = outname + "-" + lsttxn[0]
+            plt.savefig(outname + "-synopsis.png")
+    plt.close()
+    return len(signals) > 0
 
 
 def plotSynopsis(dflist, axes):
