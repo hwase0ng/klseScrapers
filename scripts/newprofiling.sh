@@ -1,15 +1,14 @@
 counter=$1
 dates=$2
 opt=$3
+DATA=$4
 
 if [ $opt -eq 1 ]
 then
- params="-ps -c 400"
+ params="-ps -c 400 -D s"
 else
  params="-ps -c 400 -D p"
 fi
-
-DATA=/z/data
 
 if ! test -d ${DATA}/mpv/simulation/profiling/$counter
 then

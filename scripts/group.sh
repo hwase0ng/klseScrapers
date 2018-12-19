@@ -1,10 +1,7 @@
-if [ $# -lt 1 ]
-then
- echo "group.sh <1|2> [steps] where 1=actual, 2=pattern scanning, others=daily charting only"
- exit 1
-fi
+#!/bin/bash
+OPTIND=1
 
-HOLDINGS="ASTINO DUFU GKENT MUDA N2N NOTION PADINI PETRONM"
+HOLDINGS="ASTINO BOILERM DANCO DUFU GKENT LAYHONG NOTION ORNA"
 WATCHLIST="AEMULUS BONIA ECS HAIO HENGYUAN KGB LAYHONG MBSB MKH MMODE PADINI PETRONM SAMCHEM SCGM GCB"
 MOMENTUM="BCMALL CHINWEL DANCO FLBHD KOBAY ORIENT YSPSAH"
 DIVIDEND="FPI LCTITAN MAGNI UCHITEC KMLOONG MPI DUFU TONGHER CSCSTEL LIHEN TGUAN CHOOBEE GADANG OKA POHUAT PECCA SURIA"
@@ -13,27 +10,75 @@ CONSUMER="BONIA PADINI HAIO ZHULIAN"
 FURNITURE="FLBHD HEVEA"
 PRECISION="DUFU KOBAY NOTION"
 PAYMT="GHLSYS MPAY REVENUE"
+PLASTIC="SCGM TGUAN TOMYPAK BOXPAK"
 SEMICON="KESM VITROX INARI MPI UNISEM AEMULUS"
 GLOVE="TOPGLOV HARTA KOSSAN SUPERMX COMFORT"
 PAPER="MUDA ORNA"
 SNIPER="UCREST YONGTAI NGGB LIONIND ANNJOO KESM"
-MVP="DUFU PADINI PETRONM KLSE MAGNI KAWAN"
+GRANDPINE="KAWAN KESM YSPSAH"
+TRIPLEFALLC="SCGM VSTECS"
+MVP="KLSE DUFU N2N PADINI PETRONM KESM YSPSAH SCGM VSTECS GHLSYS MAGNI"
 
+DATADIR=/z/data
 TEST=$MVP
-STARTDT="2011-05-02"
-ENDDT="2018-12-14"
-OPT=$1
-if [ -z $2 ]
-then
- STEPS=2
-else
- STEPS=$2
-fi
+ENDDT=`date +%Y-%m-%d`
+OPT=1
+STEPS=5
+re='^[0-9]+$'
+dateopt=0
+
+#usage() { echo "Usage: group.sh -cds [counter(s)] [start date] [steps]" 1>&2; exit 1 }
+
+while getopts ":c:d:s:D:S:" opt
+do
+ case "$opt" in
+  c)
+   TEST=$OPTARG
+   ;;
+  D)
+   DATADIR=$OPTARG
+   if ! [ -d $DATADIR ]
+   then
+    echo $DATADIR is not a directory!
+    exit 2
+   fi
+   ;;
+  d)
+   STARTDT=$OPTARG
+   dateopt=1
+   ;;
+  s)
+   STEPS=$OPTARG
+   if ! [[ "$STEPS" =~ $re ]]
+   then
+    echo "$STEPS is not an integer number!"
+    exit 2
+   fi
+   ;;
+  S)
+   SET=$OPTARG
+   #echo $(eval echo "\$$SET")
+   TEST=$(eval echo "\$$SET")
+   ;;
+  *)
+   #usage
+   echo "Usage: group.sh -cds [counter(s)] [start date] [steps]" 1>&2
+   exit 1
+   ;;
+ esac
+done
+shift $((OPTIND-1))
+[ "${1:-}" = "--" ] && shift
+#echo "c=$TEST, D=$DATADIR, d=$STARTDT, e=$ENDDT, s=$STEPS, leftovers: $@"
 
 for i in $TEST
 do
- echo Profiling $i
- ./scripts/newprofiling.sh $i ${STARTDT}:${ENDDT}:${STEPS} $OPT
+ if [ ${dateopt} -eq 0 ]
+ then
+  STARTDT=`head -100 $DATADIR/mpv/${i}.csv | tail -1 | awk -F , '{print $2}'`
+ fi
+ echo Profiling $i, $STARTDT
+ ./scripts/newprofiling.sh $i "${STARTDT}:${ENDDT}:${STEPS}" $OPT $DATADIR
  echo Daily Charting $i
- ./scripts/charting.sh $i ${STARTDT}:${ENDDT}
+ ./scripts/charting.sh $i ${STARTDT}:${ENDDT} $DATADIR
 done
