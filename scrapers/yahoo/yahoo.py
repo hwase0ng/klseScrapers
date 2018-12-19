@@ -60,6 +60,7 @@ def getYahooCookie(url):
 
     pattern = re.compile('.*"CrumbStore":\{"crumb":"(?P<crumb>[^"]+)"\}')
 
+    crumb = None
     for line in txt.splitlines():
         m = pattern.match(line)
         if m is not None:
