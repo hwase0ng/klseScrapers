@@ -171,6 +171,22 @@ def unpackStockData(key, lastTradingDate, skey):
 
 
 def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resume=False):
+
+    def checkMPV():
+        if resume:
+            mpvfile = getDataDir(S.DATA_DIR) + S.MVP_DIR + shortname + '.csv'
+            lines = tail(mpvfile)
+            ldata = lines.split(',')
+            if ldata[1] == lastTradingDate:
+                print "Resume mode: Skipped MPV downloaded ->", shortname
+                return
+
+        if updateMPV(shortname, stockCode, eod):
+            load_mvp_args(True)
+            if mvpSynopsis(shortname, stockCode):
+                load_mvp_args(False)
+                mvpChart(shortname, stockCode)
+
     stocksListing = i3ScrapeStocks()
     eodlist = []
 
@@ -183,6 +199,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
             ldata = lines.split(',')
             if ldata[1] == lastTradingDate:
                 print "Resume mode: Skipped downloaded ->", shortname
+                checkMPV()
                 continue
         eodlist.append(eod)
         if writeEOD:
@@ -195,11 +212,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
         else:
             print eod
 
-        if updateMPV(shortname, stockCode, eod):
-            load_mvp_args(True)
-            if mvpSynopsis(shortname, stockCode):
-                load_mvp_args(False)
-                mvpChart(shortname, stockCode)
+        checkMPV()
 
     return eodlist
 
