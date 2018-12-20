@@ -32,7 +32,7 @@ from docopt import docopt
 from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator
 from matplotlib import pyplot as plt, dates as mdates
 from mpl_finance import candlestick_ohlc
-from multiprocessing import Process
+from multiprocessing import Process, cpu_count
 from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
@@ -934,7 +934,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
         df, skiprow, fname = getMpvDf(counter, chartDays, start)
         dates = simulation.split(":")
         end = dates[0]
-        plotlist = []
+        plotlist, cpus = [], cpu_count()
         while True:
             # start = getDayOffset(end, chartDays * -1)
             start = pdDaysOffset(end, chartDays * -1)
@@ -949,13 +949,18 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
                                       counter, title, lasttrxn, fname, nums, concurrency))
                     p.start()
                     plotlist.append(p)
+                    if len(plotlist) == cpus - 1:
+                        for p in plotlist:
+                            p.join()
+                        plotlist = []
                 else:
                     doPlotting(mpvdir, DBG_SIGNAL,
                                dflist, showchart, counter, title, lasttrxn, fname, nums)
             if len(dates) < 2 or end > dates[1]:
                 if concurrency:
-                    for p in plotlist:
-                        p.join()
+                    if len(plotlist):
+                        for p in plotlist:
+                            p.join()
                     housekeep()
                 break
             else:
@@ -992,7 +997,7 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         print dfm[-3:]
     '''
 
-    figsize = (9, 5) if showchart else (15, 7)
+    figsize = (11, 7) if showchart else (15, 7)
     fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
