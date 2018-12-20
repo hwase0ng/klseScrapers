@@ -11,6 +11,7 @@ Options:
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>      Set MVP blocking count value [default: 1]
     -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
+    -m,--pmaps              pattern maps [default: False]
     -o,--ohlc               OHLC chart [default: False]
     -s,--synopsis           Synopsis of MVP [default: False]
     -t,--tolerance=<mt>     Set MVP matching tolerance value [default: 3]
@@ -630,7 +631,7 @@ def line_divergence(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
     return cmpvXYPN, pdiv, ndiv
 
 
-def plotSignals(counter, datevector, ax0):
+def plotSignals(pmaps, counter, datevector, ax0):
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
     infile = prefix + counter + "-signals.csv"
     df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
@@ -648,10 +649,11 @@ def plotSignals(counter, datevector, ax0):
         try:
             mpvdate = pdTimestamp2strdate(dt)
             dfsignal = df.loc[mpvdate]
-            tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate = \
+            tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate, mvals = \
                 dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, \
                 dfsignal.bbsname, dfsignal.bbsval, dfsignal.bbsstate, \
-                dfsignal.othname, dfsignal.othval, dfsignal.othstate
+                dfsignal.othname, dfsignal.othval, dfsignal.othstate, \
+                dfsignal.mvals
             '''
             tssname, tssval, tssstate, bbsname, bbsval, bbsstate = \
                 df.loc[[mpvdate], ['tssname', 'tssval', 'tssstate',
@@ -660,33 +662,44 @@ def plotSignals(counter, datevector, ax0):
             if type(tssname) is not str or type(bbsname) is not str:
                 print "ERR: bad signal file, duplicates detected in", infile
                 dfsignal = dfsignal.iloc[0]
-                tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate = \
+                tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate, mvals = \
                     dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, \
                     dfsignal.bbsname, dfsignal.bbsval, dfsignal.bbsstate, \
-                    dfsignal.othname, dfsignal.othval, dfsignal.othstate
-            if tssname in ["Dbg", "NUL"] and bbsname in ["Dbg", "NUL"]:
-                continue
+                    dfsignal.othname, dfsignal.othval, dfsignal.othstate, \
+                    dfsignal.mvals
+            if not pmaps:
+                if tssname in ["Dbg", "NUL"] and bbsname in ["Dbg", "NUL"]:
+                    continue
             try:
-                if tssval:
-                    symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
-                    fontclr = "black" if tssval > 0 else "green"
-                    ttspos = ymin if tssval < 0 else ymax
-                    ax0.plot(dt, ttspos, symbolclr)
-                    ax0.text(dt, ttspos, str(tssval), color=fontclr, fontsize=9)
-                if bbsval:
-                    ax0.plot(dt, bbspos, "bd")
-                    ax0.text(dt, bbspos, str(bbsval), color="blue", fontsize=9)
-                if othval:
-                    ax0.plot(dt, othpos, "c+")
-                    ax0.text(dt, othpos, str(othval), color="black", fontsize=9)
+                if pmaps:
+                    mval = mvals.split(".")
+                    mval1 = mval[0] + mval[3]
+                    mval2 = mval[1] + mval[4]
+                    mval3 = mval[2] + mval[5]
+                    ax0.text(dt, ttspos, mval1, color="black", fontsize=9)
+                    ax0.text(dt, bbspos, mval2, color="black", fontsize=9)
+                    ax0.text(dt, othpos, mval3, color="black", fontsize=9)
+                else:
+                    if tssval:
+                        symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
+                        fontclr = "black" if tssval > 0 else "green"
+                        ttspos = ymin if tssval < 0 else ymax
+                        ax0.plot(dt, ttspos, symbolclr)
+                        ax0.text(dt, ttspos, str(tssval), color=fontclr, fontsize=9)
+                    if bbsval:
+                        ax0.plot(dt, bbspos, "bd")
+                        ax0.text(dt, bbspos, str(bbsval), color="blue", fontsize=9)
+                    if othval:
+                        ax0.plot(dt, othpos, "c+")
+                        ax0.text(dt, othpos, str(othval), color="black", fontsize=9)
             except Exception as e:
-                print 'ax0.plot', mpvdate
+                print 'plotSignals exception:', mpvdate
                 print e
         except KeyError as ke:
             continue
 
 
-def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
+def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, pmaps=False, showchart=False, simulation=""):
     def getMpvDf(counter, chartDays, start=0):
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
         if skiprows < 0 or len(df.index) <= 0:
@@ -788,7 +801,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             axes[2].axhline(0, color='k', linestyle='--')
             if vHigh > 20:
                 axes[3].axhline(25, color='k', linestyle='--')
-            plotSignals(counter, dfchart['date'], axes[0])
+            plotSignals(pmaps, counter, dfchart['date'], axes[0])
             plt.tight_layout()
         except Exception as e:
             # just print error and continue without the required line in chart
@@ -1209,6 +1222,6 @@ if __name__ == '__main__':
                             args['--concurrency'], args['--displaychart'], args['--simulation'])
             else:
                 mvpChart(shortname, stocklist[shortname], chartDays,
-                         args['--displaychart'], simulation=args['--simulation'])
+                         args['--pmaps'], args['--displaychart'], simulation=args['--simulation'])
         except Exception:
             traceback.print_exc()
