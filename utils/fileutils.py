@@ -6,6 +6,7 @@ Created on Dec 20, 2016
 import settings as S
 from datetime import datetime
 import csv
+import glob
 import mmap
 import openpyxl
 import os
@@ -238,6 +239,20 @@ def purgeOldFiles(fltype='*.tgz', days=7):
         if count >= days:
             os.unlink(f)
             print('{} removed'.format(f))
+
+
+def mergefiles(directory, fname):
+    with cd(directory):
+        files = glob.glob(fname + ".*")
+        concat = ''.join(open(f).read() for f in files)
+        with open(fname, 'w') as f:
+            f.write(concat)
+        data = file(fname).readlines()
+        data.sort()
+        with open(fname, 'w') as f:
+            for i in range(len(data)):
+                f.write(data[i])
+        purgeOldFiles(fname + ".*", 0)
 
 
 '''
