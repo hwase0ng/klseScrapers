@@ -5,11 +5,20 @@ Created on Dec 17, 2016
 '''
 import settings as S
 from numpy import busday_count
-from matplotlib.dates import date2num
+from matplotlib.dates import date2num, MonthLocator
 from datetime import date, datetime, timedelta
 from utils.fileutils import tail
 from time import time, ctime
 from pandas.tseries.offsets import BDay
+from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator
+
+
+def chartFormatter():
+    weekFormatter = DateFormatter('%b %d')
+    mondays = WeekdayLocator(MONDAY)
+    alldays = DayLocator()
+    allweeks = WeekdayLocator()
+    return mondays, alldays, allweeks, weekFormatter
 
 
 def get_now_epoch():
