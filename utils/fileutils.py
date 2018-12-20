@@ -12,9 +12,7 @@ import openpyxl
 import os
 import socket
 import subprocess
-import xlrd
 import time
-from types import NoneType
 import fnmatch
 
 
@@ -131,6 +129,7 @@ def concat2quotes(directory, target):
         '''
 
 
+'''
 def xls_to_xlsx(*args, **kw):
     """
     open and convert an XLS file to openpyxl.workbook.Workbook
@@ -174,6 +173,7 @@ def xls_to_xlsx(*args, **kw):
                     row, end_colx=sheet_xls.row_len(row))
             ))
     return book_xlsx
+'''
 
 
 class cd:
