@@ -10,7 +10,7 @@ from utils.dateutils import getBusDaysBtwnDates
 from utils.fileutils import grepN
 
 
-def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData):
+def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
     global DBGMODE
     DBGMODE = dbg
     if dbg == 2:
@@ -22,7 +22,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData):
     if pnlist is None or not len(pnlist):
         print "Skipped:", counter
         return ""
-    if len(pnlist) < 3:
+    if len(pnlist) < 1:
         print "Skipped len:", counter, len(pnlist)
         return ""
 
@@ -72,17 +72,18 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData):
     '''
 
     signals = "%s,%s,%s,%s,%s" % (counter, signaltss, signalbbs, signaloth, signaldet)
-    printsignal(mpvdir, counter, fname, lastTrxnData[0], label, signals)
+    printsignal(mpvdir, counter, fname, lastTrxnData[0], label, signals, pid)
     return signals
 
 
-def printsignal(mpvdir, counter, fname, trxndate, label, signal):
+def printsignal(mpvdir, counter, fname, trxndate, label, signal, pid):
     prefix = "" if DBGMODE == 2 else '\t'
     print prefix + signal
+    postfix = "csv." + str(pid) if pid else "csv"
     if "simulation" in fname:
-        outfile = mpvdir + "simulation/signals/" + counter + "-signals.csv"
+        outfile = mpvdir + "simulation/signals/" + counter + "-signals." + postfix
     else:
-        outfile = mpvdir + "signals/" + counter + "-signals.csv"
+        outfile = mpvdir + "signals/" + counter + "-signals." + postfix
     linenum = grepN(outfile, trxndate)  # e.g. 2012-01-01
     if linenum > 0:
         # Already registered
@@ -724,7 +725,7 @@ def checkposition(pntype, pnlist, firstpos, lastpos):
     clist, profiling, snapshot = "", "", ""
     pos, newlow, newhigh, bottom, top, prevbottom, prevtop = \
         0, 0, False, False, False, False, False
-    if pntype == 'C':
+    if len(pnlist) > 6 and pntype == 'C':
         nlist = pnlist[7]  # 0=XP, 1=XN, 2=YP, 3=YN
         count0 = -1 if nlist is None else nlist.count(0)
         if count0 < 0 or count0 > 1:
@@ -937,8 +938,12 @@ def collectCompositions(pnlist, lastTrxn):
         print "first:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, firstC, firstM, firstP, firstV)
         print "last:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, lastC, lastM, lastP, lastV)
 
-    pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
-    cmpvWC = formListCMPV(0, pnW)
+    if 1 == 0:
+        pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
+        cmpvWC = formListCMPV(0, pnW)
+    else:
+        pnM = pnlist[0]
+        cmpvWC = []
     cmpvMC = formListCMPV(0, pnM)
     cmpvMM = formListCMPV(1, pnM)
     cmpvMP = formListCMPV(2, pnM)

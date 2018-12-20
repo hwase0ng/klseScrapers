@@ -5,6 +5,7 @@ Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
     -c,--chartdays=<cd>     Days to display on chart [default: 400]
+    -C,--concurrency        Concurrency On/Off [default: False]
     -d,--displaychart       Display chart [default: False]
     -D,--debug=(dbgopt)     Enable debug mode (A)ll, (p)attern charting, (s)ignal, (u)nit test input generation
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
@@ -36,9 +37,10 @@ from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset
-from utils.fileutils import tail2, wc_line_count, grepN
+from utils.fileutils import tail2, wc_line_count, grepN, mergefiles
 import numpy as np
 import operator
+import os
 import settings as S
 import traceback
 
@@ -269,18 +271,18 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
             ax[0].scatter(x=cxp, y=cyp, marker='.', c='r', edgecolor='b')
         if cxn is not None:
             ax[0].scatter(x=cxn, y=cyn, marker='.', c='b', edgecolor='r')
-        if mxp is not None:
-            ax[1].scatter(x=mxp, y=myp, marker='.', c='r', edgecolor='b')
-        if mxn is not None:
-            ax[1].scatter(x=mxn, y=myn, marker='.', c='b', edgecolor='r')
-        if pxp is not None:
-            ax[2].scatter(x=pxp, y=pyp, marker='.', c='r', edgecolor='b')
-        if pxn is not None:
-            ax[2].scatter(x=pxn, y=pyn, marker='.', c='b', edgecolor='r')
         if vxp is not None:
-            ax[3].scatter(x=vxp, y=vyp, marker='.', c='r', edgecolor='b')
+            ax[1].scatter(x=vxp, y=vyp, marker='.', c='r', edgecolor='b')
         if vxn is not None:
-            ax[3].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
+            ax[1].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
+        if mxp is not None:
+            ax[2].scatter(x=mxp, y=myp, marker='.', c='r', edgecolor='b')
+        if mxn is not None:
+            ax[2].scatter(x=mxn, y=myn, marker='.', c='b', edgecolor='r')
+        if pxp is not None:
+            ax[3].scatter(x=pxp, y=pyp, marker='.', c='r', edgecolor='b')
+        if pxn is not None:
+            ax[3].scatter(x=pxn, y=pyn, marker='.', c='b', edgecolor='r')
 
     return cIP, cIN, cCP, cCN, cmpvXYPN
 
@@ -351,7 +353,7 @@ def plotlines(axes, cmpvlines, pindexes, peaks):
 
 
 def annotatelines(axes, k, lstyle, p1date1, p1date2, p2date1, p2date2, p1y1, p1y2, p2y1, p2y2):
-    cmpv = {'C': 0, 'M': 1, 'P': 2, 'V': 3}
+    cmpv = {'C': 0, 'V': 1, 'M': 2, 'P': 3}
     colormap = {'C': 'b', 'M': 'darkorange', 'P': 'g', 'V': 'r'}
     axes[cmpv[k[0]]].annotate("", xy=(p1date1, p1y1), xycoords='data',
                               xytext=(p1date2, p1y2),
@@ -493,7 +495,6 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
             print "For setting breakpoint to debug month chart only"
     lineseq = [['CM', True, 0, 1], ['CM', False, 0, 1],
                ['CP', True, 0, 2], ['CP', False, 0, 2],
-               ['CV', True, 0, 3], ['CV', False, 0, 3],
                ['MP', True, 1, 2], ['MP', False, 1, 2]]
     pmatch, nmatch = {}, {}
     pdiv, ndiv, odiv, mpdates = {}, {}, {}, {}
@@ -779,7 +780,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             print 'line divergence exception:'
             print e
         try:
-            if mHigh > 6:
+            if mHigh > 8:
                 axes[1].axhline(10, color='r', linestyle='--')
             axes[1].axhline(5, color='k', linestyle='--')
             axes[2].axhline(0, color='k', linestyle='--')
@@ -860,7 +861,8 @@ def numsFromDate(counter, datestr, cdays=S.MVP_CHART_DAYS):
     return nums.split(',')
 
 
-def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simulation=""):
+def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
+                concurrency=False, showchart=False, simulation=""):
     def getMpvDf(counter, chartDays, start=0):
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
         return df, skiprows, fname
@@ -870,14 +872,11 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
             # df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
             dfm = None
             if skiprows >= 0 and df is not None:
-                dfw = df.groupby([Grouper(key='date', freq='2W')]).mean()
-                dff = df.groupby([Grouper(key='date', freq='2M')]).mean()
+                # dfw = df.groupby([Grouper(key='date', freq='2W')]).mean()
+                # dff = df.groupby([Grouper(key='date', freq='2M')]).mean()
                 dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
 
                 if DBG_ALL:
-                    print len(dfw), len(dff), len(dfm)
-                    print dfw[-3:]
-                    print dff[-3:]
                     print dfm[-3:]
         except Exception as e:
             print "Dataframe exception: ", counter
@@ -900,23 +899,32 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
 
         print " Synopsis:", counter, lastTrxnDate
         dflist = {}
-        dflist[0] = dfw.fillna(0)
-        dflist[1] = dff.fillna(0)
-        dflist[2] = dfm.fillna(0)
+        dflist[0] = dfm.fillna(0)
+        # dflist[0] = dfw.fillna(0)
+        # dflist[1] = dff.fillna(0)
 
         title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
 
         return dflist, title, lasttrxn
 
+    def housekeep():
+        if "simulation" in fname:
+            directory = mpvdir + "simulation/signals/"
+        else:
+            directory = mpvdir + "signals/"
+        sfiles = counter + "-signals.csv"
+        mergefiles(directory, sfiles)
+
     # -----------------------------------------------------------#
 
+    mpvdir = S.DATA_DIR + S.MVP_DIR
     if simulation is None or len(simulation) == 0:
         df, skiprow, fname = getMpvDf(counter, chartDays)
         dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, df, skiprow)
         if dflist is None:
             return
-        return doPlotting(S.DATA_DIR + S.MVP_DIR, DBG_SIGNAL,
-                          dflist, showchart, counter, title, lasttrxn, fname, [])
+        return doPlotting(mpvdir, DBG_SIGNAL, dflist, showchart,
+                          counter, title, lasttrxn, fname, [])
     else:
         nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation, chartDays)
         if len(nums) <= 0:
@@ -926,7 +934,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         df, skiprow, fname = getMpvDf(counter, chartDays, start)
         dates = simulation.split(":")
         end = dates[0]
-        parallel, plotlist = True, []
+        plotlist = []
         while True:
             # start = getDayOffset(end, chartDays * -1)
             start = pdDaysOffset(end, chartDays * -1)
@@ -935,18 +943,20 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
                 dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, dfmpv, skiprow)
                 if dflist is None:
                     continue
-                if parallel:
+                if concurrency:
                     p = Process(target=doPlotting,
-                                args=(S.DATA_DIR + S.MVP_DIR, DBG_SIGNAL,
-                                      dflist, showchart, counter, title, lasttrxn, fname, nums))
+                                args=(mpvdir, DBG_SIGNAL, dflist, showchart,
+                                      counter, title, lasttrxn, fname, nums, concurrency))
                     p.start()
                     plotlist.append(p)
                 else:
-                    doPlotting(S.DATA_DIR + S.MVP_DIR, DBG_SIGNAL,
+                    doPlotting(mpvdir, DBG_SIGNAL,
                                dflist, showchart, counter, title, lasttrxn, fname, nums)
             if len(dates) < 2 or end > dates[1]:
-                for p in plotlist:
-                    p.join()
+                if concurrency:
+                    for p in plotlist:
+                        p.join()
+                    housekeep()
                 break
             else:
                 end = pdDaysOffset(end, step)
@@ -959,7 +969,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, sim
         return False
 
 
-def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outname, numslen):
+def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outname, numslen, parallel=False):
     global SYNOPSIS, DBG_ALL, OHLC
     global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
     global MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE
@@ -982,12 +992,17 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         print dfm[-3:]
     '''
 
-    figsize = (10, 5) if showchart else (15, 7)
-    fig, axes = plt.subplots(4, 3, figsize=figsize, sharex=False, num=plttitle)
+    figsize = (9, 5) if showchart else (15, 7)
+    fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
 
-    signals = scanSignals(datadir, dbg, counter, outname, pnList, div, lsttxn)
+    if parallel:
+        pid = os.getpid()
+        print "Process:", pid
+    else:
+        pid = 0
+    signals = scanSignals(datadir, dbg, counter, outname, pnList, div, lsttxn, pid)
     if len(signals):
         fig.suptitle(plttitle + " [" + signals + "]")
     else:
@@ -1006,19 +1021,30 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
 
 
 def plotSynopsis(dflist, axes):
-    for i in range(3):
-        dflist[i]['close'].plot(ax=axes[0, i], color='b', label='C')
-        dflist[i]['M'].plot(ax=axes[1, i], color='orange', label='M')
-        dflist[i]['P'].plot(ax=axes[2, i], color='g', label='P')
-        dflist[i]['V'].plot(ax=axes[3, i], color='r', label='V')
+    for i in range(len(dflist)):
+        if len(dflist) > 1:
+            dflist[i]['close'].plot(ax=axes[0, i], color='b', label='C')
+            dflist[i]['M'].plot(ax=axes[1, i], color='orange', label='M')
+            dflist[i]['P'].plot(ax=axes[2, i], color='g', label='P')
+            dflist[i]['V'].plot(ax=axes[3, i], color='r', label='V', kind='bar')
 
-    axes[0, 0].legend(loc="upper left")
-    axes[1, 0].legend(loc="upper left")
-    axes[2, 0].legend(loc="upper left")
-    axes[3, 0].legend(loc="upper left")
-    axes[3, 0].set_xlabel("2W")
-    axes[3, 1].set_xlabel("2M")
-    axes[3, 2].set_xlabel("1M")
+            axes[0, 0].legend(loc="upper left")
+            axes[1, 0].legend(loc="upper left")
+            axes[2, 0].legend(loc="upper left")
+            axes[3, 0].legend(loc="upper left")
+            axes[3, 0].set_xlabel("M")
+            axes[3, 1].set_xlabel("2M")
+            axes[3, 2].set_xlabel("1M")
+        else:
+            dflist[i]['close'].plot(ax=axes[0], color='b', label='C')
+            dflist[i]['V'].plot(ax=axes[1], color='r', label='V', kind='bar')
+            dflist[i]['M'].plot(ax=axes[2], color='orange', label='M')
+            dflist[i]['P'].plot(ax=axes[3], color='g', label='P')
+            axes[0].legend(loc="upper left")
+            axes[1].legend(loc="upper left")
+            axes[2].legend(loc="upper left")
+            axes[3].legend(loc="upper left")
+            axes[3].set_xlabel("M")
 
     '''
     mHigh = annotateMVP(dfw, axes[1, 1], "M", 7)
@@ -1028,11 +1054,14 @@ def plotSynopsis(dflist, axes):
     hlList, pnList = [], []
     # pdiv, ndiv, odiv = {}, {}, {}
     div = {}
-    for i in range(3):
+    for i in range(len(dflist)):
         ax = {}
         for j in range(4):
             if j != 3:
-                axlabel = axes[j, i].get_xaxis()
+                if len(dflist) > 1:
+                    axlabel = axes[j, i].get_xaxis()
+                else:
+                    axlabel = axes[j].get_xaxis()
                 axlabel.set_visible(False)
             '''
             axes[j, i].xaxis.grid(True)
@@ -1046,7 +1075,10 @@ def plotSynopsis(dflist, axes):
             # ax[2] = axes[2, 0], axes[2, 1], axes[2, 2]
             # ax[3] = axes[3, 0], axes[3, 1], axes[3, 2]
             '''
-            ax[j] = axes[j, i]
+            if len(dflist) > 1:
+                ax[j] = axes[j, i]
+            else:
+                ax = axes
 
         cHigh = dflist[i].loc[dflist[i]['close'].idxmax()]['close']
         cLow = dflist[i].loc[dflist[i]['close'].idxmin()]['close']
@@ -1070,19 +1102,27 @@ def plotSynopsis(dflist, axes):
             print 'line divergence exception:', i
             print e
     try:
-        for i in range(3):
-            axes[1, i].axhline(5, color='k', linestyle=':')
-            axes[2, i].axhline(0, color='k', linestyle=':')
-            axes[3, i].axhline(0, color='k', linestyle=':')
-            if mHigh > 6:
-                axes[1, i].axhline(10, color='r', linestyle=':')
-            if pHigh > 4:
-                if pHigh > 10:
-                    axes[1, i].axhline(10, color='r', linestyle=':')
-            if vHigh < 0.5:
+        if len(dflist) > 1:
+            for i in range(len(dflist)):
+                axes[1, i].axhline(0, color='k', linestyle=':')
+                if vHigh < 0.5:
+                    axes[1, i].axhline(0, color='k', linestyle=':')
+                elif vHigh > 20:
+                    axes[1, i].axhline(25, color='k', linestyle=':')
+                axes[2, i].axhline(5, color='k', linestyle=':')
+                if mHigh > 8:
+                    axes[2, i].axhline(10, color='r', linestyle=':')
                 axes[3, i].axhline(0, color='k', linestyle=':')
+        else:
+            axes[1].axhline(0, color='k', linestyle=':')
+            if vHigh < 0.5:
+                axes[1].axhline(0, color='k', linestyle=':')
             elif vHigh > 20:
-                axes[3, i].axhline(25, color='k', linestyle=':')
+                axes[1].axhline(25, color='k', linestyle=':')
+            axes[2].axhline(5, color='k', linestyle=':')
+            if mHigh > 8:
+                axes[2].axhline(10, color='r', linestyle=':')
+            axes[3].axhline(0, color='k', linestyle=':')
     except Exception as e:
         # just print error and continue without the required line in chart
         print 'axhline exception:'
@@ -1148,7 +1188,7 @@ if __name__ == '__main__':
         try:
             if SYNOPSIS:
                 mvpSynopsis(shortname, stocklist[shortname], chartDays,
-                            args['--displaychart'], args['--simulation'])
+                            args['--concurrency'], args['--displaychart'], args['--simulation'])
             else:
                 mvpChart(shortname, stocklist[shortname], chartDays,
                          args['--displaychart'], simulation=args['--simulation'])
