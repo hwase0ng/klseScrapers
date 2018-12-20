@@ -46,12 +46,12 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     # [tolerance, pdays, ndays, matchlevel] = matchdate
-    p1, p2, p3 = 0, 0, 0
+    p1, p2, p3, p4, p5, p6 = 0, 0, 0, 0, 0, 0
     if patterns is not None:
-        [p1, p2, p3] = patterns
+        [p1, p2, p3, p4, p5, p6] = patterns
     lastprice = lastTrxnData[1]
-    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d),%.2f" % (strC, strM, strP, strV,
-                                                       p1, p2, p3, lastprice)
+    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d.%d),%.2f" % (strC, strM, strP, strV,
+                                                                p1, p2, p3, p4, p5, p6, lastprice)
     # tolerance, pdays, ndays, matchlevel)
     signaltss, signalbbs = "NUL,0,0", "NUL,0,0"
     [_, _, odiv, _] = div
@@ -103,12 +103,27 @@ def printsignal(mpvdir, counter, fname, trxndate, label, signal, pid):
 def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
 
     def patternsMatching():
-        tripleM10, tripleFallC, tripleTops = 0, 0, 0
+        c, v, mp, tripleM10, tripleFallC, tripleTops = 0, 0, 0, 0, 0, 0
 
         firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
         firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
         firstpp = mpdates["Pp"][-1] if "Pp" in mpdates else "1970-01-01"
         firstpn = mpdates["Pn"][-1] if "Pn" in mpdates else "1970-01-01"
+
+        c = 1 if newhighC else 2 if newlowC else 3 if topC else 4 if bottomC else 0
+        v = 1 if newhighV else 2 if newlowV else 3 if topV else 4 if bottomV else 0
+        if newhighM and newhighP:
+            mp = 1
+        elif newlowM and newlowP:
+            mp = 2
+        elif topM and topP:
+            mp = 3
+        elif bottomM and bottomP:
+            mp = 4
+        elif newlowM and newhighP:
+            mp = 5
+        elif newhighM and newlowP:
+            mp = 5
 
         if plistC is not None and nlistC is not None:
             if len(plistC) > 2 and len(nlistC) > 2 and \
@@ -171,7 +186,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                     prevRetraceM10 = 1
         '''
 
-        return [tripleM10, tripleFallC, tripleTops], \
+        return [c, v, mp, tripleM10, tripleFallC, tripleTops], \
             [firstmp, firstmn, firstpp, firstpn]
 
     def minmaxC():
@@ -232,15 +247,8 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                 valleys = True
         else:
             peaks = True
-        if DBGMODE == 3:
-            if peaks:
-                return 1, mpPtol
-            else:
-                return 2, mpPtol
     elif 'MP' in ndiv:
         valleys = True
-        if DBGMODE == 3:
-            return 2, ndiv["MP"][3]
     else:
         hstM, hstP = hstlist[1], hstlist[2]
         if hstM is not None and len(hstM) and len(hstP):
@@ -248,8 +256,6 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                 peaks = True
             elif hstM[-2] == 'v' and hstP[-2] == 'v':
                 valleys = True
-        if DBGMODE == 3:
-            return topSellSignal, tss_state
 
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
@@ -267,10 +273,10 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
     else:
         nosignal = False
         p1, p2 = patternsMatching()
-        [tripleM10, tripleFallC, tripleTops] = p1
+        [c, v, mp, tripleM10, tripleFallC, tripleTops] = p1
         [firstmp, firstmn, firstpp, firstpn] = p2
 
-    if nosignal:
+    if nosignal or DBGMODE == 3:
         pass
     elif plistP is not None and len(plistP) > 3 and tripleM10:
         # 3 consecutive M above 10 - powerful break out / bottom reversal signal
@@ -454,7 +460,9 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                     topSellSignal = 2
         '''
 
-    if "MP" in ndiv and not topSellSignal:
+    if nosignal or DBGMODE == 3:
+        pass
+    elif "MP" in ndiv and not topSellSignal:
         # ----- VALLEY divergence ----- #
         '''
         if retraceM10:
@@ -938,7 +946,7 @@ def collectCompositions(pnlist, lastTrxn):
         print "first:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, firstC, firstM, firstP, firstV)
         print "last:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, lastC, lastM, lastP, lastV)
 
-    if 1 == 0:
+    if len(pnlist) > 1:
         pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
         cmpvWC = formListCMPV(0, pnW)
     else:
