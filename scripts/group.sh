@@ -29,7 +29,7 @@ dateopt=0
 
 #usage() { echo "Usage: group.sh -cds [counter(s)] [start date] [steps]" 1>&2; exit 1 }
 
-while getopts ":c:d:s:D:S:" opt
+while getopts ":c:d:o:s:D:S:" opt
 do
  case "$opt" in
   c)
@@ -47,6 +47,9 @@ do
    STARTDT=$OPTARG
    dateopt=1
    ;;
+  o)
+   OPT=$OPTARG
+   ;;
   s)
    STEPS=$OPTARG
    if ! [[ "$STEPS" =~ $re ]]
@@ -62,7 +65,7 @@ do
    ;;
   *)
    #usage
-   echo "Usage: group.sh -cds [counter(s)] [start date] [steps]" 1>&2
+   echo "Usage: group.sh -cdoDsS [counter(s)] [date] [opt=123] [Dir] [steps] [Set]" 1>&2
    exit 1
    ;;
  esac

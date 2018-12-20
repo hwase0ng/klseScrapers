@@ -5,9 +5,14 @@ DATA=$4
 
 if [ $opt -eq 1 ]
 then
- params="-ps -c 400 -D s"
+ params="-ps -c 400 -C"
 else
- params="-ps -c 400 -D p"
+ if [ $opt -eq 2 ]
+ then
+  params="-ps -c 400 -D s -C"
+ else
+  params="-ps -c 400 -D p -C"
+ fi
 fi
 
 if ! test -d ${DATA}/mpv/simulation/profiling/$counter
