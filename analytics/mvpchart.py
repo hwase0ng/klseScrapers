@@ -8,6 +8,7 @@ Options:
     -C,--concurrency        Concurrency On/Off [default: False]
     -d,--displaychart       Display chart [default: False]
     -D,--debug=(dbgopt)     Enable debug mode (A)ll, (p)attern charting, (s)ignal, (u)nit test input generation
+    -e,--datadir=<dd>       Use data directory provided
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>      Set MVP blocking count value [default: 1]
     -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
@@ -43,6 +44,7 @@ import numpy as np
 import operator
 import os
 import settings as S
+import time
 import traceback
 from matplotlib.ticker import AutoLocator
 from matplotlib.dates import AutoDateLocator, AutoDateFormatter
@@ -677,9 +679,12 @@ def plotSignals(pmaps, counter, datevector, ax0):
                     mval1 = mval[0] + mval[3]
                     mval2 = mval[1] + mval[4]
                     mval3 = mval[2] + mval[5]
-                    ax0.text(dt, ttspos, mval1, color="black", fontsize=9)
-                    ax0.text(dt, bbspos, mval2, color="black", fontsize=9)
-                    ax0.text(dt, othpos, mval3, color="black", fontsize=9)
+                    if not mval1.count("0") > 1:
+                        ax0.text(dt, ttspos, mval1, color="red", fontsize=9)
+                    if not mval2.count("0") > 1:
+                        ax0.text(dt, bbspos, mval2, color="red", fontsize=9)
+                    if not mval3.count("0") > 1:
+                        ax0.text(dt, othpos, mval3, color="black", fontsize=9)
                 else:
                     if tssval:
                         symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
@@ -965,10 +970,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
                                       counter, title, lasttrxn, fname, nums, concurrency))
                     p.start()
                     plotlist.append(p)
-                    if len(plotlist) == cpus - 1:
-                        for p in plotlist:
-                            p.join()
-                        plotlist = []
+                    if len(plotlist) == cpus:
+                        time.sleep(3)
                 else:
                     doPlotting(mpvdir, DBG_SIGNAL,
                                dflist, showchart, counter, title, lasttrxn, fname, nums)
@@ -1181,6 +1184,10 @@ def globals_from_args(args):
     OHLC = True if args['--ohlc'] else False
     SYNOPSIS = True if args['--synopsis'] else False
     chartDays = int(args['--chartdays']) if args['--chartdays'] else S.MVP_CHART_DAYS
+    if args['--datadir']:
+        S.DATA_DIR = args['--datadir']
+        if not S.DATA_DIR.endswith("/"):
+            S.DATA_DIR += "/"
     '''
     # removed this as it causes different results due to different number of peaks/valleys
     if SYNOPSIS and chartDays == S.MVP_CHART_DAYS:
