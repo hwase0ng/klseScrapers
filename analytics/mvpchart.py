@@ -1004,16 +1004,15 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
 
-    if parallel:
-        pid = os.getpid()
-        print "Process:", pid
-    else:
-        pid = 0
+    pid = os.getpid() if parallel else 0
     signals = scanSignals(datadir, dbg, counter, outname, pnList, div, lsttxn, pid)
     if len(signals):
-        fig.suptitle(plttitle + " [" + signals + "]")
+        title = plttitle + " [" + signals + "]"
     else:
-        fig.suptitle(plttitle + " [" + counter + "]")
+        title = plttitle + " [" + counter + "]"
+    fig.suptitle(title)
+    if dbg:
+        print '\t', title
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     if showchart:

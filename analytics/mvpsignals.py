@@ -77,8 +77,8 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 
 
 def printsignal(mpvdir, counter, fname, trxndate, label, signal, pid):
-    prefix = "" if DBGMODE == 2 else '\t'
-    print prefix + signal
+    # prefix = "" if DBGMODE == 2 else '\t'
+    # print prefix + signal
     postfix = "csv." + str(pid) if pid else "csv"
     if "simulation" in fname:
         outfile = mpvdir + "simulation/signals/" + counter + "-signals." + postfix
