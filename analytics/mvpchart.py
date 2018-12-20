@@ -29,20 +29,22 @@ Created on Oct 16, 2018
 from common import retrieveCounters, loadCfg, formStocklist, \
     loadKlseCounters, match_approximate2, getSkipRows, matchdates
 from docopt import docopt
-from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator
 from matplotlib import pyplot as plt, dates as mdates
 from mpl_finance import candlestick_ohlc
 from multiprocessing import Process, cpu_count
 from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
-from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset
+from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset,\
+    chartFormatter
 from utils.fileutils import tail2, wc_line_count, grepN, mergefiles
 import numpy as np
 import operator
 import os
 import settings as S
 import traceback
+from matplotlib.ticker import AutoLocator
+from matplotlib.dates import AutoDateLocator, AutoDateFormatter
 
 
 def dfLoadMPV(counter, chartDays, start=0):
@@ -73,7 +75,7 @@ def dfLoadMPV(counter, chartDays, start=0):
     if OHLC:
         usecols = ['date', 'open', 'high', 'low', 'close', 'volume', 'M', 'P', 'V']
     else:
-        usecols = ['date', 'close', 'M', 'P', 'V']
+        usecols = ['date', 'close', 'V', 'M', 'P']
     df = read_csv(incsv, sep=',', header=None, parse_dates=['date'], skiprows=skiprow, usecols=usecols,
                   names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
                          'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
@@ -271,10 +273,12 @@ def plotpeaks(df, ax, cIP, cIN, cCP, cCN):
             ax[0].scatter(x=cxp, y=cyp, marker='.', c='r', edgecolor='b')
         if cxn is not None:
             ax[0].scatter(x=cxn, y=cyn, marker='.', c='b', edgecolor='r')
+        '''
         if vxp is not None:
             ax[1].scatter(x=vxp, y=vyp, marker='.', c='r', edgecolor='b')
         if vxn is not None:
             ax[1].scatter(x=vxn, y=vyn, marker='.', c='b', edgecolor='r')
+        '''
         if mxp is not None:
             ax[2].scatter(x=mxp, y=myp, marker='.', c='r', edgecolor='b')
         if mxn is not None:
@@ -705,9 +709,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, showchart=False, simula
             # print dfchart.index.get_loc(dfchart.iloc[chartDays].name)
 
         figsize = (10, 5) if showchart else (15, 7)
-        mondays = WeekdayLocator(MONDAY)
-        alldays = DayLocator()
-        weekFormatter = DateFormatter('%b %d')
+        mondays, alldays, _, weekFormatter = chartFormatter()
         if not OHLC:
             axes = dfchart.plot(x='date', figsize=figsize, subplots=True, grid=True)
             ax = plt.gca().axes.get_xaxis()
@@ -872,8 +874,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
             # df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
             dfm = None
             if skiprows >= 0 and df is not None:
-                # dfw = df.groupby([Grouper(key='date', freq='2W')]).mean()
-                # dff = df.groupby([Grouper(key='date', freq='2M')]).mean()
+                dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
+                dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
                 dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
 
                 if DBG_ALL:
@@ -899,9 +901,9 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
 
         print " Synopsis:", counter, lastTrxnDate
         dflist = {}
-        dflist[0] = dfm.fillna(0)
-        # dflist[0] = dfw.fillna(0)
-        # dflist[1] = dff.fillna(0)
+        dflist[0] = dfw.fillna(0)
+        dflist[1] = dff.fillna(0)
+        dflist[2] = dfm.fillna(0)
 
         title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
 
@@ -997,7 +999,7 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         print dfm[-3:]
     '''
 
-    figsize = (11, 7) if showchart else (15, 7)
+    figsize = (11, 5) if showchart else (15, 7) if len(dfplot) > 1 else (10, 7)
     fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
@@ -1029,27 +1031,39 @@ def plotSynopsis(dflist, axes):
     for i in range(len(dflist)):
         if len(dflist) > 1:
             dflist[i]['close'].plot(ax=axes[0, i], color='b', label='C')
-            dflist[i]['M'].plot(ax=axes[1, i], color='orange', label='M')
-            dflist[i]['P'].plot(ax=axes[2, i], color='g', label='P')
-            dflist[i]['V'].plot(ax=axes[3, i], color='r', label='V', kind='bar')
+            dflist[i]['V'].plot(ax=axes[1, i], color='r', label='V', kind='bar')
+            dflist[i]['M'].plot(ax=axes[2, i], color='orange', label='M')
+            dflist[i]['P'].plot(ax=axes[3, i], color='g', label='P')
 
             axes[0, 0].legend(loc="upper left")
             axes[1, 0].legend(loc="upper left")
             axes[2, 0].legend(loc="upper left")
             axes[3, 0].legend(loc="upper left")
-            axes[3, 0].set_xlabel("M")
-            axes[3, 1].set_xlabel("2M")
+            axes[3, 0].set_xlabel("W")
+            axes[3, 1].set_xlabel("2W")
             axes[3, 2].set_xlabel("1M")
+            '''
+            locator = AutoDateLocator()
+            formatter = AutoDateFormatter(locator)
+            for i in range(3):
+                axes[3, i].xaxis_date()
+                axes[3, i].xaxis.set_major_formatter(formatter)
+                axes[3, i].xaxis.set_major_locator(locator)
+            '''
         else:
             dflist[i]['close'].plot(ax=axes[0], color='b', label='C')
             dflist[i]['V'].plot(ax=axes[1], color='r', label='V', kind='bar')
             dflist[i]['M'].plot(ax=axes[2], color='orange', label='M')
             dflist[i]['P'].plot(ax=axes[3], color='g', label='P')
-            axes[0].legend(loc="upper left")
-            axes[1].legend(loc="upper left")
-            axes[2].legend(loc="upper left")
-            axes[3].legend(loc="upper left")
+            mondays, _, allweeks, weekFormatter = chartFormatter()
+            for i in range(4):
+                axes[i].legend(loc="upper left")
+                axes[i].xaxis.set_major_locator(mondays)
+                axes[i].xaxis.set_minor_locator(allweeks)
+                axes[i].xaxis.set_major_formatter(weekFormatter)
+                # axes[i].grid(True)
             axes[3].set_xlabel("M")
+            # dayFormatter = DateFormatter('%d')
 
     '''
     mHigh = annotateMVP(dfw, axes[1, 1], "M", 7)
@@ -1087,12 +1101,12 @@ def plotSynopsis(dflist, axes):
 
         cHigh = dflist[i].loc[dflist[i]['close'].idxmax()]['close']
         cLow = dflist[i].loc[dflist[i]['close'].idxmin()]['close']
+        vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
+        vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
         mHigh = dflist[i].loc[dflist[i]['M'].idxmax()]['M']
         mLow = dflist[i].loc[dflist[i]['M'].idxmin()]['M']
         pHigh = dflist[i].loc[dflist[i]['P'].idxmax()]['P']
         pLow = dflist[i].loc[dflist[i]['P'].idxmin()]['P']
-        vHigh = dflist[i].loc[dflist[i]['V'].idxmax()]['V']
-        vLow = dflist[i].loc[dflist[i]['V'].idxmin()]['V']
 
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
         hlList.append(cmpvHL)
