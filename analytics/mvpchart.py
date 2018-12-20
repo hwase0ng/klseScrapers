@@ -672,6 +672,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
                     continue
             try:
                 if pmaps:
+                    mvals = mvals[1:-1]
                     mval = mvals.split(".")
                     mval1 = mval[0] + mval[3]
                     mval2 = mval[1] + mval[4]
@@ -721,7 +722,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, pmaps=False, showchart=
             print type(mpvdate), mpvdate
             # print dfchart.index.get_loc(dfchart.iloc[chartDays].name)
 
-        figsize = (10, 5) if showchart else (15, 7)
+        figsize = (15, 7) if not showchart or pmaps else (10, 5)
         mondays, alldays, _, weekFormatter = chartFormatter()
         if not OHLC:
             axes = dfchart.plot(x='date', figsize=figsize, subplots=True, grid=True)
