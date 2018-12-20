@@ -65,7 +65,8 @@ do
    ;;
   *)
    #usage
-   echo "Usage: group.sh -cdoDsS [counter(s)] [date] [opt=123] [Dir] [steps] [Set]" 1>&2
+   echo "Usage: group.sh -cdoDsS [counter(s)] [date] [opt=1234] [Dir] [steps] [Set]" 1>&2
+   echo "  opt: 1 - Normal scanning, 2 - Signal scanning, 3 - Pattern scanning, 4 - Daily Charting only" 1>&2
    exit 1
    ;;
  esac
@@ -80,8 +81,11 @@ do
  then
   STARTDT=`head -100 $DATADIR/mpv/${i}.csv | tail -1 | awk -F , '{print $2}'`
  fi
- echo Profiling $i, $STARTDT
- ./scripts/newprofiling.sh $i "${STARTDT}:${ENDDT}:${STEPS}" $OPT $DATADIR
- echo Daily Charting $i
+ if ! [ $OPT -eq 4 ]
+ then
+  echo Profiling $i, $STARTDT
+  ./scripts/newprofiling.sh $i "${STARTDT}:${ENDDT}:${STEPS}" $OPT $DATADIR
+ fi
+ echo Daily Charting $i, $STARTDT
  ./scripts/charting.sh $i ${STARTDT}:${ENDDT} $DATADIR
 done
