@@ -19,8 +19,9 @@ GRANDPINE="KAWAN KESM YSPSAH"
 TRIPLEFALLC="SCGM VSTECS"
 MVP="KLSE DUFU N2N PADINI PETRONM KESM YSPSAH SCGM VSTECS GHLSYS MAGNI"
 
+CHARTDAYS=500
 DATADIR=/z/data
-TEST=$MVP
+GROUP=$MVP
 ENDDT=`date +%Y-%m-%d`
 OPT=1
 STEPS=5
@@ -29,11 +30,16 @@ dateopt=0
 
 #usage() { echo "Usage: group.sh -cds [counter(s)] [start date] [steps]" 1>&2; exit 1 }
 
-while getopts ":c:d:o:s:D:S:" opt
+while getopts ":c:d:g:o:s:D:S:" opt
 do
  case "$opt" in
   c)
-   TEST=$OPTARG
+   CHARTDAYS=$OPTARG
+   if ! [[ "$CHARTDAYS" =~ $re ]]
+   then
+    echo "$CHARTDAYS is not an integer number!"
+    exit 2
+   fi
    ;;
   D)
    DATADIR=$OPTARG
@@ -46,6 +52,9 @@ do
   d)
    STARTDT=$OPTARG
    dateopt=1
+   ;;
+  g)
+   GROUP=$OPTARG
    ;;
   o)
    OPT=$OPTARG
@@ -61,11 +70,11 @@ do
   S)
    SET=$OPTARG
    #echo $(eval echo "\$$SET")
-   TEST=$(eval echo "\$$SET")
+   GROUP=$(eval echo "\$$SET")
    ;;
   *)
    #usage
-   echo "Usage: group.sh -cdoDsS [counter(s)] [date] [opt=1234] [Dir] [steps] [Set]" 1>&2
+   echo "Usage: group.sh -cdgoDsS [chartdays] [date] [group(s)] [opt=1234] [Dir] [steps] [Set]" 1>&2
    echo "  opt: 1 - Normal scanning, 2 - Signal scanning, 3 - Pattern scanning, 4 - Daily Charting only" 1>&2
    exit 1
    ;;
@@ -73,9 +82,9 @@ do
 done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
-#echo "c=$TEST, D=$DATADIR, d=$STARTDT, e=$ENDDT, s=$STEPS, leftovers: $@"
+#echo "c=$GROUP, D=$DATADIR, d=$STARTDT, e=$ENDDT, s=$STEPS, leftovers: $@"
 
-for i in $TEST
+for i in $GROUP
 do
  if [ ${dateopt} -eq 0 ]
  then
@@ -84,8 +93,8 @@ do
  if ! [ $OPT -eq 4 ]
  then
   echo Profiling $i, $STARTDT
-  ./scripts/newprofiling.sh $i "${STARTDT}:${ENDDT}:${STEPS}" $OPT $DATADIR
+  ./scripts/newprofiling.sh $i "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $DATADIR
  fi
  echo Daily Charting $i, $STARTDT
- ./scripts/charting.sh $i ${STARTDT}:${ENDDT} $DATADIR
+ ./scripts/charting.sh $i ${STARTDT}:${ENDDT} $OPT $DATADIR
 done
