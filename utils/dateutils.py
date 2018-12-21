@@ -10,15 +10,23 @@ from datetime import date, datetime, timedelta
 from utils.fileutils import tail
 from time import time, ctime
 from pandas.tseries.offsets import BDay
-from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator
+from matplotlib.dates import MONDAY, DateFormatter, DayLocator, WeekdayLocator, YearLocator
 
 
-def chartFormatter():
-    weekFormatter = DateFormatter('%b %d')
+def monthFormatter():
+    years = YearLocator()
+    months = MonthLocator()
+    monthsFmt = DateFormatter('%b')
+    yearsFmt = DateFormatter('\n\n%Y')  # add some space for the year label
+    return years, months, monthsFmt, yearsFmt
+
+
+def weekFormatter():
+    weekFmt = DateFormatter('%b %d')
     mondays = WeekdayLocator(MONDAY)
     alldays = DayLocator()
     allweeks = WeekdayLocator()
-    return mondays, alldays, allweeks, weekFormatter
+    return mondays, alldays, allweeks, weekFmt
 
 
 def get_now_epoch():
