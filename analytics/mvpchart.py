@@ -4,23 +4,25 @@ Usage: main [options] [COUNTER] ...
 Arguments:
     COUNTER           Counter to display MVP line chart
 Options:
+    -S,--simulation=<sim>   Simulate day to day changes with values "start.end.step" e.g. 600,300,2
+                            Also accepts dates in the form of "DATE1:DATE2:STEP"; e.g. 2018-10-01 or 2018-01-02:2018-07-20:5
+    -s,--synopsis           Synopsis of MVP [default: False]
+    -m,--pmaps              pattern maps (not to be used with -s option) [default: False]
+    -o,--ohlc               OHLC chart (not to be used with -s option) [default: False]
+    -C,--concurrency        Concurrency On/Off (use when debugging) [default: False]
     -c,--chartdays=<cd>     Days to display on chart [default: 400]
-    -C,--concurrency        Concurrency On/Off [default: False]
     -d,--displaychart       Display chart [default: False]
     -D,--debug=(dbgopt)     Enable debug mode (A)ll, (p)attern charting, (s)ignal, (u)nit test input generation
     -e,--datadir=<dd>       Use data directory provided
+
+    -w,--weekly             Include weekly columns else month only [default: False]
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
     -b,--blocking=<bc>      Set MVP blocking count value [default: 1]
-    -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
-    -m,--pmaps              pattern maps [default: False]
-    -o,--ohlc               OHLC chart [default: False]
-    -s,--synopsis           Synopsis of MVP [default: False]
-    -t,--tolerance=<mt>     Set MVP matching tolerance value [default: 3]
     -p,--plotpeaks          Switch ON plotting peaks [default: False]
+    -t,--tolerance=<mt>     Set MVP matching tolerance value [default: 3]
     -P,--peaksdist=<pd>     Peaks distance [default: -1]
     -T,--threshold=<pt>     Peaks threshold [default: -1]
-    -S,--simulation=<sim>   Simulate day to day changes with values "start.end.step" e.g. 600,300,2
-                            Also accepts dates in the form of "DATE1:DATE2:STEP"; e.g. 2018-10-01 or 2018-01-02:2018-07-20:5
+    -f,--filter             Switch ON MVP Divergence Matching filter [default: False]
     -h,--help               This page
 
 Created on Oct 16, 2018
@@ -38,16 +40,13 @@ from mvpsignals import scanSignals
 from pandas import read_csv, Grouper
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset,\
-    chartFormatter
+    weekFormatter
 from utils.fileutils import tail2, wc_line_count, grepN, mergefiles
 import numpy as np
 import operator
 import os
 import settings as S
-import time
 import traceback
-from matplotlib.ticker import AutoLocator
-from matplotlib.dates import AutoDateLocator, AutoDateFormatter
 
 
 def dfLoadMPV(counter, chartDays, start=0):
@@ -173,7 +172,7 @@ def indpeaks(cmpv, vector, threshold, dist, factor=1):
     return pIndexes, nIndexes
 
 
-def findpeaks(df, cmpvHL, dwfm=-1):
+def findpeaks(df, cmpvHL, weekly=False, dwfm=-1):
     if SYNOPSIS:
         df = df.reset_index()
     cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow = cmpvHL
@@ -181,10 +180,13 @@ def findpeaks(df, cmpvHL, dwfm=-1):
     if MVP_PEAKS_DISTANCE > 0:
         pdist = MVP_PEAKS_DISTANCE
     else:
-        pdist = 3 if dwfm < 0 else \
-            5 if dwfm == 0 else \
-            4 if dwfm == 1 else \
-            1  # 2018-11-30 was 3 but changed for PETRONM 2016-08-02 and DUFU 2012-05-22
+        if weekly:
+            pdist = 3 if dwfm < 0 else \
+                5 if dwfm == 0 else \
+                4 if dwfm == 1 else \
+                1  # 2018-11-30 was 3 but changed for PETRONM 2016-08-02 and DUFU 2012-05-22
+        else:
+            pdist = 3 if dwfm < 0 else 1
     if MVP_PEAKS_THRESHOLD > 0:
         cpt = MVP_PEAKS_THRESHOLD
         mpt = MVP_PEAKS_THRESHOLD
@@ -647,6 +649,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
     ttspos = ymax
     bbspos = ymin
     othpos = (ymax + ymin) / 2
+    hltb = ['0', 'h', 'l', 't', 'b']
     for dt in datevector:
         try:
             mpvdate = pdTimestamp2strdate(dt)
@@ -662,7 +665,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
                                    'bbsname', 'bbsval', 'bbsstate']]
             '''
             if type(tssname) is not str or type(bbsname) is not str:
-                print "ERR: bad signal file, duplicates detected in", infile
+                print "INF: duplicated signals detected in", infile, mpvdate
                 dfsignal = dfsignal.iloc[0]
                 tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate, mvals = \
                     dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, \
@@ -676,15 +679,18 @@ def plotSignals(pmaps, counter, datevector, ax0):
                 if pmaps:
                     mvals = mvals[1:-1]
                     mval = mvals.split(".")
-                    mval1 = mval[0] + mval[3]
-                    mval2 = mval[1] + mval[4]
+                    mval1 = hltb[int(mval[0])] + mval[3]
+                    mval2 = hltb[int(mval[1])] + mval[4]
                     mval3 = mval[2] + mval[5]
                     if not mval1.count("0") > 1:
-                        ax0.text(dt, ttspos, mval1, color="red", fontsize=9)
+                        fontclr = "darkorange" if mval[3] == "0" else "red"
+                        ax0.text(dt, ttspos, mval1, color=fontclr, fontsize=9)
                     if not mval2.count("0") > 1:
-                        ax0.text(dt, bbspos, mval2, color="red", fontsize=9)
+                        fontclr = "darkorange" if mval[4] == "0" else "red"
+                        ax0.text(dt, bbspos, mval2, color=fontclr, fontsize=9)
                     if not mval3.count("0") > 1:
-                        ax0.text(dt, othpos, mval3, color="black", fontsize=9)
+                        fontclr = "black" if mval[5] == "0" else "blue"
+                        ax0.text(dt, othpos, mval3, color=fontclr, fontsize=9)
                 else:
                     if tssval:
                         symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
@@ -705,7 +711,8 @@ def plotSignals(pmaps, counter, datevector, ax0):
             continue
 
 
-def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, pmaps=False, showchart=False, simulation=""):
+def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
+             weekly=False, pmaps=False, showchart=False, simulation=""):
     def getMpvDf(counter, chartDays, start=0):
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
         if skiprows < 0 or len(df.index) <= 0:
@@ -728,7 +735,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, pmaps=False, showchart=
             # print dfchart.index.get_loc(dfchart.iloc[chartDays].name)
 
         figsize = (15, 7) if not showchart or pmaps else (10, 5)
-        mondays, alldays, _, weekFormatter = chartFormatter()
+        mondays, alldays, _, weekFmt = weekFormatter()
         if not OHLC:
             axes = dfchart.plot(x='date', figsize=figsize, subplots=True, grid=True)
             ax = plt.gca().axes.get_xaxis()
@@ -736,7 +743,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, pmaps=False, showchart=
             # axis1.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
             ax.set_major_locator(mondays)
             ax.set_minor_locator(alldays)
-            ax.set_major_formatter(weekFormatter)
+            ax.set_major_formatter(weekFmt)
         else:
             fig = plt.figure(figsize=figsize)
             fig.set_canvas(plt.gcf().canvas)
@@ -754,7 +761,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, pmaps=False, showchart=
             # ax4.fmt_xdata = mdates.DateFormatter("%Y-%m-%d")
             ax4.xaxis.set_major_locator(mondays)
             ax4.xaxis.set_minor_locator(alldays)
-            ax4.xaxis.set_major_formatter(weekFormatter)
+            ax4.xaxis.set_major_formatter(weekFmt)
             # dayFormatter = DateFormatter('%d')
             # ax4.xaxis.set_minor_formatter(dayFormatter)
             ax1.grid(True)
@@ -795,7 +802,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS, pmaps=False, showchart=
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
         # line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL)))
         try:
-            line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL)))
+            line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL, weekly)))
         except Exception as e:
             # just print error and continue without the required line in chart
             print 'line divergence exception:'
@@ -882,7 +889,7 @@ def numsFromDate(counter, datestr, cdays=S.MVP_CHART_DAYS):
     return nums.split(',')
 
 
-def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
+def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
                 concurrency=False, showchart=False, simulation=""):
     def getMpvDf(counter, chartDays, start=0):
         df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
@@ -893,8 +900,9 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
             # df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
             dfm = None
             if skiprows >= 0 and df is not None:
-                dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
-                dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
+                if weekly:
+                    dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
+                    dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
                 dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
 
                 if DBG_ALL:
@@ -920,9 +928,12 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
 
         print " Synopsis:", counter, lastTrxnDate
         dflist = {}
-        dflist[0] = dfw.fillna(0)
-        dflist[1] = dff.fillna(0)
-        dflist[2] = dfm.fillna(0)
+        if weekly:
+            dflist[0] = dfw.fillna(0)
+            dflist[1] = dff.fillna(0)
+            dflist[2] = dfm.fillna(0)
+        else:
+            dflist[0] = dfm.fillna(0)
 
         title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
 
@@ -970,8 +981,9 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS,
                                       counter, title, lasttrxn, fname, nums, concurrency))
                     p.start()
                     plotlist.append(p)
-                    if len(plotlist) == cpus:
-                        time.sleep(3)
+                    if len(plotlist) > cpus - 2:
+                        plotlist[0].join
+                        del plotlist[0]
                 else:
                     doPlotting(mpvdir, DBG_SIGNAL,
                                dflist, showchart, counter, title, lasttrxn, fname, nums)
@@ -1016,8 +1028,14 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         print dfm[-3:]
     '''
 
-    figsize = (11, 5) if showchart else (15, 7) if len(dfplot) > 1 else (10, 7)
-    fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
+    figsize = (8, 6) if len(dfplot) < 2 else (11, 6) if showchart else (12, 8) if len(dfplot) < 2 else (10, 7)
+    if 1 == 0:
+        shareX = False if len(dfplot) > 1 else True
+        if len(dfplot) == 1:
+            dfplot[0].reset_index()
+        fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=shareX, num=plttitle)
+    else:
+        fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
 
@@ -1058,28 +1076,30 @@ def plotSynopsis(dflist, axes):
             axes[3, 0].set_xlabel("W")
             axes[3, 1].set_xlabel("2W")
             axes[3, 2].set_xlabel("1M")
-            '''
-            locator = AutoDateLocator()
-            formatter = AutoDateFormatter(locator)
-            for i in range(3):
-                axes[3, i].xaxis_date()
-                axes[3, i].xaxis.set_major_formatter(formatter)
-                axes[3, i].xaxis.set_major_locator(locator)
-            '''
         else:
             dflist[i]['close'].plot(ax=axes[0], color='b', label='C')
             dflist[i]['V'].plot(ax=axes[1], color='r', label='V', kind='bar')
             dflist[i]['M'].plot(ax=axes[2], color='orange', label='M')
             dflist[i]['P'].plot(ax=axes[3], color='g', label='P')
-            mondays, _, allweeks, weekFormatter = chartFormatter()
             for i in range(4):
                 axes[i].legend(loc="upper left")
-                axes[i].xaxis.set_major_locator(mondays)
-                axes[i].xaxis.set_minor_locator(allweeks)
-                axes[i].xaxis.set_major_formatter(weekFormatter)
-                # axes[i].grid(True)
-            axes[3].set_xlabel("M")
+                axes[i].grid(True)
+            # axes[3].set_xlabel("M")
+            axlabel = axes[i].xaxis.get_label()
+            axlabel.set_visible(False)
+            '''
+            years, months, monthsFmt, yearsFmt = monthFormatter()
+            axes[3].xaxis.set_minor_locator(months)
+            axes[3].xaxis.set_minor_formatter(monthsFmt)
+            axes[3].xaxis.set_major_locator(years)
+            axes[3].xaxis.set_major_formatter(yearsFmt)
+            locator = AutoDateLocator()
+            formatter = AutoDateFormatter(locator)
+            axes[3].xaxis_date()
+            axes[3].xaxis.set_major_formatter(formatter)
+            axes[3].xaxis.set_major_locator(locator)
             # dayFormatter = DateFormatter('%d')
+            '''
 
     '''
     mHigh = annotateMVP(dfw, axes[1, 1], "M", 7)
@@ -1130,7 +1150,7 @@ def plotSynopsis(dflist, axes):
         #                                                     *findpeaks(dflist[i], cmpvHL, i)))
         try:
             cmpvXYPN, div = line_divergenceV2(i, ax, *plotpeaks(dflist[i], ax,
-                                                                *findpeaks(dflist[i], cmpvHL, i)))
+                                                                *findpeaks(dflist[i], cmpvHL, dwfm=i)))
             pnList.append(cmpvXYPN)
         except Exception as e:
             # just print error and continue without the required line in chart
@@ -1226,10 +1246,10 @@ if __name__ == '__main__':
             continue
         try:
             if SYNOPSIS:
-                mvpSynopsis(shortname, stocklist[shortname], chartDays,
+                mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--weekly'],
                             args['--concurrency'], args['--displaychart'], args['--simulation'])
             else:
-                mvpChart(shortname, stocklist[shortname], chartDays,
+                mvpChart(shortname, stocklist[shortname], chartDays, args['--weekly'],
                          args['--pmaps'], args['--displaychart'], simulation=args['--simulation'])
         except Exception:
             traceback.print_exc()
