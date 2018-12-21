@@ -981,9 +981,10 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
                                       counter, title, lasttrxn, fname, nums, concurrency))
                     p.start()
                     plotlist.append(p)
-                    if len(plotlist) > cpus - 2:
-                        plotlist[0].join
-                        del plotlist[0]
+                    if len(plotlist) > cpus - 1:
+                        for p in plotlist:
+                            p.join()
+                        plotlist = []
                 else:
                     doPlotting(mpvdir, DBG_SIGNAL,
                                dflist, showchart, counter, title, lasttrxn, fname, nums)
@@ -1028,14 +1029,12 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         print dfm[-3:]
     '''
 
-    figsize = (8, 6) if len(dfplot) < 2 else (11, 6) if showchart else (12, 8) if len(dfplot) < 2 else (10, 7)
-    if 1 == 0:
-        shareX = False if len(dfplot) > 1 else True
-        if len(dfplot) == 1:
-            dfplot[0].reset_index()
-        fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=shareX, num=plttitle)
+    if len(dfplot) > 1:
+        # columns, rows
+        figsize = (10, 6) if showchart else (15, 9)
     else:
-        fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
+        figsize = (9, 6) if showchart else (15, 10)
+    fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
 
@@ -1045,7 +1044,8 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         title = plttitle + " [" + signals + "]"
     else:
         title = plttitle + " [" + counter + "]"
-    fig.suptitle(title)
+    fsize = 10 if showchart else 15
+    fig.suptitle(title, fontsize=fsize)
     if dbg:
         print '\t', title
 
