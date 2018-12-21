@@ -123,7 +123,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         elif newlowM and newhighP:
             mp = 5
         elif newhighM and newlowP:
-            mp = 5
+            mp = 6
 
         if plistC is not None and nlistC is not None:
             if len(plistC) > 2 and len(nlistC) > 2 and \
