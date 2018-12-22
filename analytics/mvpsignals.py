@@ -131,11 +131,10 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             countM7, countM10 = 0, 0
             for i in range(-3, -1):
                 if plistM[i] >= 10:
-                    countM10 += 10
+                    countM10 += 1
                 if plistM[i] < 10 and plistM[i] >= 7 and \
                         nlistM[i] < 10 and nlistM[i] >= 7:
-                    # PADINI 2012-09-28
-                    countM7 += 0
+                    countM7 += 1
 
             if countM10 > 2:
                 # DUFU 2014-11-21 retrace completed
@@ -146,6 +145,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                     tripleM10 = 4
 
             if countM7 > 2:
+                # PADINI 2012-09-28
                 narrowM = 7
                 if len(plistM) > 3 and plistM[-4] < 10 and plistM[-4] >= 7:
                     narrowM = 8
