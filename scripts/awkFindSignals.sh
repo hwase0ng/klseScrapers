@@ -65,7 +65,7 @@ shift $((OPTIND-1))
 
 if [ -z $signal -o $val == 0 ]
 then
-   echo "Usage: awkFindSignals.sh -svd <signal name> <value> [datadir]" 1>&2
+   echo "Usage: awkFindSignals.sh -svcd <signal name> <value> [counter] [datadir]" 1>&2
    exit 1
 fi
 
