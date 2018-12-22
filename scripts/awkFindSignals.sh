@@ -71,7 +71,7 @@ fi
 
 if [ -z $signalfile ]
 then
-	awk -F'[,.]' '{if ($signal == $val) {print $0}}' $@
+	awk -F'[,.]' -v fn=$signal -v val=$val '{if ($fn == val) {print $0}}' $@
 else
-	awk -F'[,.]' '{if ($signal == $val) {print $0}}' $signalfile
+	awk -F'[,.]' -v fn=$signal -v val=$val '{if ($fn == val) {print $0}}' $signalfile
 fi
