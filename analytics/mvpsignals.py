@@ -46,7 +46,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     # [tolerance, pdays, ndays, matchlevel] = matchdate
-    p1, p2, p3, p4, p5, p6, p7, p8, p9 = 0, 0, 0, 0, 0, 0, 0, 0
+    p1, p2, p3, p4, p5, p6, p7, p8, p9 = 0, 0, 0, 0, 0, 0, 0, 0, 0
     if patterns is not None:
         [p1, p2, p3, p4, p5, p6, p7, p8, p9] = patterns
     lastprice = lastTrxnData[1]
