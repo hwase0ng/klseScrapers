@@ -184,8 +184,10 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
         if updateMPV(shortname, stockCode, eod):
             load_mvp_args(True)
             if mvpSynopsis(shortname, stockCode):
-                load_mvp_args(False)
-                mvpChart(shortname, stockCode)
+                if 1 == 0:  # 2018-12-21 skip to speed up daily download
+                    load_mvp_args(False)
+                    # 2018-12-21 limit to 300 due to AKNIGHT exceeds Locator.MAXTICKS error
+                    mvpChart(shortname, stockCode, 300)
 
     stocksListing = i3ScrapeStocks()
     eodlist = []
