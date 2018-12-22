@@ -10,7 +10,7 @@ Options:
     -m,--pmaps              pattern maps (not to be used with -s option) [default: False]
     -o,--ohlc               OHLC chart (not to be used with -s option) [default: False]
     -C,--concurrency        Concurrency On/Off (use when debugging) [default: False]
-    -c,--chartdays=<cd>     Days to display on chart [default: 400]
+    -c,--chartdays=<cd>     Days to display on chart [default: 600]
     -d,--displaychart       Display chart [default: False]
     -D,--debug=(dbgopt)     Enable debug mode (A)ll, (p)attern charting, (s)ignal, (u)nit test input generation
     -e,--datadir=<dd>       Use data directory provided
@@ -649,6 +649,8 @@ def plotSignals(pmaps, counter, datevector, ax0):
     ttspos = ymax
     bbspos = ymin
     othpos = (ymax + ymin) / 2
+    mpos1 = (ymax + othpos) / 2
+    mpos2 = (ymin + othpos) / 2
     hltb = ['0', 'h', 'l', 't', 'b']
     for dt in datevector:
         try:
@@ -679,18 +681,26 @@ def plotSignals(pmaps, counter, datevector, ax0):
                 if pmaps:
                     mvals = mvals[1:-1]
                     mval = mvals.split(".")
-                    mval1 = hltb[int(mval[0])] + mval[3]
-                    mval2 = hltb[int(mval[1])] + mval[4]
-                    mval3 = mval[2] + mval[5]
+                    mval1 = hltb[int(mval[0])] + mval[4]
+                    mval2 = hltb[int(mval[1])] + mval[5]
+                    mval3 = mval[2] + mval[6]
+                    mval4 = mval[3] + mval[7]
+                    mval5 = "0" + mval[8]
                     if not mval1.count("0") > 1:
-                        fontclr = "darkorange" if mval[3] == "0" else "red"
+                        fontclr = "black" if mval[4] == "0" else "blue"
                         ax0.text(dt, ttspos, mval1, color=fontclr, fontsize=9)
                     if not mval2.count("0") > 1:
-                        fontclr = "darkorange" if mval[4] == "0" else "red"
-                        ax0.text(dt, bbspos, mval2, color=fontclr, fontsize=9)
-                    if not mval3.count("0") > 1:
                         fontclr = "black" if mval[5] == "0" else "blue"
+                        ax0.text(dt, mpos1, mval2, color=fontclr, fontsize=9)
+                    if not mval3.count("0") > 1:
+                        fontclr = "black" if mval[6] == "0" else "blue"
                         ax0.text(dt, othpos, mval3, color=fontclr, fontsize=9)
+                    if not mval4.count("0") > 1:
+                        fontclr = "black" if mval[8] == "0" else "blue"
+                        ax0.text(dt, mpos2, mval4, color=fontclr, fontsize=9)
+                    if not mval5.count("0") > 1:
+                        fontclr = "black" if mval[8] == "0" else "blue"
+                        ax0.text(dt, bbspos, mval4, color=fontclr, fontsize=9)
                 else:
                     if tssval:
                         symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
@@ -1083,7 +1093,7 @@ def plotSynopsis(dflist, axes):
             dflist[i]['P'].plot(ax=axes[3], color='g', label='P')
             for i in range(4):
                 axes[i].legend(loc="upper left")
-                axes[i].grid(True)
+                # axes[i].grid(True)
             # axes[3].set_xlabel("M")
             axlabel = axes[i].xaxis.get_label()
             axlabel.set_visible(False)

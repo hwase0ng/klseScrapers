@@ -46,12 +46,12 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     # [tolerance, pdays, ndays, matchlevel] = matchdate
-    p1, p2, p3, p4, p5, p6 = 0, 0, 0, 0, 0, 0
+    p1, p2, p3, p4, p5, p6, p7, p8, p9 = 0, 0, 0, 0, 0, 0, 0, 0
     if patterns is not None:
-        [p1, p2, p3, p4, p5, p6] = patterns
+        [p1, p2, p3, p4, p5, p6, p7, p8, p9] = patterns
     lastprice = lastTrxnData[1]
-    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d.%d),%.2f" % (strC, strM, strP, strV,
-                                                                p1, p2, p3, p4, p5, p6, lastprice)
+    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d.%d.%d.%d.%d),%.2f" % \
+        (strC, strM, strP, strV, p1, p2, p3, p4, p5, p6, p7, p8, p9, lastprice)
     # tolerance, pdays, ndays, matchlevel)
     signaltss, signalbbs = "NUL,0,0", "NUL,0,0"
     [_, _, odiv, _] = div
@@ -103,7 +103,9 @@ def printsignal(mpvdir, counter, fname, trxndate, label, signal, pid):
 def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
 
     def patternsMatching():
-        c, v, mp, tripleM10, tripleFallC, tripleTops = 0, 0, 0, 0, 0, 0
+        c, v, mp = 0, 0, 0
+        tripleM10, narrowM, lowbaseC = 0, 0, 0
+        tripleBottoms, tripleTops, retrace = 0, 0, 0,
 
         firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
         firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
@@ -125,68 +127,114 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         elif newhighM and newlowP:
             mp = 6
 
-        if plistC is not None and nlistC is not None:
-            if len(plistC) > 2 and len(nlistC) > 2 and \
-                plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3] and \
-                    nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3]:
-                tripleFallC = 1
-                if len(nlistC) > 3 and nlistC[-3] < nlistC[-4]:
-                    tripleFallC = 2
-            elif len(plistC) > 2 and len(nlistC) > 2 and \
-                    plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
-                    nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3] and \
-                    nlistC[-1] > maxC - range4 and posC > 2 and \
-                    len(plistM) > 3 and plistM[-1] < plistM[-2] and plistM[-2] < plistM[-3] and \
-                    len(plistP) > 3 and plistP[-1] < plistP[-2] and plistP[-2] < plistP[-3] and \
-                    len(plistV) > 3 and plistV[-1] < plistV[-2] and plistV[-2] < plistV[-3] and \
-                    len(nlistV) > 3 and nlistV[-1] > nlistV[-2] and nlistV[-2] > nlistV[-3] and \
-                    plistM[-1] > 5 and plistP[-1] > 0:
-                # KLSE 2013-03-20 firstC == minC
-                tripleTops = 1
+        if plistM is not None and nlistM is not None and len(plistM) > 2 and len(nlistM) > 2:
+            countM7, countM10 = 0, 0
+            for i in range(-3, -1):
+                if plistM[i] >= 10:
+                    countM10 += 10
+                if plistM[i] < 10 and plistM[i] >= 7 and \
+                        nlistM[i] < 10 and nlistM[i] >= 7:
+                    # PADINI 2012-09-28
+                    countM7 += 0
 
-            if len(plistC) < 4 and len(nlistC) < 4 and len(plistC) > 1 and len(nlistC) > 1:
-                higherHighs, higherLows = True, True
-                for i in range(1, len(plistC)):
-                    if plistC[i] < plistC[i - 1]:
-                        higherHighs = False
-                        break
-                if higherHighs:
-                    for i in range(1, len(nlistC)):
-                        if nlistC[i] < nlistC[i - 1]:
-                            higherLows = False
+            if countM10 > 2:
+                # DUFU 2014-11-21 retrace completed
+                # UCREST 2017-08-02 topM valley divergence
+                # YSPSAH 2013-04-29
+                tripleM10 = 3
+                if len(plistM) > 3 and plistM[-4] > 10:
+                    tripleM10 = 4
+
+            if countM7 > 2:
+                narrowM = 7
+                if len(plistM) > 3 and plistM[-4] < 10 and plistM[-4] >= 7:
+                    narrowM = 8
+                    if len(nlistM) > 3 and nlistM[-4] < 10 and nlistM[-4] >= 7:
+                        narrowM = 9
+
+        if plistC is None or nlistC is None:
+            pass
+        else:
+            plenC, nlenC = len(plistC), len(nlistC)
+            if plenC > 2 and nlenC > 2:
+                if (newhighC or topC) and (prevbottomC or firstC == minC):
+                    # PADINI 2012-09-28 beginning of tops reversal
+                    lowbaseC = 1
+                    startc = plenC * -1
+                    for i in range(startc, -1):
+                        if plistC[i] > lowbar:
+                            lowbaseC = 0
                             break
-                if higherHighs and higherLows and lastC > nlistC[-1] and \
+
+                elif bottomC and (plistC[0] == maxC or plistC[1] == maxC or firstC == maxC):
+                    lowbaseC = 2
+                    startc = plenC * -1
+                    for i in range(-3, 0):
+                        if plistC[i] > lowbar:
+                            lowbaseC = 0
+                            break
+
+                if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
+                    if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
+                        ''' --- lower peaks and higher valleys --- '''
+                        # KESM 2013-09-09
+                        # N2N 2014-01-30
+                        tripleBottoms = 1
+                    elif nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3]:
+                        ''' --- lower peaks and lower valleys --- '''
+                        tripleBottoms = 2
+                        # PADINI 2014-02-05 newlowC, 2015-10-02
+                        # N2N 2017-08-28
+                        # DUFU 2011-10-12, 2012-04-10
+                        if nlenC > 3 and nlistC[-3] < nlistC[-4]:
+                            ''' --- lower peaks and lower valleys extension --- '''
+                            # DUFU 2018-06-13 retrace with valley follow by peak divergence
+                            # DANCO 2018-07-23
+                            # PETRONM 2014-04-25
+                            tripleBottoms = 3
+                    elif nlenC > 3 and bottomC and \
+                            nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
+                        ''' --- lower peaks and lower valleys variant --- '''
+                        # DUFU 2011-10-12, 2012-04-10
+                        tripleBottoms = 4
+                    elif nlenC > 3 and \
+                            nlistC[-1] < nlistC[-3] and nlistC[-1] < nlistC[-4] and \
+                            nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
+                        ''' --- lower peaks and lower valleys variant 2 --- '''
+                        # N2N 2017-08-30
+                        tripleBottoms = 5
+
+                if plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
+                        nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3] and \
+                        nlistC[-1] > maxC - range4 and posC > 2:
+                    if len(plistM) > 3 and plistM[-1] < plistM[-2] and plistM[-2] < plistM[-3] and \
+                            len(plistP) > 3 and plistP[-1] < plistP[-2] and plistP[-2] < plistP[-3] and \
+                            len(plistV) > 3 and plistV[-1] < plistV[-2] and plistV[-2] < plistV[-3] and \
+                            len(nlistV) > 3 and nlistV[-1] > nlistV[-2] and nlistV[-2] > nlistV[-3] and \
+                            plistM[-1] > 5 and plistP[-1] > 0:
+                        # KLSE 2013-03-20 firstC == minC
+                        tripleTops = 1
+                    else:
+                        tripleTops = 2
+
+                if plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
+                        nlistC[-1] > nlistC[-2] and nlistC[-2] > nlistC[-3] and \
+                        lastC > nlistC[-1] and nlistC[-1] > plistC[-2] and nlistC[-2] > plistC[-3] and \
                         (firstC < (maxC + minC) / 2 or
                          (nlistC[0] == minC and plistC[0] < minC + (2 * range4))) and \
                         plistC[-1] > maxC - range4 and \
                         nlistC[0] < minC + range4:
                     # DUFU 2016-12-23
-                    # KESM 2016-04-08
-                    tripleTops = 2
+                    # KESM 2016-06-15 only works with chartdays > 500
+                    tripleTops = 3
 
-        if plistM is not None and nlistM is not None and len(plistM) > 2 and len(nlistM) > 2:
-            if plistM[-1] >= 10 and plistM[-2] >= 10 and plistM[-3] >= 10:
-                tripleM10 = 1
-        '''
-            m10date, m10pos = "", 0
-            for i in range(1, len(plistM) + 1):
-                j = i * -1
-                if plistM[j] >= 10:
-                    m10date = mpdates["Mp"][j]
-                    m10pos = j
-                    break
-            if m10pos and m10pos > -3 and not (newlowC or newhighC):
-                mnfirst = True
-                if m10date > firstmn:
-                    mnfirst = False
-                if mnfirst:
-                    retraceM10 = 1 if nlistM[-1] > 6.67 else 2 if nlistM[-1] > 5 else -1
-            if not retraceM10 and m10pos and m10pos < -2:
-                if nlistM[-1] > 5 and nlistM[-2] > 5:
-                    prevRetraceM10 = 1
-        '''
+                if (nlistC[0] == minC or firstC == minC) and \
+                        nlistC[-1] < nlistC[-2] and plistC[-1] < plistC[-2] and \
+                        nlistC[-1] < plistC[-3] and nlistC[-1] > nlistC[0]:
+                    # PADINI 2011-10-14
+                    retrace = 1
 
-        return [c, v, mp, tripleM10, tripleFallC, tripleTops], \
+        return [c, v, mp, narrowM, lowbaseC, tripleM10, tripleBottoms, tripleTops, retrace], \
             [firstmp, firstmn, firstpp, firstpn]
 
     def minmaxC():
@@ -204,7 +252,9 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         else:
             minC = firstC if firstC < lastC else lastC
         range4 = float("{:.2f}".format((maxC - minC) / 4))
-        return minC, maxC, range4
+        lowbar = minC + range4 + (range4 * 10 / 100)
+        highbar = maxC - range4 - (range4 * 10 / 100)
+        return minC, maxC, range4, lowbar, highbar
 
     # ------------------------- START ------------------------- #
     topSellSignal, tss_state = 0, 0
@@ -264,16 +314,16 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
     plistC, nlistC, plistM, nlistM, plistP, nlistP, plistV, nlistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[2], cmpvMM[3], cmpvMP[2], cmpvMP[3], cmpvMV[2], cmpvMV[3]  # 0=XP, 1=XN, 2=YP, 3=YN
 
-    minC, maxC, range4 = minmaxC()
+    minC, maxC, range4, lowbar, highbar = minmaxC()
 
-    tripleM10, tripleFallC, tripleTops = 0, 0, 0
+    narrowM, lowbaseC, tripleM10, tripleBottoms, tripleTops, retrace = 0, 0, 0, 0, 0, 0
     p1, p2 = None, None
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
     else:
         nosignal = False
         p1, p2 = patternsMatching()
-        [c, v, mp, tripleM10, tripleFallC, tripleTops] = p1
+        [c, v, mp, narrowM, lowbaseC, tripleM10, tripleBottoms, tripleTops, retrace] = p1
         [firstmp, firstmn, firstpp, firstpn] = p2
 
     if nosignal or DBGMODE == 3:
@@ -316,7 +366,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         else:
             topSellSignal = -2
         tss_state = 1
-    elif tripleFallC:
+    elif tripleBottoms:
         if posC > 1:
             # Works mostly in retrace position
             topSellSignal = -3
@@ -332,7 +382,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         else:
             # DUFU 2011-10-12
             topSellSignal = 3
-        if tripleFallC == 1:
+        if tripleBottoms == 1:
             tss_state = 1
         elif posC > 1:
             if peaks and "MP" in ndiv:
@@ -344,6 +394,9 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             else:
                 # PETRONM 2014-04-25
                 tss_state = 2
+    elif retrace:
+        topSellSignal = -4
+        tss_state = 1
         '''
     elif retraceM10:
         tss_state = 5
@@ -478,9 +531,9 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             # 3 consecutive M above 10 - powerful break out / bottom reversal signal
             topSellSignal = -21
             tss_state = 1
-        elif tripleFallC:
+        elif tripleBottoms:
             topSellSignal = -22
-            if tripleFallC == 1:
+            if tripleBottoms == 1:
                 tss_state = 2
             else:
                 tss_state = -1
@@ -490,7 +543,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             tss_state = 23
         elif "CP" in ndiv and cpNpos == -1:
             topSellSignal = -2
-            if posC < 2 and tripleFallC:
+            if posC < 2 and tripleBottoms:
                 # PADINI 2015-08-03
                 tss_state = 24
             elif newlowP or bottomP:
