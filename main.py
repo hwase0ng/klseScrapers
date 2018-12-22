@@ -6,6 +6,7 @@ Arguments:
 Options:
     -c,--check            Check processing mode
     -f,--force            Force update when investing.com data is delayed (obsoleted as now using i3)
+    -i,--i3               Use i3 on Saturday to download Friday's EOD
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -k,--klse             Update KLSE stock listing
     -K,--KLSE             Update KLSE related stocks
@@ -27,7 +28,7 @@ from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, \
     scrapeRecentEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice, scrapeLatestPrice, connectStocksListing
-from utils.dateutils import getLastDate, getDayBefore, getToday
+from utils.dateutils import getLastDate, getDayBefore, getToday, getYesterday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap,\
@@ -138,16 +139,18 @@ def scrapeI3(stocklist):
     return eodlist
 
 
-def checkI3LastTradingDay(lastdt):
+def checkI3LastTradingDay(lastdt, i3onSat=False):
     dt, popen, pclose, vol = scrapeRecentEOD(connectRecentPrices("1295"), lastdt, True)
     popen2, pclose2, vol2 = scrapeLatestPrice(connectStocksListing("P"), "1295")
     if S.DBG_ALL:
         print dt, popen, pclose, vol, popen2, pclose2, vol2
-    if dt == lastdt:
+    if dt == lastdt or i3onSat:
         dates = [dt]
         if popen == popen2 and pclose == pclose2 and vol == vol2:
             # Post processing mode on the following day
-            pass
+            if i3onSat:
+                dates = [lastdt]
+                dates.append(getYesterday('%Y-%m-%d'))
         else:
             now = datetime.now()
             # Use i3 latest price
@@ -269,7 +272,7 @@ def postUpdateProcessing():
         print "Post-update Processing ... Done"
 
 
-def scrapeKlse(procmode, force_update, resume):
+def scrapeKlse(procmode, force_update, resume, i3onSat):
     '''
     Determine if can use latest price found in i3 stocks page
     Conditions:
@@ -285,7 +288,7 @@ def scrapeKlse(procmode, force_update, resume):
     else:
         if 1 == 1:
             # use i3 instead of investing.com due to delayed updating of EOD since 4Q 2018
-            dates = checkI3LastTradingDay(lastdt)
+            dates = checkI3LastTradingDay(lastdt, i3onSat)
         else:
             dates = checkInvComLastTradingDay(lastdt)
     if dates is None or (len(dates) == 1 and dates[0] == lastdt):
@@ -306,9 +309,11 @@ def scrapeKlse(procmode, force_update, resume):
             useI3latest = False
 
         if useI3latest:
+            print "Scraping from i3 ..."
             preUpdateProcessing()
             list1 = writeLatestPrice(dates[1], True, resume)
         else:
+            print "Scraping from investing.com ..."
             # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
             # Have enhanced investing.com code to break down downloads by every 3 months
             list1 = scrapeI3(loadKlseCounters(klse))
@@ -366,6 +371,6 @@ if __name__ == '__main__':
             #  download only selected counters
             scrapeI3(formStocklist(stocks, klse))
         else:
-            scrapeKlse(args['--check'], args['--force'], args['--resume'])
+            scrapeKlse(args['--check'], args['--force'], args['--resume'], args['--i3'])
 
     print "\nDone."
