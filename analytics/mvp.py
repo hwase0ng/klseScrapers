@@ -204,6 +204,7 @@ def load_mvp_args(synopsis=False, ohlc=False):
     params['--chartdays'] = S.MVP_CHART_DAYS
     params['--list'] = ""
     params['--simulation'] = ""
+    params['--datadir'] = S.DATA_DIR
     params['COUNTER'] = ""
     _, chartDays = globals_from_args(params)
     return chartDays
