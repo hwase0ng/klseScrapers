@@ -8,5 +8,5 @@ then
 else
  opts="-o -c 200"
 fi
-python analytics/mvpchart.py $counter $opts -S $dates:150
+python analytics/mvpchart.py $counter $opts -S $dates:190
 mv ${DATA}/mpv/simulation/synopsis/$counter_*.png ${DATA}/mpv/simulation/profiling/$counter/
