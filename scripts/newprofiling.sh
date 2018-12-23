@@ -50,8 +50,8 @@ python analytics/mvpchart.py $counter $params -S $dates -c $chartdays -e ${datad
 
 if [ $opt -lt 3 ]
 then
- mv ${simdir}/synopsis/$counter-*.png ${patdir}/$counter/
-else
  mv ${simdir}/synopsis/$counter-*.png ${prfdir}/$counter/
+else
+ mv ${simdir}/synopsis/$counter-*.png ${patdir}/$counter/
 fi
 cp ${simdir}/signals/$counter-signals.csv ${datadir}/mpv/signals/
