@@ -41,7 +41,8 @@ from pandas import read_csv, Grouper
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset,\
     weekFormatter
-from utils.fileutils import tail2, wc_line_count, grepN, mergefiles
+from utils.fileutils import tail2, wc_line_count, grepN, mergefiles,\
+    purgeOldFiles
 import numpy as np
 import operator
 import os
@@ -687,16 +688,16 @@ def plotSignals(pmaps, counter, datevector, ax0):
                     mval4 = mval[3] + mval[7]
                     mval5 = "0" + mval[8]
                     if not mval1.count("0") > 1:
-                        fontclr = "black" if mval[4] == "0" else "blue"
+                        fontclr = "black" if mval[4] == "0" else "red" if mval[4] == "1" else "blue"
                         ax0.text(dt, ttspos, mval1, color=fontclr, fontsize=9)
                     if not mval2.count("0") > 1:
                         fontclr = "black" if mval[5] == "0" else "blue"
                         ax0.text(dt, mpos1, mval2, color=fontclr, fontsize=9)
                     if not mval3.count("0") > 1:
-                        fontclr = "black" if mval[6] == "0" else "blue"
+                        fontclr = "black" if mval[6] == "0" else "red"
                         ax0.text(dt, othpos, mval3, color=fontclr, fontsize=9)
                     if not mval4.count("0") > 1:
-                        fontclr = "black" if mval[8] == "0" else "blue"
+                        fontclr = "black" if mval[7] == "0" else "blue"
                         ax0.text(dt, mpos2, mval4, color=fontclr, fontsize=9)
                     if not mval5.count("0") > 1:
                         fontclr = "black" if mval[8] == "0" else "blue"
@@ -956,6 +957,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
             directory = mpvdir + "signals/"
         sfiles = counter + "-signals.csv"
         mergefiles(directory, sfiles)
+        purgeOldFiles(fname + ".*", 0)
 
     # -----------------------------------------------------------#
 
