@@ -252,7 +252,6 @@ def mergefiles(directory, fname):
         with open(fname, 'w') as f:
             for i in range(len(data)):
                 f.write(data[i])
-        purgeOldFiles(fname + ".*", 0)
 
 
 '''
