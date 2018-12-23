@@ -129,7 +129,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
 
         if plistM is not None and nlistM is not None and len(plistM) > 2 and len(nlistM) > 2:
             countM7, countM10 = 0, 0
-            for i in range(-3, -1):
+            for i in range(-3, 0):
                 if plistM[i] >= 10:
                     countM10 += 1
                 if plistM[i] < 10 and plistM[i] >= 7 and \
@@ -143,6 +143,8 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                 tripleM10 = 3
                 if len(plistM) > 3 and plistM[-4] > 10:
                     tripleM10 = 4
+                    if len(plistM) > 4 and plistM[-5] > 10:
+                        tripleM10 = 5
 
             if countM7 > 2:
                 # PADINI 2012-09-28
@@ -166,13 +168,20 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                             lowbaseC = 0
                             break
 
-                elif bottomC and (plistC[0] == maxC or plistC[1] == maxC or firstC == maxC):
-                    lowbaseC = 2
+                elif plistC[0] == maxC or plistC[1] == maxC or firstC == maxC or \
+                        (plenC > 5 and plistC[2] == maxC):
+                    lowbaseC = 3
                     startc = plenC * -1
                     for i in range(-3, 0):
-                        if plistC[i] > lowbar:
+                        if plistC[i] < lowbar:
+                            continue
+                        elif plistC[i] > lowbar2 and plistC[i] < midbar:
+                            lowbaseC -= 1
+                        else:
                             lowbaseC = 0
                             break
+                    if lowbaseC and lowbaseC < 2:
+                        lowbaseC = 0
 
                 if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
                     if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
@@ -252,9 +261,28 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         else:
             minC = firstC if firstC < lastC else lastC
         range4 = float("{:.2f}".format((maxC - minC) / 4))
-        lowbar = minC + range4 + (range4 * 10 / 100)
-        highbar = maxC - range4 - (range4 * 10 / 100)
-        return minC, maxC, range4, lowbar, highbar
+        lowbar = minC + range4 + (range4 * 20 / 100)
+        lowbar2 = minC + range4 + (range4 * 40 / 100)
+        midbar = (minC + maxC) / 2
+        highbar = maxC - range4 - (range4 * 20 / 100)
+        return minC, maxC, range4, lowbar, lowbar2, midbar, highbar
+
+    def minmaxP():
+        minP, maxP = None, None
+        if plistP is not None:
+            maxP = max(plistP) if lastP < max(plistP) else lastP
+            if maxP < firstP:
+                maxP = firstP
+        else:
+            maxP = firstP if firstP > lastP else lastP
+        if nlistP is not None:
+            minP = min(nlistP) if lastP > min(nlistP) else lastP
+            if minP > firstP:
+                minP = firstP
+        else:
+            minP = firstP if firstP < lastP else lastP
+        midP = (minP + maxP) / 2
+        return minP, maxP, midP
 
     # ------------------------- START ------------------------- #
     topSellSignal, tss_state = 0, 0
@@ -314,7 +342,8 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
     plistC, nlistC, plistM, nlistM, plistP, nlistP, plistV, nlistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[2], cmpvMM[3], cmpvMP[2], cmpvMP[3], cmpvMV[2], cmpvMV[3]  # 0=XP, 1=XN, 2=YP, 3=YN
 
-    minC, maxC, range4, lowbar, highbar = minmaxC()
+    minC, maxC, range4, lowbar, lowbar2, midbar, highbar = minmaxC()
+    minP, maxP, midP = minmaxP()
 
     narrowM, lowbaseC, tripleM10, tripleBottoms, tripleTops, retrace = 0, 0, 0, 0, 0, 0
     p1, p2 = None, None
@@ -366,22 +395,31 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         else:
             topSellSignal = -2
         tss_state = 1
+    elif lowbaseC:
+        topSellSignal = -3
+        if "CP" not in ndiv or "CM" not in ndiv or \
+                nlistM[-1] < 5 or nlistP[-1] < (minP / 2):
+            tss_state = 0
+        else:
+            # KESM 2013-09-06
+            # KLSE 2017-01-09
+            tss_state = -1
     elif tripleBottoms:
         if posC > 1:
             # Works mostly in retrace position
-            topSellSignal = -3
+            topSellSignal = -4
         elif (newlowM and newlowP) or (bottomM or bottomP):
             # PADINI 2014-02-05 newlowC
-            topSellSignal = -3
+            topSellSignal = -4
         elif newhighM or newhighP or topM or topP:
             # PADINI 2015-10-02
-            topSellSignal = -3
+            topSellSignal = -4
         elif newhighV:
             # N2N 2017-08-28
-            topSellSignal = -3
+            topSellSignal = -4
         else:
             # DUFU 2011-10-12
-            topSellSignal = 3
+            topSellSignal = 4
         if tripleBottoms == 1:
             tss_state = 1
         elif posC > 1:
@@ -395,7 +433,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                 # PETRONM 2014-04-25
                 tss_state = 2
     elif retrace:
-        topSellSignal = -4
+        topSellSignal = -5
         tss_state = 1
         '''
     elif retraceM10:
