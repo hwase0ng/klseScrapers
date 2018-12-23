@@ -10,7 +10,7 @@ DATE=$3
 DATA=/c/git/klseScrapers/data
 CSVFILE=${DATA}/investingcom/$COUNTER.$SCODE.csv
 export PYTHONPATH=../..
-cd scrapers/investingcom
+cd $DATA/scrapers/investingcom
 if ! test -s $CSVFILE || ! test -z "$3"
 then
  if [ -z "$DATE" ]
