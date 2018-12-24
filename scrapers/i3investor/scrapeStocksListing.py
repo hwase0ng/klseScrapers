@@ -12,6 +12,7 @@ from common import getDataDir
 from analytics.mvp import updateMPV, load_mvp_args
 from analytics.mvpchart import mvpChart, mvpSynopsis
 from utils.fileutils import tail
+import os
 
 I3STOCKSURL = 'https://klse.i3investor.com/jsp/stocks.jsp?g=S&m=int&s='
 
@@ -175,6 +176,8 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
     def checkMPV():
         if resume:
             mpvfile = getDataDir(S.DATA_DIR) + S.MVP_DIR + shortname + '.csv'
+            if not os.path.isfile(mpvfile):
+                return
             lines = tail(mpvfile)
             ldata = lines.split(',')
             if ldata[1] == lastTradingDate:
