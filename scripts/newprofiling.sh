@@ -13,6 +13,8 @@ then
 fi
 
 simdir=${datadir}/mpv/simulation
+sigdir=${simdir}/signals
+syndir=${simdir}/synopsis
 prfdir=${simdir}/profiling
 patdir=${simdir}/patterns
 
@@ -28,23 +30,24 @@ then
  then
   mkdir ${prfdir}/$counter
  fi
- rm ${prfdir}/$counter/*.png > ${prfdir}/$counter/$counter.log 2>&1
- rm ${prfdir}/${counter}-signals.csv > ${prfdir}/$counter/$counter.log 2>&1
- rm ${prfdir}/${counter}-*.png > ${prfdir}/$counter/$counter.log 2>&1
- 
+ > $logfile
  logfile=${prfdir}/$counter/$counter.log
+ rm ${prfdir}/$counter/*.png | tee -a $logfile
 else
  params="-ps -D p -C"
  if ! test -d ${patdir}/$counter
  then
   mkdir ${patdir}/$counter
  fi
- rm ${patdir}/$counter/*.png > ${patdir}/$counter/$counter.log 2>&1
- rm ${patdir}/${counter}-signals.csv > ${patdir}/$counter/$counter.log 2>&1
- rm ${patdir}/${counter}-*.png > ${patdir}/$counter/$counter.log 2>&1
- 
  logfile=${patdir}/$counter/$counter.log
+ > $logfile
+ rm ${patdir}/$counter/*.png | tee -a $logfile
 fi
+> $logfile
+> ${simdir}/signals/$counter-signals.csv
+rm ${syndir}/${counter}-*.png | tee -a $logfile
+rm ${sigdir}/${counter}-signals.csv.* | tee -a $logfile
+rm ${sigdir}/${counter}-signals.csv | tee -a $logfile
 
 python analytics/mvpchart.py $counter $params -S $dates -c $chartdays -e ${datadir} | tee -a $logfile
 
