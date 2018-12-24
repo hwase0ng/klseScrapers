@@ -280,7 +280,7 @@ def scrapeKlse(procmode, force_update, resume, i3onSat):
       2. latest eod record in csv file is 1 trading day behind
          that of investing.com latest eod
     '''
-    lastdt = getLastDate(S.DATA_DIR + 'PBBANK.1295.csv')
+    lastdt = getLastDate(S.DATA_DIR + 'YTL.4677.csv')
     if force_update or resume:
         dates = []
         dates.append(lastdt)
