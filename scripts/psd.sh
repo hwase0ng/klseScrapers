@@ -1,9 +1,14 @@
 #!/bin/bash
-if [ $# -lt 2 ]
+if [ $# -lt 1 ]
 then
-	echo "Usage: psd.sh <date> <counter>"
+	echo "Usage: psd.sh [date] <counter>"
 	exit 1
 fi
 cd /c/git/klseScrapers
-python analytics/mvpchart.py -psd -Ds -S $@
+if [ $# -gt 1 ]
+then
+ python analytics/mvpchart.py -psd -Ds -S $@
+else
+ python analytics/mvpchart.py -psd -Ds $@
+fi
 cd -
