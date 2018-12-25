@@ -8,6 +8,7 @@ import settings as S
 from common import loadCfg
 from utils.dateutils import getBusDaysBtwnDates
 from utils.fileutils import grepN
+from pip._vendor.progress.counter import Countdown
 
 
 def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
@@ -46,12 +47,12 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     # [tolerance, pdays, ndays, matchlevel] = matchdate
-    p1, p2, p3, p4, p5, p6, p7, p8, p9 = 0, 0, 0, 0, 0, 0, 0, 0, 0
+    p1, p2, p3, p4, p5, p6, p7, p8, p9, p10 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     if patterns is not None:
-        [p1, p2, p3, p4, p5, p6, p7, p8, p9] = patterns
+        [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = patterns
     lastprice = lastTrxnData[1]
-    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d.%d.%d.%d.%d),%.2f" % \
-        (strC, strM, strP, strV, p1, p2, p3, p4, p5, p6, p7, p8, p9, lastprice)
+    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d.%d.%d.%d.%d.%d),%.2f" % \
+        (strC, strM, strP, strV, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, lastprice)
     # tolerance, pdays, ndays, matchlevel)
     signaltss, signalbbs = "NUL,0,0", "NUL,0,0"
     [_, _, odiv, _] = div
@@ -102,17 +103,140 @@ def printsignal(mpvdir, counter, fname, trxndate, label, signal, pid):
 
 def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
 
-    def patternsMatching():
-        c, v, mp = 0, 0, 0
-        tripleM10, narrowM, lowbaseC = 0, 0, 0
-        tripleBottoms, tripleTops, retrace = 0, 0, 0,
+    def minmaxC():
+        minC, maxC, range4 = None, None, None
+        if plistC is not None:
+            maxC = max(plistC) if lastC < max(plistC) else lastC
+            if maxC < firstC:
+                maxC = firstC
+        else:
+            maxC = firstC if firstC > lastC else lastC
+        if nlistC is not None:
+            minC = min(nlistC) if lastC > min(nlistC) else lastC
+            if minC > firstC:
+                minC = firstC
+        else:
+            minC = firstC if firstC < lastC else lastC
+        range4 = float("{:.2f}".format((maxC - minC) / 4))
+        lowbar = minC + range4 + (range4 * 20 / 100)
+        lowbar2 = minC + range4 + (range4 * 40 / 100)
+        midbar = (minC + maxC) / 2
+        highbar = maxC - range4 - (range4 * 20 / 100)
+        return minC, maxC, range4, lowbar, lowbar2, midbar, highbar
 
+    def minmaxP():
+        minP, maxP = None, None
+        if plistP is not None:
+            maxP = max(plistP) if lastP < max(plistP) else lastP
+            if maxP < firstP:
+                maxP = firstP
+        else:
+            maxP = firstP if firstP > lastP else lastP
+        if nlistP is not None:
+            minP = min(nlistP) if lastP > min(nlistP) else lastP
+            if minP > firstP:
+                minP = firstP
+        else:
+            minP = firstP if firstP < lastP else lastP
+        midP = (minP + maxP) / 2
+        return minP, maxP, midP
+
+    def patternsDiscovery():
+        def tripleChecks():
+            def triplecount(plist):
+                countup, countdown = 0, 0
+                for i in range(-3, -1):
+                    if plist[i] <= plist[i + 1]:
+                        countup += 1
+                    if plist[i] >= plist[i + 1]:
+                        countdown += 1
+                return countup, countdown
+
+            plenM, nlenM = 0, 0
+            tripleM, tripleP, tripleV = 0, 0, 0
+            narrowM, countM10, count3up, count3down = 0, 0, 0, 0
+            if plistM is not None and nlistM is not None:
+                plenM, nlenM = len(plistM), len(nlistM)
+                if plenM > 2:
+                    count3up, count3down = triplecount(plistM)
+                    for i in range(plenM):
+                        if plistM[i] >= 10:
+                            countM10 += 1
+
+                if countM10 > 2:
+                    # DUFU 2014-11-21 retrace completed
+                    # UCREST 2017-08-02 topM valley divergence
+                    # YSPSAH 2013-04-29
+                    # PADINI 2011-05 variant with one M lower than 10 in the middle
+                    tripleM = 3
+                    if countM10 > 3:
+                        tripleM = 4
+                        if countM10 > 4:
+                            tripleM = 5
+                elif count3up > 1:
+                    tripleM = 1
+                elif count3down > 1:
+                    tripleM = 2
+
+                if plenM > 4 and nlenM > 4:
+                    lenm = plenM if plenM < nlenM else nlenM
+                    for i in range(-1, -lenm, -1):
+                        if plistM[i] <= 10 and plistM[i] >= 5 and \
+                                nlistM[i] <= 10 and nlistM[i] >= 5:
+                            narrowM += 1
+                        else:
+                            break
+                    # PADINI 2012-09-28
+                    # PETRONM 2015-10-07
+                    # YSPSAH 20116-12-23
+                    if narrowM < 5:
+                        narrowM = 0
+
+            plenP, nlenP = 0, 0
+            if plistP is not None and nlistP is not None:
+                plenP, nlenP = len(plistP), len(nlistP)
+                if plenP > 2:
+                    count3up, count3down = triplecount(plistP)
+                if count3up > 1:
+                    tripleP = 1
+                elif count3down > 1:
+                    tripleP = 2
+                elif plenP > 2 and plistP[-1] < plistP[-3] and plistP[-2] < plistP[-3]:
+                    tripleP = 3
+
+            plenV, nlenV = 0, 0
+            if plistV is not None and nlistV is not None:
+                plenV, nlenV = len(plistV), len(nlistV)
+                if plenV > 2:
+                    count3up, count3down = triplecount(plistV)
+                if count3up > 1:
+                    tripleV = 1
+                elif count3down > 1:
+                    tripleV = 2
+                elif plenV > 2 and plistV[-1] < plistV[-3] and plistV[-2] < plistV[-3]:
+                    tripleV = 3
+
+            return plenM, nlenM, plenP, nlenP, plenV, nlenV, \
+                tripleM, tripleP, tripleV, narrowM
+
+        c, v, mp = 0, 0, 0
+        lowbaseC, tripleBottoms, tripleTops = 0, 0, 0
         firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
         firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
         firstpp = mpdates["Pp"][-1] if "Pp" in mpdates else "1970-01-01"
         firstpn = mpdates["Pn"][-1] if "Pn" in mpdates else "1970-01-01"
 
-        c = 1 if newhighC else 2 if newlowC else 3 if topC else 4 if bottomC else 0
+        # c = 1 if newhighC else 2 if newlowC else 3 if topC else 4 if bottomC else 0
+        if pdiv is None and ndiv is None:
+            c = 0
+        else:
+            pdate, ndate = cpPdate, cpNdate
+            if pdate > ndate:
+                c = 1 if "CP" in pdiv and "CM" in pdiv else 2 if "CP" in pdiv else \
+                    3 if "CM" in pdiv else 0
+            else:
+                c = 4 if "CP" in ndiv and "CM" in ndiv else 5 if "CP" in ndiv else \
+                    6 if "CM" in ndiv else 0
         v = 1 if newhighV else 2 if newlowV else 3 if topV else 4 if bottomV else 0
         if newhighM and newhighP:
             mp = 1
@@ -127,33 +251,9 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         elif newhighM and newlowP:
             mp = 6
 
-        if plistM is not None and nlistM is not None and len(plistM) > 2 and len(nlistM) > 2:
-            countM7, countM10 = 0, 0
-            for i in range(-3, 0):
-                if plistM[i] >= 10:
-                    countM10 += 1
-                if plistM[i] < 10 and plistM[i] >= 7 and \
-                        nlistM[i] < 10 and nlistM[i] >= 7:
-                    countM7 += 1
-
-            if countM10 > 2:
-                # DUFU 2014-11-21 retrace completed
-                # UCREST 2017-08-02 topM valley divergence
-                # YSPSAH 2013-04-29
-                tripleM10 = 3
-                if len(plistM) > 3 and plistM[-4] > 10:
-                    tripleM10 = 4
-                    if len(plistM) > 4 and plistM[-5] > 10:
-                        tripleM10 = 5
-
-            if countM7 > 2:
-                # PADINI 2012-09-28
-                narrowM = 7
-                if len(plistM) > 3 and plistM[-4] < 10 and plistM[-4] >= 7:
-                    narrowM = 8
-                    if len(nlistM) > 3 and nlistM[-4] < 10 and nlistM[-4] >= 7:
-                        narrowM = 9
-
+        plenM, nlenM, plenP, nlenP, plenV, nlenV, tripleM, tripleP, tripleV, narrowM = \
+            tripleChecks()
+        plenC, nlenC = 0, 0
         if plistC is None or nlistC is None:
             pass
         else:
@@ -167,11 +267,12 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                         if plistC[i] > lowbar:
                             lowbaseC = 0
                             break
-
+                elif firstC == maxC and plistC[0] < midbar and plistC[-1] < lowbar:
+                    # DUFU 2014-05-12
+                    lowbaseC = 4
                 elif plistC[0] == maxC or plistC[1] == maxC or firstC == maxC or \
                         (plenC > 5 and plistC[2] == maxC):
                     lowbaseC = 3
-                    startc = plenC * -1
                     for i in range(-3, 0):
                         if plistC[i] < lowbar:
                             continue
@@ -216,15 +317,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                 if plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
                         nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3] and \
                         nlistC[-1] > maxC - range4 and posC > 2:
-                    if len(plistM) > 3 and plistM[-1] < plistM[-2] and plistM[-2] < plistM[-3] and \
-                            len(plistP) > 3 and plistP[-1] < plistP[-2] and plistP[-2] < plistP[-3] and \
-                            len(plistV) > 3 and plistV[-1] < plistV[-2] and plistV[-2] < plistV[-3] and \
-                            len(nlistV) > 3 and nlistV[-1] > nlistV[-2] and nlistV[-2] > nlistV[-3] and \
-                            plistM[-1] > 5 and plistP[-1] > 0:
-                        # KLSE 2013-03-20 firstC == minC
-                        tripleTops = 1
-                    else:
-                        tripleTops = 2
+                    tripleTops = 1
 
                 if plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
                         nlistC[-1] > nlistC[-2] and nlistC[-2] > nlistC[-3] and \
@@ -235,57 +328,17 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                         nlistC[0] < minC + range4:
                     # DUFU 2016-12-23
                     # KESM 2016-06-15 only works with chartdays > 500
-                    tripleTops = 3
+                    tripleTops = 2
+            elif plenC > 1:
+                if firstC == maxC and plistC[0] < midbar and plistC[1] < lowbar:
+                    lowbaseC = 5
 
-                if (nlistC[0] == minC or firstC == minC) and \
-                        nlistC[-1] < nlistC[-2] and plistC[-1] < plistC[-2] and \
-                        nlistC[-1] < plistC[-3] and nlistC[-1] > nlistC[0]:
-                    # PADINI 2011-10-14
-                    retrace = 1
-
-        return [c, v, mp, narrowM, lowbaseC, tripleM10, tripleBottoms, tripleTops, retrace], \
+        return [c, v, mp, tripleM, tripleP, tripleV,
+                narrowM, lowbaseC, tripleBottoms, tripleTops], \
             [firstmp, firstmn, firstpp, firstpn]
 
-    def minmaxC():
-        minC, maxC, range4 = None, None, None
-        if plistC is not None:
-            maxC = max(plistC) if lastC < max(plistC) else lastC
-            if maxC < firstC:
-                maxC = firstC
-        else:
-            maxC = firstC if firstC > lastC else lastC
-        if nlistC is not None:
-            minC = min(nlistC) if lastC > min(nlistC) else lastC
-            if minC > firstC:
-                minC = firstC
-        else:
-            minC = firstC if firstC < lastC else lastC
-        range4 = float("{:.2f}".format((maxC - minC) / 4))
-        lowbar = minC + range4 + (range4 * 20 / 100)
-        lowbar2 = minC + range4 + (range4 * 40 / 100)
-        midbar = (minC + maxC) / 2
-        highbar = maxC - range4 - (range4 * 20 / 100)
-        return minC, maxC, range4, lowbar, lowbar2, midbar, highbar
-
-    def minmaxP():
-        minP, maxP = None, None
-        if plistP is not None:
-            maxP = max(plistP) if lastP < max(plistP) else lastP
-            if maxP < firstP:
-                maxP = firstP
-        else:
-            maxP = firstP if firstP > lastP else lastP
-        if nlistP is not None:
-            minP = min(nlistP) if lastP > min(nlistP) else lastP
-            if minP > firstP:
-                minP = firstP
-        else:
-            minP = firstP if firstP < lastP else lastP
-        midP = (minP + maxP) / 2
-        return minP, maxP, midP
-
     # ------------------------- START ------------------------- #
-    topSellSignal, tss_state = 0, 0
+    topSellSignal, tss_state, retrace = 0, 0, 0
     peaks, valleys = False, False
     # [tolerance, pdays, ndays, matchlevel] = matchdate
     [pdiv, ndiv, odiv, mpdates] = div
@@ -303,6 +356,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
 
     cmPpos, cpPpos, mpPpos, cmNpos, cpNpos, mpNpos = -99, -99, -99, -99, -99, -99
     cmPdate, cpPdate, mpPdate = "1970-01-01", "1970-01-01", "1970-01-01"
+    cmNdate, cpNdate, mpNdate = "1970-01-01", "1970-01-01", "1970-01-01"
     if 'CM' in pdiv:
         [cmPdate, cmPtype, cmPcount, cmPtol, cmPpos] = pdiv['CM']
     if 'CP' in pdiv:
@@ -345,19 +399,19 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
     minC, maxC, range4, lowbar, lowbar2, midbar, highbar = minmaxC()
     minP, maxP, midP = minmaxP()
 
-    narrowM, lowbaseC, tripleM10, tripleBottoms, tripleTops, retrace = 0, 0, 0, 0, 0, 0
+    narrowM, lowbaseC, tripleM, tripleP, tripleV, tripleBottoms, tripleTops = 0, 0, 0, 0, 0, 0, 0
     p1, p2 = None, None
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
     else:
         nosignal = False
-        p1, p2 = patternsMatching()
-        [c, v, mp, narrowM, lowbaseC, tripleM10, tripleBottoms, tripleTops, retrace] = p1
+        p1, p2 = patternsDiscovery()
+        [c, v, mp, tripleM, tripleP, tripleV, narrowM, lowbaseC, tripleBottoms, tripleTops] = p1
         [firstmp, firstmn, firstpp, firstpn] = p2
 
     if nosignal or DBGMODE == 3:
         pass
-    elif plistP is not None and len(plistP) > 3 and tripleM10:
+    elif plistP is not None and len(plistP) > 3 and tripleM > 2:
         # 3 consecutive M above 10 - powerful break out / bottom reversal signal
         topSellSignal = -1
         if plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
@@ -367,7 +421,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             # --- bottom reversal --- #
             # DUFU 2014-05-05, 2014-06-04 (plistP[-1] < 0) bottom break out
             # DUFU 2014-09-10 (5 plistM vs 4 plistP)
-        elif topC or topM:
+        else:
             pdate, ndate = "", ""
             if len(ndiv):
                 pdate = mpPdate
@@ -375,22 +429,32 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                     ndate = cpNdate
                 elif "CM" in ndiv:
                     ndate = cmNdate
-            if pdate > ndate:
-                # DUFU 2014-09-03 retracing
-                tss_state = 0
+            if topC or topM:
+                if pdate > ndate:
+                    # DUFU 2014-09-03 retracing
+                    tss_state = 0
+                else:
+                    # DUFU 2014-11-21 retrace completed
+                    # UCREST 2017-08-02 topM valley divergence
+                    tss_state = 2
+            elif not newlowC:
+                # YSPSAH 2013-04-29
+                tss_state = 3
+            elif pdate > ndate or lastM < 0:
+                # ABLEGRP 2018-12-21
+                topSellSignal = 1
+                tss_state = 1
             else:
-                # DUFU 2014-11-21 retrace completed
-                # UCREST 2017-08-02 topM valley divergence
-                tss_state = 2
-        elif not newlowC:
-            # YSPSAH 2013-04-29
-            tss_state = 3
-        else:
-            tss_state = 0
-        # tss_state = 2 if "CM" in ndiv or "CP" in ndiv else 1
+                tss_state = 0
+            # tss_state = 2 if "CM" in ndiv or "CP" in ndiv else 1
     elif tripleTops:
-        if newhighV:
-            # KLSE 2018-0507
+        if tripleM == 2 and tripleP > 1 and tripleV > 1 and \
+                len(nlistV) > 1 and nlistV[-1] > nlistV[-2] and \
+                plistM[-1] > 5 and plistP[-1] > 0:
+            # KLSE 2013-03-20
+            topSellSignal = -2
+        elif newhighV:
+            # KLSE 2018-05-07
             topSellSignal = 2
         else:
             topSellSignal = -2
@@ -432,10 +496,24 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             else:
                 # PETRONM 2014-04-25
                 tss_state = 2
-    elif retrace:
-        topSellSignal = -5
-        tss_state = 1
-        '''
+    '''
+    elif newhighC or topC:
+        if tripleM == 2 and tripleP > 1 and \
+                plistM[-3] < 10 and plistM[-1] > 5 and \
+                plistP[-1] > 0:
+            # KLSE 2011-08-15
+            retrace = 1
+        elif (nlistC[0] == minC or firstC == minC) and \
+                nlistC[-1] < nlistC[-2] and plistC[-1] < plistC[-2] and \
+                nlistC[-1] < plistC[-3] and nlistC[-1] > nlistC[0]:
+            # PADINI 2011-10-14
+            retrace = 1
+        elif topC and len(plistM) > 2:
+            if newlowM and newlowP and not newlowC:
+                # KLSE 2011-09-15
+                retrace = -1
+    '''
+    '''
     elif retraceM10:
         tss_state = 5
         onetwo = 1 if peaks else 2
@@ -565,7 +643,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             else:
                 topSellSignal = 2
         '''
-        if plistP is not None and len(plistP) > 3 and tripleM10:
+        if plistP is not None and len(plistP) > 3 and tripleM > 2:
             # 3 consecutive M above 10 - powerful break out / bottom reversal signal
             topSellSignal = -21
             tss_state = 1
