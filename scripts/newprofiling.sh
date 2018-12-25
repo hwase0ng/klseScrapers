@@ -58,4 +58,4 @@ else
  mv ${simdir}/synopsis/$counter-*.png ${patdir}/$counter/
 fi
 #cp ${simdir}/signals/$counter-signals.csv ${datadir}/mpv/signals/
-uniq ${simdir}/signals/$counter-signals.csv > ${datadir}/mpv/signals/
+uniq ${simdir}/signals/$counter-signals.csv > ${datadir}/mpv/signals/${counter}-signals.csv
