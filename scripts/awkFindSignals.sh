@@ -57,7 +57,7 @@ do
    ;;
   *)
    #usage
-   echo "Usage: awkFindSignals.sh -vsd <value> <signal name> [datadir]" 1>&2
+   echo "Usage: awkFindSignals.sh -svcd <signal name> <value> [counter] [datadir]" 1>&2
    exit 1
    ;;
  esac
