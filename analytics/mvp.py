@@ -97,7 +97,10 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
                     aveVol = float(eodpop[7]) / S.MVP_DAYS
                     avePrice = float(eodpop[8]) / S.MVP_DAYS
                     volDiff = (float(volume) - aveVol) / aveVol
-                    priceDiff = (float(pclose) - avePrice) / avePrice
+                    if avePrice == 0.0:
+                        priceDiff = 0.0
+                    else:
+                        priceDiff = (float(pclose) - avePrice) / avePrice
                     # priceDiff *= 20  # easier to view as value is below 1
                     if DBG_ALL and dt.startswith('2018-07'):
                         print '\t', dt, aveVol, avePrice, volDiff, priceDiff
