@@ -30,10 +30,10 @@ dateopt=0
 
 #usage() { echo "Usage: group.sh -cds [counter(s)] [start date] [steps]" 1>&2; exit 1 }
 
-while getopts ":c:d:g:o:s:D:S:" opt
+while getopts ":c:C:d:g:o:s:D:" opt
 do
  case "$opt" in
-  c)
+  C)
    CHARTDAYS=$OPTARG
    if ! [[ "$CHARTDAYS" =~ $re ]]
    then
@@ -53,7 +53,7 @@ do
    STARTDT=$OPTARG
    dateopt=1
    ;;
-  g)
+  c)
    GROUP=$OPTARG
    ;;
   o)
@@ -67,14 +67,14 @@ do
     exit 2
    fi
    ;;
-  S)
+  g)
    SET=$OPTARG
    #echo $(eval echo "\$$SET")
    GROUP=$(eval echo "\$$SET")
    ;;
   *)
    #usage
-   echo "Usage: group.sh -cdgoDsS [chartdays] [date] [group(s)] [opt=1234] [Dir] [steps] [Set]" 1>&2
+   echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
    echo "  opt: 1 - Normal scanning, 2 - Signal scanning, 3 - Pattern scanning, 4 - Daily Charting only" 1>&2
    exit 1
    ;;
