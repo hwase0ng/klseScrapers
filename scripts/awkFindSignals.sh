@@ -6,15 +6,17 @@ signaldir=$mpvdir/signals
 c=16
 v=17
 mp=18
-narrowM=19
-lowbaseC=20
-tripleM10=21
-tripleBottoms=22
-tripleTops=23
-retrace=24
+tripleM=19
+tripleP=20
+tripleV=21
+narrowM=22
+lowbaseC=23
+tripleBottoms=24
+tripleTops=25
 
 signalfile=""
 val=0
+signal=""
 
 while getopts ":s:v:c:d:" opt
 do
@@ -63,7 +65,7 @@ done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
-if [ -z $signal -o $val == 0 ]
+if [ -z $signal -o $val -eq 0 ]
 then
    echo "Usage: awkFindSignals.sh -svcd <signal name> <value> [counter] [datadir]" 1>&2
    exit 1
