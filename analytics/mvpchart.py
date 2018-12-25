@@ -682,25 +682,25 @@ def plotSignals(pmaps, counter, datevector, ax0):
                 if pmaps:
                     mvals = mvals[1:-1]
                     mval = mvals.split(".")
-                    mval1 = hltb[int(mval[0])] + mval[4]
-                    mval2 = hltb[int(mval[1])] + mval[5]
-                    mval3 = mval[2] + mval[6]
-                    mval4 = mval[3] + mval[7]
-                    mval5 = "0" + mval[8]
+                    mval1 = mval[0] + mval[5]
+                    mval2 = hltb[int(mval[1])] + mval[6]
+                    mval3 = mval[2] + mval[7]
+                    mval4 = mval[3] + mval[8]
+                    mval5 = mval[4] + mval[9]
                     if not mval1.count("0") > 1:
-                        fontclr = "black" if mval[4] == "0" else "red" if mval[4] == "1" else "blue"
+                        fontclr = "black"
                         ax0.text(dt, ttspos, mval1, color=fontclr, fontsize=9)
                     if not mval2.count("0") > 1:
-                        fontclr = "black" if mval[5] == "0" else "blue"
+                        fontclr = "red" if int(mval[6]) > 0 else "blue" if int(mval[1]) > 0 else "blue"
                         ax0.text(dt, mpos1, mval2, color=fontclr, fontsize=9)
                     if not mval3.count("0") > 1:
-                        fontclr = "black" if mval[6] == "0" else "red"
+                        fontclr = "black" if mval[7] == "0" else "blue"
                         ax0.text(dt, othpos, mval3, color=fontclr, fontsize=9)
                     if not mval4.count("0") > 1:
-                        fontclr = "black" if mval[7] == "0" else "blue"
+                        fontclr = "blue" if int(mval[3]) > 0 or int(mval[8]) > 0 else "black"
                         ax0.text(dt, mpos2, mval4, color=fontclr, fontsize=9)
                     if not mval5.count("0") > 1:
-                        fontclr = "black" if mval[8] == "0" else "blue"
+                        fontclr = "blue" if int(mval[4]) > 0 or int(mval[9]) > 0 else "black"
                         ax0.text(dt, bbspos, mval4, color=fontclr, fontsize=9)
                 else:
                     if tssval:
@@ -978,7 +978,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
         df, skiprow, fname = getMpvDf(counter, chartDays, start)
         dates = simulation.split(":")
         end = dates[0]
-        plotlist, cpus = [], cpu_count()
+        jobs, cpus = [], cpu_count()
         while True:
             # start = getDayOffset(end, chartDays * -1)
             start = pdDaysOffset(end, chartDays * -1)
@@ -992,18 +992,18 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
                                 args=(mpvdir, DBG_SIGNAL, dflist, showchart,
                                       counter, title, lasttrxn, fname, nums, concurrency))
                     p.start()
-                    plotlist.append(p)
-                    if len(plotlist) > cpus - 1:
-                        for p in plotlist:
+                    jobs.append(p)
+                    if len(jobs) > cpus - 1:
+                        for p in jobs:
                             p.join()
-                        plotlist = []
+                        jobs = []
                 else:
                     doPlotting(mpvdir, DBG_SIGNAL,
                                dflist, showchart, counter, title, lasttrxn, fname, nums)
             if len(dates) < 2 or end > dates[1]:
                 if concurrency:
-                    if len(plotlist):
-                        for p in plotlist:
+                    if len(jobs):
+                        for p in jobs:
                             p.join()
                     housekeep()
                 break
@@ -1019,15 +1019,16 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
 
 
 def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outname, numslen, parallel=False):
-    global SYNOPSIS, DBG_ALL, OHLC
-    global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
-    global MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE
-    SYNOPSIS, OHLC, DBG_ALL = True, False, False
-    MVP_PLOT_PEAKS = True
-    MVP_PEAKS_DISTANCE = -1
-    MVP_PEAKS_THRESHOLD = -1
-    MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE = \
-        False, 1, 3
+    if parallel:
+        global SYNOPSIS, DBG_ALL, OHLC
+        global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
+        global MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE
+        SYNOPSIS, OHLC, DBG_ALL = True, False, False
+        MVP_PLOT_PEAKS = True
+        MVP_PEAKS_DISTANCE = -1
+        MVP_PEAKS_THRESHOLD = -1
+        MVP_DIVERGENCE_MATCH_FILTER, MVP_DIVERGENCE_BLOCKING_COUNT, MVP_DIVERGENCE_MATCH_TOLERANCE = \
+            False, 1, 3
     '''
     # sharex is causing the MONTH column to be out of alignment
     # Adding/removing records does not help to rectify this issue
@@ -1051,6 +1052,8 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
     _, pnList, div = plotSynopsis(dfplot, axes)
 
     pid = os.getpid() if parallel else 0
+    if pid:
+        print "PID:", pid, lsttxn[0]
     signals = scanSignals(datadir, dbg, counter, outname, pnList, div, lsttxn, pid)
     if len(signals):
         title = plttitle + " [" + signals + "]"
