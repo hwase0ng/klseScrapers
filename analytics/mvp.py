@@ -52,7 +52,6 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
             pdiff = (aprice - pclose) / 100
             vdiff = avol - volume
             pclose, volume = aprice, avol
-            print aprice, tprice, avol, tvol, pdiff, vdiff
             eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, aprice, avol, tvol, tprice, 0, 0, pdiff, vdiff])
         lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, aprice, avol, tvol, tprice, 0, 0, pdiff, vdiff]
         return eodlist, lasteod
