@@ -33,30 +33,41 @@ DBG_ALL = False
 KLSE = "scrapers/i3investor/klse.txt"
 
 
-def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volume):
-    if volume == "-":
-        volume = 0
-    return counter, dt, price_open, price_high, price_low, price_close, volume
-
-
 def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
+    def preloadInitials():
+        firstline = next(reader)
+        _, _, _, _, _, pclose, volume = unpackEOD(*firstline)
+        pclose = float(pclose) * 0.05
+        volume = float(volume) * 0.05
+        avol, tvol, aprice, tprice, pdiff, vdiff = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        eodlist = FifoDict()
+        for i in range(S.MVP_DAYS):
+            # Starts with 15 days of dummy record as base
+            #  names=['Name', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume',
+            #         'Total Vol', 'Total Price', 'DayB4 Motion', 'MOTION', 'PRICE', 'VOLUME'])
+            aprice = pclose + (pclose * (i - 7) / 100)
+            tprice = ((aprice + pclose) / 2) * S.MVP_DAYS
+            avol = volume + (volume * (i - 7) / 100)
+            tvol = ((avol + volume) / 2) * S.MVP_DAYS
+            pdiff = (aprice - pclose) / 100
+            vdiff = avol - volume
+            pclose, volume = aprice, avol
+            print aprice, tprice, avol, tvol, pdiff, vdiff
+            eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, aprice, avol, tvol, tprice, 0, 0, pdiff, vdiff])
+        lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, aprice, avol, tvol, tprice, 0, 0, pdiff, vdiff]
+        return eodlist, lasteod
+
+    def unpackEOD(counter, dt, price_open, price_high, price_low, price_close, volume):
+        if volume == "-":
+            volume = 0
+        return counter, dt, price_open, price_high, price_low, price_close, volume
+
     if DBG_ALL:
         print shortname, stkcode
     totalVol = 0.0
     totalPrice = 0.0
     mvpDaysUp = 0
-    eodlist = FifoDict()
-    for i in range(S.MVP_DAYS):
-        # Starts with 15 days of dummy record as base
-        #  names=['Name', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume',
-        #         'Total Vol', 'Total Price', 'DayB4 Motion', 'MOTION', 'PRICE', 'VOLUME'])
-        eodlist.append(['', '1900-01-{:02d}'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0])
-    lasteod = ['', '1900-01-14'.format(i), 0, 0, 0, 0, 1.0, 1.0, 0.0001, 0, 0, 0.0, 0.0]
-
-    if DBG_ALL:
-        for _ in range(S.MVP_DAYS):
-            print eodlist.pop()
-
+    line, eodpop = "", []
     try:
         fh = open(S.DATA_DIR + S.MVP_DIR + counter + '.csv', "wb")
         inputfl = S.DATA_DIR + counter + '.' + stkcode + '.csv'
@@ -67,6 +78,10 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
         with open(inputfl, "rb") as fl:
             try:
                 reader = csv.reader(fl, delimiter=',')
+                eodlist, lasteod = preloadInitials()
+                if DBG_ALL:
+                    for _ in range(S.MVP_DAYS):
+                        print eodlist.pop()
                 for i, line in enumerate(reader):
                     stock, dt, popen, phigh, plow, pclose, volume = unpackEOD(*line)
                     if DBG_ALL:
@@ -92,7 +107,7 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
                         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
                     if DBG_ALL:
                         print neweod
-                    if i > S.MVP_DAYS:  # skip first 15 dummy records
+                    if i > S.MVP_DAYS * 2:  # skip dummy records
                         fh.write(neweod)
                         if getBusDaysBtwnDates(dt, today) < S.MVP_DAYS:
                             updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice)
