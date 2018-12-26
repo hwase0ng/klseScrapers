@@ -8,7 +8,6 @@ import settings as S
 from common import loadCfg
 from utils.dateutils import getBusDaysBtwnDates
 from utils.fileutils import grepN
-from pip._vendor.progress.counter import Countdown
 
 
 def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
@@ -47,12 +46,12 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     # [tolerance, pdays, ndays, matchlevel] = matchdate
-    p1, p2, p3, p4, p5, p6, p7, p8, p9, p10 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     if patterns is not None:
-        [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = patterns
+        [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = patterns
     lastprice = lastTrxnData[1]
     signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d.%d.%d.%d.%d.%d),%.2f" % \
-        (strC, strM, strP, strV, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, lastprice)
+        (strC, strM, strP, strV, p1, p2, p3, p4, p6, p7, p8, p9, p10, p11, lastprice)
     # tolerance, pdays, ndays, matchlevel)
     signaltss, signalbbs = "NUL,0,0", "NUL,0,0"
     [_, _, odiv, _] = div
@@ -152,107 +151,139 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                         countdown += 1
                 return countup, countdown
 
-            plenM, nlenM = 0, 0
-            tripleM, tripleP, tripleV = 0, 0, 0
-            narrowM, countM10, count3up, count3down = 0, 0, 0, 0
-            if plistM is not None and nlistM is not None:
-                plenM, nlenM = len(plistM), len(nlistM)
-                if plenM > 2:
-                    count3up, count3down = triplecount(plistM)
-                    for i in range(plenM):
-                        if plistM[i] >= 10:
-                            countM10 += 1
+            def checkM():
+                plenM, nlenM, tripleM, narrowM = 0, 0, 0, 0
+                if plistM is not None and nlistM is not None:
+                    countM10, count3up, count3down = 0, 0, 0
+                    plenM, nlenM = len(plistM), len(nlistM)
+                    if plenM > 2:
+                        count3up, count3down = triplecount(plistM)
+                        for i in range(plenM):
+                            if plistM[i] >= 10:
+                                countM10 += 1
 
-                if countM10 > 2:
-                    # DUFU 2014-11-21 retrace completed
-                    # UCREST 2017-08-02 topM valley divergence
-                    # YSPSAH 2013-04-29
-                    # PADINI 2011-05 variant with one M lower than 10 in the middle
-                    tripleM = 3
-                    if countM10 > 3:
-                        tripleM = 4
-                        if countM10 > 4:
-                            tripleM = 5
-                elif count3up > 1:
-                    tripleM = 1
-                elif count3down > 1:
-                    tripleM = 2
+                    if countM10 > 2:
+                        # DUFU 2014-11-21 retrace completed
+                        # UCREST 2017-08-02 topM valley divergence
+                        # YSPSAH 2013-04-29
+                        # PADINI 2011-05 variant with one M lower than 10 in the middle
+                        tripleM = 3
+                        if countM10 > 3:
+                            tripleM = 4
+                            if countM10 > 4:
+                                tripleM = 5
+                    elif count3up > 1:
+                        tripleM = 1
+                    elif count3down > 1:
+                        tripleM = 2
 
-                if plenM > 4 and nlenM > 4:
-                    lenm = plenM + 1 if plenM < nlenM else nlenM + 1
-                    for i in range(-1, -lenm, -1):
-                        if plistM[i] <= 10 and plistM[i] >= 5 and \
-                                nlistM[i] <= 10 and nlistM[i] >= 5:
-                            narrowM += 1
+                    if plenM > 4 and nlenM > 4:
+                        lenm = plenM + 1 if plenM < nlenM else nlenM + 1
+                        for i in range(-1, -lenm, -1):
+                            if plistM[i] <= 10 and plistM[i] >= 5 and \
+                                    nlistM[i] <= 10 and nlistM[i] >= 5:
+                                # PADINI 2012-09-28
+                                # PETRONM 2015-10-07
+                                # YSPSAH 20116-12-23
+                                narrowM += 1
+                            else:
+                                break
+                        if narrowM < 5:
+                            narrowM = 0
+                return plenM, nlenM, tripleM, narrowM
+
+            def checkP():
+                plenP, nlenP, tripleP, narrowP, countP = 0, 0, 0, 0, 0
+                if plistP is not None and nlistP is not None:
+                    count3up, count3down = 0, 0
+                    p5 = False
+                    plenP, nlenP = len(plistP), len(nlistP)
+                    if plenP > 2:
+                        count3up, count3down = triplecount(plistP)
+                    if count3up > 1:
+                        tripleP = 1
+                    elif count3down > 1:
+                        tripleP = 2
+                    elif plenP > 2 and plistP[-1] < plistP[-3] and plistP[-2] < plistP[-3]:
+                        tripleP = 3
+                    distanceP = maxP - minP
+                    lenp = plenP + 1 if plenP < nlenP else nlenP + 1
+                    for i in range(-1, -lenp, -1):
+                        dist = plistP[i] - nlistP[i]
+                        distp = (dist / distanceP) * 100
+                        if distp <= 15:
+                            # PADINI 2015-08-04
+                            narrowP += 1
+                            if distp <= 5:
+                                # KLSE 2016-11-14
+                                p5 = True
                         else:
                             break
-                    # PADINI 2012-09-28
-                    # PETRONM 2015-10-07
-                    # YSPSAH 20116-12-23
-                    if narrowM < 5:
-                        narrowM = 0
+                    if narrowP < 3 and not p5:
+                        narrowP = 0
+                    if plistP[-1] < 0:
+                        countP = 1
+                        if plistP[-2] < 0:
+                            countP = 2
+                    elif nlistP[-1] > 0:
+                        for i in range(-1, -lenp, -1):
+                            if nlistP[i] > 0:
+                                countP += 1
+                        if countP < 3:
+                            countP = 0
+                return plenP, nlenP, tripleP, narrowP, countP
 
-            plenP, nlenP = 0, 0
-            if plistP is not None and nlistP is not None:
-                plenP, nlenP = len(plistP), len(nlistP)
-                if plenP > 2:
-                    count3up, count3down = triplecount(plistP)
-                if count3up > 1:
-                    tripleP = 1
-                elif count3down > 1:
-                    tripleP = 2
-                elif plenP > 2 and plistP[-1] < plistP[-3] and plistP[-2] < plistP[-3]:
-                    tripleP = 3
+            def checkV():
+                plenV, nlenV, tripleV = 0, 0, 0
+                if plistV is not None and nlistV is not None:
+                    count3up, count3down = 0, 0
+                    plenV, nlenV = len(plistV), len(nlistV)
+                    if plenV > 2:
+                        count3up, count3down = triplecount(plistV)
+                    if count3up > 1:
+                        tripleV = 1
+                    elif count3down > 1:
+                        tripleV = 2
+                    elif plenV > 2 and plistV[-1] < plistV[-3] and plistV[-2] < plistV[-3]:
+                        tripleV = 3
+                return plenV, nlenV, tripleV
 
-            plenV, nlenV = 0, 0
-            if plistV is not None and nlistV is not None:
-                plenV, nlenV = len(plistV), len(nlistV)
-                if plenV > 2:
-                    count3up, count3down = triplecount(plistV)
-                if count3up > 1:
-                    tripleV = 1
-                elif count3down > 1:
-                    tripleV = 2
-                elif plenV > 2 and plistV[-1] < plistV[-3] and plistV[-2] < plistV[-3]:
-                    tripleV = 3
+            c, v, mp = 0, 0, 0
 
-            return plenM, nlenM, plenP, nlenP, plenV, nlenV, \
-                tripleM, tripleP, tripleV, narrowM
-
-        c, v, mp = 0, 0, 0
-        lowbaseC, tripleBottoms, tripleTops = 0, 0, 0
-        firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
-        firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
-        firstpp = mpdates["Pp"][-1] if "Pp" in mpdates else "1970-01-01"
-        firstpn = mpdates["Pn"][-1] if "Pn" in mpdates else "1970-01-01"
-
-        # c = 1 if newhighC else 2 if newlowC else 3 if topC else 4 if bottomC else 0
-        if pdiv is None and ndiv is None:
-            c = 0
-        else:
-            pdate, ndate = cpPdate, cpNdate
-            if pdate > ndate:
-                c = 1 if "CP" in pdiv and "CM" in pdiv else 2 if "CP" in pdiv else \
-                    3 if "CM" in pdiv else 0
+            # c = 1 if newhighC else 2 if newlowC else 3 if topC else 4 if bottomC else 0
+            if pdiv is None and ndiv is None:
+                c = 0
             else:
-                c = 4 if "CP" in ndiv and "CM" in ndiv else 5 if "CP" in ndiv else \
-                    6 if "CM" in ndiv else 0
-        v = 1 if newhighV else 2 if newlowV else 3 if topV else 4 if bottomV else 0
-        if newhighM and newhighP:
-            mp = 1
-        elif newlowM and newlowP:
-            mp = 2
-        elif topM and topP:
-            mp = 3
-        elif bottomM and bottomP:
-            mp = 4
-        elif newlowM and newhighP:
-            mp = 5
-        elif newhighM and newlowP:
-            mp = 6
+                pdate, ndate = cpPdate, cpNdate
+                if pdate > ndate:
+                    c = 1 if "CP" in pdiv and "CM" in pdiv else 2 if "CP" in pdiv else \
+                        3 if "CM" in pdiv else 0
+                else:
+                    c = 4 if "CP" in ndiv and "CM" in ndiv else 5 if "CP" in ndiv else \
+                        6 if "CM" in ndiv else 0
+            v = 1 if newhighV else 2 if newlowV else 3 if topV else 4 if bottomV else 0
+            '''
+            if newhighM and newhighP:
+                mp = 1
+            elif newlowM and newlowP:
+                mp = 2
+            elif topM and topP:
+                mp = 3
+            elif bottomM and bottomP:
+                mp = 4
+            elif newlowM and newhighP:
+                mp = 5
+            elif newhighM and newlowP:
+                mp = 6
+            '''
 
-        plenM, nlenM, plenP, nlenP, plenV, nlenV, tripleM, tripleP, tripleV, narrowM = \
-            tripleChecks()
+            plenM, nlenM, tripleM, narrowM = checkM()
+            plenP, nlenP, tripleP, narrowP, countP = checkP()
+            plenV, nlenV, tripleV = checkV()
+            return c, v, tripleM, tripleP, tripleV, narrowM, narrowP, countP
+
+        lowbaseC, tripleBottoms, tripleTops = 0, 0, 0
+        c, v, tripleM, tripleP, tripleV, narrowM, narrowP, countP = tripleChecks()
         plenC, nlenC = 0, 0
         if plistC is None or nlistC is None:
             pass
@@ -333,8 +364,13 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                 if firstC == maxC and plistC[0] < midbar and plistC[1] < lowbar:
                     lowbaseC = 5
 
-        return [c, v, mp, tripleM, tripleP, tripleV,
-                narrowM, lowbaseC, tripleBottoms, tripleTops], \
+        firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
+        firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
+        firstpp = mpdates["Pp"][-1] if "Pp" in mpdates else "1970-01-01"
+        firstpn = mpdates["Pn"][-1] if "Pn" in mpdates else "1970-01-01"
+
+        return [c, v, tripleM, tripleP, tripleV,
+                narrowM, narrowP, countP, lowbaseC, tripleBottoms, tripleTops], \
             [firstmp, firstmn, firstpp, firstpn]
 
     # ------------------------- START ------------------------- #
@@ -399,14 +435,15 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
     minC, maxC, range4, lowbar, lowbar2, midbar, highbar = minmaxC()
     minP, maxP, midP = minmaxP()
 
-    narrowM, lowbaseC, tripleM, tripleP, tripleV, tripleBottoms, tripleTops = 0, 0, 0, 0, 0, 0, 0
+    narrowM, narrowP, countP, lowbaseC, tripleM, tripleP, tripleV, tripleBottoms, tripleTops = \
+        0, 0, 0, 0, 0, 0, 0, 0, 0
     p1, p2 = None, None
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
     else:
         nosignal = False
         p1, p2 = patternsDiscovery()
-        [c, v, mp, tripleM, tripleP, tripleV, narrowM, lowbaseC, tripleBottoms, tripleTops] = p1
+        [c, v, tripleM, tripleP, tripleV, narrowM, narrowP, countP, lowbaseC, tripleBottoms, tripleTops] = p1
         [firstmp, firstmn, firstpp, firstpn] = p2
 
     if nosignal or DBGMODE == 3:
