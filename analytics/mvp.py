@@ -109,7 +109,7 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
                         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
                     if DBG_ALL:
                         print neweod
-                    if i > S.MVP_DAYS * 2:  # skip dummy records
+                    if i > S.MVP_DAYS * 4:  # skip dummy records
                         fh.write(neweod)
                         if getBusDaysBtwnDates(dt, today) < S.MVP_DAYS:
                             updateMpvSignals(stock, dt, mvpDaysUp, volDiff, priceDiff, avePrice)
