@@ -4,9 +4,9 @@ mpvdir=$datadir/mpv
 signaldir=$mpvdir/signals
 
 c=16
-tripleM=17
-tripleP=18
-tripleV=19
+v=17
+tripleM=18
+tripleP=19
 narrowM=20
 narrowP=21
 countP=22
