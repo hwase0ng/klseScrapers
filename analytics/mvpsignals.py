@@ -179,7 +179,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                     tripleM = 2
 
                 if plenM > 4 and nlenM > 4:
-                    lenm = plenM if plenM < nlenM else nlenM
+                    lenm = plenM + 1 if plenM < nlenM else nlenM + 1
                     for i in range(-1, -lenm, -1):
                         if plistM[i] <= 10 and plistM[i] >= 5 and \
                                 nlistM[i] <= 10 and nlistM[i] >= 5:
