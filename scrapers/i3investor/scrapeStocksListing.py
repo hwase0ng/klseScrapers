@@ -12,6 +12,7 @@ from common import getDataDir
 from analytics.mvp import updateMPV, load_mvp_args
 from analytics.mvpchart import mvpChart, mvpSynopsis
 from utils.fileutils import tail
+from multiprocessing import Process, cpu_count, Queue
 import os
 
 I3STOCKSURL = 'https://klse.i3investor.com/jsp/stocks.jsp?g=S&m=int&s='
@@ -81,24 +82,23 @@ def writeStocksListing(outfile='klse.txt'):
     fh.close()
 
 
-def unpackTD(shortname, longname, cap, price_open, price_range, price_close, change, cpc, volume):
-    '''
-    Sample table:
-    <tr role="row" class="odd"> <td class="left sorting_1"><a href="/servlets/stk/7054.jsp">AASIA</a>
-        </td> <td class="left" nowrap=""><a href="/servlets/stk/7054.jsp">ASTRAL ASIA BHD</a></td>
-        <td class="right">125</td>
-        <td class="right">0.19</td>
-        <td class="right">0.19</td>
-        <td class="right" nowrap="nowrap"><span class="up">0.00</span></td>
-        <td class="right">10,000</td>
-    </tr>
-    '''
-    prange = [x.strip() for x in price_range.split('-')]
-    return shortname.replace(';', '').replace('.iew/', ''), \
-        price_open, prange[1], prange[0], price_close, volume
-
-
 def scrapeLatestPrice(soup, checkLastTrading=""):
+    def unpackTD(shortname, longname, cap, price_open, price_range, price_close, change, cpc, volume):
+        '''
+        Sample table:
+        <tr role="row" class="odd"> <td class="left sorting_1"><a href="/servlets/stk/7054.jsp">AASIA</a>
+            </td> <td class="left" nowrap=""><a href="/servlets/stk/7054.jsp">ASTRAL ASIA BHD</a></td>
+            <td class="right">125</td>
+            <td class="right">0.19</td>
+            <td class="right">0.19</td>
+            <td class="right" nowrap="nowrap"><span class="up">0.00</span></td>
+            <td class="right">10,000</td>
+        </tr>
+        '''
+        prange = [x.strip() for x in price_range.split('-')]
+        return shortname.replace(';', '').replace('.iew/', ''), \
+            price_open, prange[1], prange[0], price_close, volume
+
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
         return None
@@ -131,8 +131,8 @@ def scrapeLatestPrice(soup, checkLastTrading=""):
             else:
                 continue
             # print type(dt), type(price_open), type(price_high), type(price_low), type(price_close), type(volume)
-            if S.DBG_ALL:
-                print shortname, stkcd, price_open, price_high, price_low, price_close, volume
+            # if S.DBG_ALL:
+            #     print shortname, stkcd, price_open, price_high, price_low, price_close, volume
         elif len(eod) > 0:
             print "ERR:Unknown len:", eod
     return i3eod
@@ -144,14 +144,39 @@ def unpackEOD(popen, phigh, plow, pclose, pvol):
         int(pvol.replace(',', ''))
 
 
-def i3ScrapeStocks(initials=""):
+def scrapeInitials(initial, q=None):
+    eod = scrapeLatestPrice(connectStocksListing(initial))
+    if q is None:
+        return eod
+    q.put(eod)
+
+
+def i3ScrapeStocks(initials="", concurrency=False):
     print 'Scraping latest price from i3 ...'
     if len(initials) == 0:
         initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     stocksListing = {}
+    que, jobs, cpus = None, [], cpu_count()
     for initial in list(initials):
-        eod = scrapeLatestPrice(connectStocksListing(initial))
-        stocksListing.update(eod)
+        if not concurrency:
+            # eod = scrapeLatestPrice(connectStocksListing(initial))
+            stocksListing.update(scrapeInitials(initial))
+        else:
+            que = Queue()
+            p = Process(target=scrapeInitials, args=(initial, que,))
+            p.start()
+            jobs.append(p)
+            if len(jobs) > cpus - 1:
+                for p in jobs:
+                    eod = que.get()
+                    stocksListing.update(eod)
+                    p.join()
+                jobs = []
+    if len(jobs):
+        for job in jobs:
+            eod = que.get()
+            stocksListing.update(eod)
+            job.join()
     return stocksListing
 
 
@@ -224,6 +249,9 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
 
 if __name__ == '__main__':
     S.DBG_ALL = False
+    '''
     writeStocksListing()
     writeLatestPrice(getDataDir(S.DATA_DIR) + 'i3/', False)
-    pass
+    '''
+    from timeit import timeit
+    print(timeit('i3ScrapeStocks()', number=2, setup="from __main__ import i3ScrapeStocks"))
