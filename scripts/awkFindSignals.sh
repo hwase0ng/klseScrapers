@@ -26,6 +26,7 @@ do
  case "$opt" in
   c)
    counter=$OPTARG
+   counter=`echo ${counter} | tr '[:lower:]' '[:upper:]'`
    signalfile=${signaldir}/${counter}-signals.csv
    if ! [ -f $signalfile ]
    then
