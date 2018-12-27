@@ -154,13 +154,17 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
             def checkM():
                 plenM, nlenM, tripleM, narrowM = 0, 0, 0, 0
                 if plistM is not None and nlistM is not None:
-                    countM10, count3up, count3down = 0, 0, 0
+                    countM10, count3up, count3down, m10skip = 0, 0, 0, 0
                     plenM, nlenM = len(plistM), len(nlistM)
                     if plenM > 2:
                         count3up, count3down = triplecount(plistM)
-                        for i in range(plenM):
+                        for i in range(-1, -plenM, -1):
                             if plistM[i] >= 10:
                                 countM10 += 1
+                            else:
+                                m10skip += 1
+                                if m10skip > 3:
+                                    break
 
                     if countM10 > 2:
                         # DUFU 2014-11-21 retrace completed

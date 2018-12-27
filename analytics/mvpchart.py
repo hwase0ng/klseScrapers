@@ -688,7 +688,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
                     mval4 = mval[3] + mval[8]
                     mval5 = mval[4] + mval[9]
                     if not mval1.count("0") > 1:
-                        fontclr = "black"
+                        fontclr = "red" if int(mval[5]) > 0 else "black"
                         ax0.text(dt, ttspos, mval1, color=fontclr, fontsize=9)
                     if not mval2.count("0") > 1:
                         fontclr = "red" if int(mval[6]) > 0 else "blue" if int(mval[1]) > 0 else "blue"
