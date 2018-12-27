@@ -637,6 +637,19 @@ def line_divergence(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
 
 
 def plotSignals(pmaps, counter, datevector, ax0):
+    def getChartPOS():
+        xmin, xmax, ymin, ymax = ax0.axis()
+        ttspos = ymax
+        bbspos = ymin
+        othpos = (ymax + ymin) / 2
+        mposA = (ymax + othpos) / 2
+        mposA1 = (ymax + mposA) / 2
+        mposA2 = (othpos + mposA) / 2
+        mposB = (ymin + othpos) / 2
+        mposB1 = (othpos + mposB) / 2
+        mposB2 = (ymin + mposB) / 2
+        return ymin, ymax, [ttspos, mposA1, mposA, mposA2, othpos, mposB1, mposB, mposB2, bbspos]
+
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
     infile = prefix + counter + "-signals.csv"
     df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
@@ -646,12 +659,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
                          'othname', 'othval', 'othstate',
                          'cmpv', 'mvals', 'lastp'])
     df.set_index(df['trxdt'], inplace=True)
-    xmin, xmax, ymin, ymax = ax0.axis()
-    ttspos = ymax
-    bbspos = ymin
-    othpos = (ymax + ymin) / 2
-    mpos1 = (ymax + othpos) / 2
-    mpos2 = (ymin + othpos) / 2
+    ymin, ymax, cpos = getChartPOS()
     hltb = ['0', 'h', 'l', 't', 'b']
     for dt in datevector:
         try:
@@ -682,27 +690,14 @@ def plotSignals(pmaps, counter, datevector, ax0):
                 if pmaps:
                     mvals = mvals[1:-1]
                     mval = mvals.split(".")
-                    mval1 = mval[0] + mval[5]
-                    mval2 = hltb[int(mval[1])] + mval[6]
-                    mval3 = mval[2] + mval[7]
-                    mval4 = mval[3] + mval[8]
-                    mval5 = mval[4] + mval[9]
-                    if not mval1.count("0") > 1:
-                        fontclr = "red" if int(mval[5]) > 0 else "black"
-                        ax0.text(dt, ttspos, mval1, color=fontclr, fontsize=9)
-                    if not mval2.count("0") > 1:
-                        fontclr = "red" if int(mval[6]) > 0 else "blue" if int(mval[1]) > 0 else "blue"
-                        ax0.text(dt, mpos1, mval2, color=fontclr, fontsize=9)
-                    if not mval3.count("0") > 1:
-                        fontclr = "black" if mval[7] == "0" else "blue"
-                        ax0.text(dt, othpos, mval3, color=fontclr, fontsize=9)
-                    if not mval4.count("0") > 1:
-                        fontclr = "blue" if int(mval[3]) > 0 or int(mval[8]) > 0 else "black"
-                        ax0.text(dt, mpos2, mval4, color=fontclr, fontsize=9)
-                    if not mval5.count("0") > 1:
-                        fontclr = "blue" if int(mval[4]) > 0 or int(mval[9]) > 0 else "black"
-                        ax0.text(dt, bbspos, mval4, color=fontclr, fontsize=9)
+                    for i in range(1, len(mval)):
+                        if int(mval[i]) > 0:
+                            fontclr = "blue" if i in [5, 6] else \
+                                "black" if i in [1, 3, 4, 7, 8, 9] else "darkorange"
+                            mtext = hltb[int(mval[i])] if i == 1 else mval[i]
+                            ax0.text(dt, cpos[i - 1], mtext, color=fontclr, fontsize=9)
                 else:
+                    [ttspos, mposA1, mposA, mposA2, othpos, mposB1, mposB, mposB2, bbspos] = cpos
                     if tssval:
                         symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
                         fontclr = "black" if tssval > 0 else "green"
@@ -781,7 +776,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             ax4.grid(True)
             candlestick_ohlc(ax1, zip(mdates.date2num(dfchart['date'].dt.to_pydatetime()),
                                       dfchart['open'], dfchart['high'], dfchart['low'], dfchart['close']),
-                             width=0.5, colorup='#77d879', colordown='#db3f3f')
+                             width=0.7, colorup='#77d879', colordown='#db3f3f')
             ax4.xaxis_date()
             # ax1.plot_date(dfchart['date'], dfchart['close'], '-', color='b', label='C')
             ax2.plot_date(dfchart['date'], dfchart['M'], '-', color='orange', label='M')
