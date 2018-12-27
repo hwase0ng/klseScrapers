@@ -2,6 +2,7 @@
 datadir=/z/data
 mpvdir=$datadir/mpv
 signaldir=$mpvdir/signals
+re='^[0-9]+$'
 
 c=16
 v=17
@@ -16,9 +17,11 @@ tripleTops=25
 
 signalfile=""
 val=0
+val2=0
 signal=""
+signal2=""
 
-while getopts ":s:v:c:d:" opt
+while getopts ":s:S:v:V:c:d:" opt
 do
  case "$opt" in
   c)
@@ -47,17 +50,34 @@ do
    	exit 3
    fi
    ;;
+  S)
+   name=$OPTARG
+   signal2=$(eval echo "\$$name")
+   if [ -z ${signal2} ]
+   then
+   	echo "$name is not a valid signal!"
+   	exit 3
+   fi
+   ;;
   v)
    val=$OPTARG
    if ! [[ "$val" =~ $re ]]
    then
-    echo "$val must be an integer number!"
+    echo "$val is not an integer number!"
+    exit 2
+   fi
+   ;;
+  V)
+   val2=$OPTARG
+   if ! [[ "$val2" =~ $re ]]
+   then
+    echo "$val2 is not an integer number!"
     exit 2
    fi
    ;;
   *)
    #usage
-   echo "Usage: awkFindSignals.sh -svcd <signal name> <value> [counter] [datadir]" 1>&2
+   echo "Usage: awkFindSignals.sh -sSvVcd <signal name> <value> [counter] [datadir]" 1>&2
    exit 1
    ;;
  esac
@@ -65,15 +85,25 @@ done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
-if [ -z $signal -o $val -eq 0 ]
+if [ -z "$signal" -o "$val" -eq 0 ]
 then
-   echo "Usage: awkFindSignals.sh -svcd <signal name> <value> [counter] [datadir]" 1>&2
+   echo "Usage: awkFindSignals.sh -sSvVcd <signal name> <value> [counter] [datadir]" 1>&2
    exit 1
 fi
 
-if [ -z $signalfile ]
+if [ -z "${signal2}" -o "${val2}" -eq 0 ]
 then
-	awk -F'[,.]' -v fn=$signal -v val=$val '{if ($fn == val) {print $0}}' $@
+    if [ -z $signalfile ]
+	then
+        awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $@
+    else
+        awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $signalfile
+    fi
 else
-	awk -F'[,.]' -v fn=$signal -v val=$val '{if ($fn == val) {print $0}}' $signalfile
+    if [ -z $signalfile ]
+	then
+        awk -F'[,.]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn == val && $sn2 == val2) {print $0}}' $@
+    else
+        awk -F'[,.]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn == val && $sn2 == val2) {print $0}}' $signalfile
+    fi
 fi
