@@ -1,4 +1,4 @@
-counter=$1
+counter=`echo ${1} | tr '[:lower:]' '[:upper:]'`
 dates=$2
 opt=$3
 chartdays=$4

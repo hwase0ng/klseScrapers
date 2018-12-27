@@ -86,15 +86,16 @@ shift $((OPTIND-1))
 
 for i in $GROUP
 do
+ counter=`echo ${i} | tr '[:lower:]' '[:upper:]'`
  if [ ${dateopt} -eq 0 ]
  then
-  STARTDT=`head -100 $DATADIR/mpv/${i}.csv | tail -1 | awk -F , '{print $2}'`
+  STARTDT=`head -100 $DATADIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
  fi
  if ! [ $OPT -eq 4 ]
  then
-  echo Profiling $i, $STARTDT
-  ./scripts/newprofiling.sh $i "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $DATADIR
+  echo Profiling $counter, $STARTDT
+  ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $DATADIR
  fi
- echo Daily Charting $i, $STARTDT
- ./scripts/charting.sh $i ${STARTDT}:${ENDDT} $OPT $DATADIR
+ echo Daily Charting $counter, $STARTDT
+ ./scripts/charting.sh $counter ${STARTDT}:${ENDDT} $OPT $DATADIR
 done
