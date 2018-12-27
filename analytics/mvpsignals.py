@@ -227,7 +227,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                         narrowP = 0
                     if plistP[-1] < 0:
                         countP = 1
-                        if plistP[-2] < 0:
+                        if plenP > 1 and plistP[-2] < 0:
                             countP = 2
                     elif nlistP[-1] > 0:
                         for i in range(-1, -lenp, -1):
@@ -318,6 +318,17 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                             break
                     if lowbaseC and lowbaseC < 2:
                         lowbaseC = 0
+                if not lowbaseC and plenC > 4 and nlenC > 4:
+                    if (minC == nlistC[0] or minC == firstC) and (maxC == plistC[0] or maxC == plistC[1]) and \
+                            plistC[-1] < nlistC[-4] and plistC[-2] < nlistC[-4] and \
+                            nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
+                        range1 = plistC[-1] - nlistC[-1]
+                        range2 = plistC[-2] - nlistC[-2]
+                        minmax = maxC - minC
+                        lowvolatility = 0.25
+                        if range1 / minmax <= lowvolatility and range2 / minmax <= lowvolatility:
+                            # GHLSYS 2017-01-06
+                            lowbaseC = 5
 
                 if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
                     if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
@@ -366,7 +377,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
                     tripleTops = 2
             elif plenC > 1:
                 if firstC == maxC and plistC[0] < midbar and plistC[1] < lowbar:
-                    lowbaseC = 5
+                    lowbaseC = 6
 
         firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
         firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
@@ -502,7 +513,10 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div):
         tss_state = 1
     elif lowbaseC:
         topSellSignal = -3
-        if "CP" not in ndiv or "CM" not in ndiv or \
+        if lowbaseC == 5 and nlistM[-1] > nlistM[-2] and nlistM[-1] >= 6:
+            # GHLSYS 2017-02-03
+            tss_state = 1
+        elif "CP" not in ndiv or "CM" not in ndiv or \
                 nlistM[-1] < 5 or nlistP[-1] < (minP / 2):
             tss_state = 0
         else:
