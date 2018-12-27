@@ -7,10 +7,11 @@ fi
 COUNTER=$1
 SCODE=$2
 DATE=$3
-DATA=/c/git/klseScrapers/data
+SRC=/c/git/klseScrapers
+DATA=$SRC/data
 CSVFILE=${DATA}/investingcom/$COUNTER.$SCODE.csv
 export PYTHONPATH=../..
-cd $DATA/scrapers/investingcom
+cd $SRC/scrapers/investingcom
 if ! test -s $CSVFILE || ! test -z "$3"
 then
  if [ -z "$DATE" ]
