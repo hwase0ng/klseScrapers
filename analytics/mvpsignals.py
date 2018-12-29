@@ -310,19 +310,26 @@ def topSellSignals(valley, lastTrxn, matchdate, cmpvlists, composelist, hstlist,
 
         def volatilityCheck():
             minmax = maxC - minC
+            if maxC == lastC and lastC - nlistC[-1] > minmax / 2.2:
+                # VSTECS 2014-08-29 minmax=0.5653
+                return 0, 0
+            # YSPSAH 2017-02-21: [0.179, 0.035, 0.356, 0.125, 0.0302, 0.031]
+            lowvolatility1, lowvolatility2 = 0.25, 0.36
+            pstart = -1 if valley else -2
             pnrange = []
-            pnrange.append((plistC[-1] - nlistC[-1]) / minmax)
-            pnrange.append((plistC[-1] - nlistC[-2]) / minmax)
-            pnrange.append((plistC[-2] - nlistC[-2]) / minmax)
-            pnrange.append((plistC[-2] - nlistC[-3]) / minmax)
-            pnrange.append((plistC[-3] - nlistC[-3]) / minmax)
+            pnrange.append((plistC[pstart] - nlistC[-1]) / minmax)
+            pnrange.append((plistC[pstart] - nlistC[-2]) / minmax)
+            pnrange.append((plistC[pstart - 1] - nlistC[-2]) / minmax)
+            pnrange.append((plistC[pstart - 1] - nlistC[-3]) / minmax)
+            pnrange.append((plistC[pstart - 2] - nlistC[-3]) / minmax)
             averange = (pnrange[0] + pnrange[1]) / 2
             tolerange = averange * 2
+            if tolerange < lowvolatility2:
+                tolerange = lowvolatility2
             if len(nlistC) > 3:
                 # KESM 2017-01-09
-                pnrange.append((plistC[-3] - nlistC[-4]) / minmax)
-            lowvolatility1, lowvolatility2 = 0.25, 0.35
-            vcount, vcount2 = 0, 0
+                pnrange.append((plistC[pstart - 2] - nlistC[-4]) / minmax)
+            vcount, vcount2, alt = 0, 0, 0
             for i in range(len(pnrange)):
                 if pnrange[i] <= lowvolatility1:
                     vcount += 1
@@ -334,7 +341,8 @@ def topSellSignals(valley, lastTrxn, matchdate, cmpvlists, composelist, hstlist,
                     break
             if vcount2 > 0.5:
                 vcount += 1
-            return vcount
+                alt = 1
+            return vcount, alt
 
         lowbaseC, tripleBottoms, tripleTops = 0, 0, 0
         c, v, m, p, tripleM, tripleP, tripleV, narrowM, narrowP, countP = tripleChecks()
@@ -343,13 +351,15 @@ def topSellSignals(valley, lastTrxn, matchdate, cmpvlists, composelist, hstlist,
             pass
         else:
             plenC, nlenC = len(plistC), len(nlistC)
-            if plenC > 2 and nlenC > 2 and valley:
-                lowbaseC = volatilityCheck()
+            if plenC > 2 and nlenC > 2:
+                lowbaseC, alt = volatilityCheck()
                 if lowbaseC < 4:
                     lowbaseC = 0
                 elif lowbaseC > 3:
                     # GHLSYS 2017-01-06
-                    pass
+                    if alt:
+                        # KLSE 2017-01-09
+                        lowbaseC = 1
                 elif (newhighC or topC) and (prevbottomC or firstC == minC):
                     # PADINI 2012-09-28 beginning of tops reversal
                     lowbaseC = 1
@@ -374,17 +384,6 @@ def topSellSignals(valley, lastTrxn, matchdate, cmpvlists, composelist, hstlist,
                             break
                     if lowbaseC and lowbaseC < 2:
                         lowbaseC = 0
-                if not lowbaseC and plenC > 4 and nlenC > 4:
-                    if (minC == nlistC[0] or minC == firstC) and (maxC == plistC[0] or maxC == plistC[1]) and \
-                            plistC[-1] < nlistC[-4] and plistC[-2] < nlistC[-4] and \
-                            nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
-                        range1 = plistC[-1] - nlistC[-1]
-                        range2 = plistC[-2] - nlistC[-2]
-                        minmax = maxC - minC
-                        lowvolatility = 0.25
-                        if range1 / minmax <= lowvolatility and range2 / minmax <= lowvolatility:
-                            # GHLSYS 2017-01-06
-                            lowbaseC = 5
 
                 if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
                     if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
@@ -521,40 +520,94 @@ def topSellSignals(valley, lastTrxn, matchdate, cmpvlists, composelist, hstlist,
     if nosignal or DBGMODE == 3:
         pass
     elif lowbaseC:
-        if lowbaseC > 3 and c in [4, 5] and \
-                ((nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]) or
-                 (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3])):
-            if newlowC or tripleM == 7 or newhighM:
-                # DUFU 2012-01-16, 2012-04-02
+        if lowbaseC > 3 and (bottomP or
+                             (c in [4, 5] and
+                              ((nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]) or
+                               (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3])) or
+                              (tripleM == 1 or tripleP == 1))):
+            if topM and nlistP[-1] > 0:
+                # N2N 2011-11-08
+                # PETRONM 2014-02-20
+                topSellSignal, tss_state = -1, 3
+            elif newhighM and tripleM == 2:
+                # DUFU 2012-04-02 with narrowM
                 topSellSignal, tss_state = 1, 0
-            elif narrowM or nlistP[-1] >= 0:
+            elif narrowM:
                 topSellSignal = -1
                 if nlistP[-1] >= 0:
                     # KLSE 2013-03-25
                     tss_state = 1
                     if nlistM[-1] > 5:
                         # KESM 2013-09-06
-                        # KLSE 2017-01-09
                         # GHLSYS 2017-02-03
                         tss_state = 2
                 elif nlistM[-1] > 5:
                     # DANCO 2018-07-20
+                    # YSPSAH 2017-02-21
                     tss_state = 2
                 else:
-                    tss_state = 0
-                if posC < 3 and tss_state:
+                    topSellSignal, tss_state = 901, 1
+                if posC < 2 and tss_state:
                     tss_state = -tss_state
+            elif bottomM:
+                # PADINI 2014-03-05 short rebound
+                topSellSignal, tss_state = -1, 0
+            elif bottomP:
+                # PADINI 2013-05-29 oversold (could not reach here due to c == 1
+                topSellSignal, tss_state = -1, 0
+            elif nlistM[-1] > 10 and nlistP[-1] > 0:
+                # PADINI 2013-05-29 20% short push before top reversal
+                topSellSignal, tss_state = 1, -1
+            elif tripleM == 1 and nlistP[-1] >= 0:
+                if newhighM and posC < 2:
+                    # PETRONM 2013-03-21
+                    topSellSignal, tss_state = -1, 4
+                elif posC > 2:
+                    # SCGM 2017-02-08
+                    topSellSignal, tss_state = -1, 5
+            elif tripleP == 1 and nlistP[-1] > 0 and plistM[-1] > 10 and nlistM[-1] < 5:
+                if plistM[-1] > 10:
+                    # SCGM 2013-06-05
+                    topSellSignal, tss_state = -1, 6
+                else:
+                    topSellSignal, tss_state = 901, 2
+            elif tripleM in [2, 6] and nlistM[-1] > 5:
+                if nlistP[-1] > 0:
+                    # GHLSYS 2016-12-27
+                    topSellSignal, tss_state = -1, 7
+                elif lastM > plistM[-1]:
+                    # MAGNI 2016-08-25 Strong reversal after short retrace (p=-0.057)
+                    topSellSignal, tss_state = -1, 8
+                else:
+                    # GHLSYS 2018-03-06
+                    topSellSignal, tss_state = 1, 1
+            elif newhighC and c in [4, 5, 6]:
+                # MAGNI 2017-01-26
+                topSellSignal, tss_state = -1, 9
             else:
                 topSellSignal = 1
                 if (newhighM or topM) and posC < 2:
                     # SUPERLN 2018-11-11
-                    tss_state = 0
+                    tss_state = 2
                 if (newhighP or topP) and posC < 2:
-                    tss_state = 0
+                    topSellSignal, tss_state = 901, 4
                 else:
-                    tss_state = 0
+                    # DUFU 2012-01-16
+                    # MAGNI 2018-08-02
+                    tss_state = 3
+        elif lowbaseC == 1:
+            if narrowM:
+                # VSTECS 2014-03-10
+                topSellSignal, tss_state = -1, 10
+            elif nlistM[-1] > 5 and nlistP[-1] >= 0:
+                # KLSE 2017-01-09
+                topSellSignal, tss_state = -1, 11
+            elif newhighC and c in [4, 5, 6]:
+                topSellSignal, tss_state = -1, 12
+            else:
+                topSellSignal, tss_state = 1, 4
         elif lowbaseC == 3:
-            pass
+            topSellSignal, tss_state = 901, 6
     elif newhighC or topC:
         topSellSignal = 1
         if tripleP in [2, 3]:
@@ -563,10 +616,14 @@ def topSellSignals(valley, lastTrxn, matchdate, cmpvlists, composelist, hstlist,
             if newhighV or topV or c in [1, 2, 3]:
                 # KLSE 2014-06-02
                 tss_state = 2
+        elif tripleP == 1 and topV and newlowV:
+            # YSPSAH 2018-11-05
+            tss_state = 3
         else:
             if newhighM or newhighP or topM or topP:
-                # KLSE 2013-07-29 retrace
-                tss_state = -1
+                # KLSE 2013-07-29
+                # VSTECS 2014-08-29
+                tss_state = 4
             elif c in [1, 2, 3]:
                 tss_state = -1
             if plistP[-1] > 0 and lastP < 0:
@@ -637,6 +694,7 @@ def topSellSignals(valley, lastTrxn, matchdate, cmpvlists, composelist, hstlist,
             topSellSignal = -4
         elif (newlowM and newlowP) or (bottomM or bottomP):
             # PADINI 2014-02-05 newlowC
+            # YSPSAH 2012-01-20 bottomP
             topSellSignal = -4
         elif newhighM or newhighP or topM or topP:
             # PADINI 2015-10-02
