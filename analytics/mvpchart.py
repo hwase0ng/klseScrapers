@@ -638,17 +638,12 @@ def line_divergence(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
 
 def plotSignals(pmaps, counter, datevector, ax0):
     def getChartPOS():
-        xmin, xmax, ymin, ymax = ax0.axis()
-        ttspos = ymax
-        bbspos = ymin
-        othpos = (ymax + ymin) / 2
-        mposA = (ymax + othpos) / 2
-        mposA1 = (ymax + mposA) / 2
-        mposA2 = (othpos + mposA) / 2
-        mposB = (ymin + othpos) / 2
-        mposB1 = (othpos + mposB) / 2
-        mposB2 = (ymin + mposB) / 2
-        return ymin, ymax, [ttspos, mposA1, mposA, mposA2, othpos, mposB1, mposB, mposB2, bbspos]
+        _, _, ymin, ymax = ax0.axis()
+        portion = (ymax - ymin) / 13
+        chartpos = [ymax]
+        for i in range(12):
+            chartpos.append(chartpos[i] - portion)
+        return ymin, ymax, chartpos
 
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
     infile = prefix + counter + "-signals.csv"
@@ -690,14 +685,19 @@ def plotSignals(pmaps, counter, datevector, ax0):
                 if pmaps:
                     mvals = mvals[1:-1]
                     mval = mvals.split(".")
-                    for i in range(1, len(mval)):
+                    ilen = len(mval)
+                    if ilen > len(cpos):
+                        print "Len needs adjustment:", ilen, len(cpos)
+                        ilen = len(cpos)
+                    for i in range(0, ilen):
                         if int(mval[i]) > 0:
-                            fontclr = "blue" if i in [5, 6] else \
-                                "black" if i in [1, 3, 4, 7, 8, 9] else "darkorange"
+                            fontclr = "black" if i in [4, 5, 6] else \
+                                "blue" if i in [7, 8, 9] else \
+                                "brown" if i > 9 else "darkorange"
                             mtext = hltb[int(mval[i])] if i == 1 else mval[i]
-                            ax0.text(dt, cpos[i - 1], mtext, color=fontclr, fontsize=9)
+                            ax0.text(dt, cpos[i], mtext, color=fontclr, fontsize=9)
                 else:
-                    [ttspos, mposA1, mposA, mposA2, othpos, mposB1, mposB, mposB2, bbspos] = cpos
+                    ttspos, othpos, bbspos = cpos[0], cpos[1], cpos[-1]
                     if tssval:
                         symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
                         fontclr = "black" if tssval > 0 else "green"
@@ -851,7 +851,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             # start = getDayOffset(end, chartDays * -1)
             start = pdDaysOffset(end, chartDays * -1)
             dflist = dfGetDates(dfmpv, start, end)
-            if dflist is not None and len(dflist) > 100:
+            if dflist is not None and len(dflist) > 10:
                 plotchart(dflist, fname + "_" + end)
             if len(dates) < 2 or end >= dates[1]:
                 break
