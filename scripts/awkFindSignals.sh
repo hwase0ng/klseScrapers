@@ -7,22 +7,26 @@ re='^[0-9]+$'
 
 c=16
 v=17
-tripleM=18
-tripleP=19
-narrowM=20
-narrowP=21
-countP=22
-lowbaseC=23
-tripleBottoms=24
-tripleTops=25
+m=18
+p=19
+tripleM=20
+tripleP=21
+tripleV=22
+narrowM=23
+narrowP=24
+countP=25
+lowbaseC=26
+tripleBottoms=27
+tripleTops=28
 
 signalfile=""
 val=0
 val2=0
 signal=""
 signal2=""
+useEqual=0
 
-while getopts ":s:S:v:V:c:g:d:" opt
+while getopts ":s:S:v:V:c:e:g:d:" opt
 do
  case "$opt" in
   c)
@@ -36,6 +40,9 @@ do
     echo $datadir is not a directory!
     exit 4
    fi
+   ;;
+  e)
+   useEqual=1
    ;;
   s)
    name=$OPTARG
@@ -83,7 +90,7 @@ do
    ;;
   *)
    #usage
-   echo "Usage: awkFindSignals.sh -sSvVcgd <signal name> <value> [counter|group] [datadir]" 1>&2
+   echo "Usage: awkFindSignals.sh -sSvVcegd <signal name> <value> [counter|group] [equal] [datadir]" 1>&2
    exit 1
    ;;
  esac
@@ -93,31 +100,53 @@ shift $((OPTIND-1))
 
 if [ -z "$signal" -o "$val" -eq 0 ]
 then
-   echo "Usage: awkFindSignals.sh -sSvVcgd <signal name> <value> [counter] [datadir]" 1>&2
+   echo "Usage: awkFindSignals.sh -sSvVcegd <signal name> <value> [counter|group] [equal] [datadir]" 1>&2
    exit 1
+fi
+
+if [ -z "$group" ]
+then
+	if ! [ -z $@ ]
+	then
+        if [ -z "${signal2}" -o "${val2}" -eq 0 ]
+        then
+			if [ $useEqual -eq 1 ]
+			then
+				awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $@
+			else
+				awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn > val) {print $0}}' $@
+			fi
+		else
+            awk -F'[,.]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn == val && $sn2 == val2) {print $0}}' $@
+		fi
+		exit 0
+	else
+		echo "Missing input"
+		exit 1
+	fi
 fi
 
 for counter in $group
 do
-    signalfile=${signaldir}/${counter}-signals.csv
+	signalfile=${signaldir}/${counter}-signals.csv
     if [ -f $signalfile ]
     then
-       if [ -z "${signal2}" -o "${val2}" -eq 0 ]
-       then
-           if [ -z $signalfile ]
-           then
-               awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $@
-           else
-               awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $signalfile
-           fi
-       else
-           if [ -z $signalfile ]
-           then
-               awk -F'[,.]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn == val && $sn2 == val2) {print $0}}' $@
-           else
-               awk -F'[,.]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn == val && $sn2 == val2) {print $0}}' $signalfile
-           fi
-       fi
+		if [ -z "${signal2}" -o "${val2}" -eq 0 ]
+		then
+			if [ $useEqual -eq 1 ]
+			then
+				awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $signalfile
+			else
+				awk -F'[,.]' -v sn=$signal -v val=$val '{if ($sn > val) {print $0}}' $signalfile
+			fi
+		else
+			if [ $useEqual -eq 1 ]
+			then
+  				awk -F'[,.]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn == val && $sn2 == val2) {print $0}}' $signalfile
+  			else
+  				awk -F'[,.]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn > val && $sn2 > val2) {print $0}}' $signalfile
+  			fi
+		fi
     else
     	echo "$signalfile not found! Skipped $counter."
     fi
