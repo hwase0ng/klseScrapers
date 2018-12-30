@@ -684,6 +684,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
             try:
                 if pmaps:
                     mvals = mvals[1:-1]
+                    mvals = mvals.replace('^', '.')
                     mval = mvals.split(".")
                     ilen = len(mval)
                     if ilen > len(cpos):

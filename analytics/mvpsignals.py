@@ -61,7 +61,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
     if patterns is not None:
         [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = patterns
     lastprice = lastTrxnData[1]
-    signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d.%d.%d.%d.%d.%d.%d.%d.%d),%.2f" % \
+    signaldet = "(%s.%s.%s.%s),(%d.%d.%d.%d^%d.%d.%d^%d.%d.%d^%d.%d.%d),%.2f" % \
         (strC, strM, strP, strV, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, lastprice)
     # tolerance, pdays, ndays, matchlevel)
     signaltss, signalbbs = "NUL,0,0", "NUL,0,0"
