@@ -548,10 +548,12 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
                 pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
             else:
                 nmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
-    if "MP" in pmatch and "MP" in nmatch:
-        matchdt, divtype, divcount, matchtol = find_nondivergence(pmatch["MP"], nmatch["MP"])
-        if divcount > 0:
-            odiv[k] = [matchdt, divtype, divcount, matchtol, -1]
+    if 1 == 0:
+        # 2018-12-30 not using this for now
+        if "MP" in pmatch and "MP" in nmatch:
+            matchdt, divtype, divcount, matchtol = find_nondivergence(pmatch["MP"], nmatch["MP"])
+            if divcount > 0:
+                odiv[k] = [matchdt, divtype, divcount, matchtol, -1]
     return pdiv, ndiv, odiv, mpdates
 
 
@@ -637,12 +639,13 @@ def line_divergence(axes, cIP, cIN, cCP, cCN, cmpvXYPN):
 
 
 def plotSignals(pmaps, counter, datevector, ax0):
-    def getChartPOS():
+    def getChartPOS(size):
         _, _, ymin, ymax = ax0.axis()
-        portion = (ymax - ymin) / 13
+        portion = (ymax - ymin) / size
         chartpos = [ymax]
-        for i in range(12):
+        for i in range(size):
             chartpos.append(chartpos[i] - portion)
+        del chartpos[0]
         return ymin, ymax, chartpos
 
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
@@ -650,52 +653,59 @@ def plotSignals(pmaps, counter, datevector, ax0):
     df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
                   names=['trxdt', 'counter',
                          'tssname', 'tssval', 'tssstate',
+                         'cmpv', 'mvals', 'lastp'])
+    '''
                          'bbsname', 'bbsval', 'bbsstate',
                          'othname', 'othval', 'othstate',
-                         'cmpv', 'mvals', 'lastp'])
+    '''
     df.set_index(df['trxdt'], inplace=True)
-    ymin, ymax, cpos = getChartPOS()
+    ymin, ymax, cpos = getChartPOS(14)
     hltb = ['0', 'h', 'l', 't', 'b']
     for dt in datevector:
         try:
             mpvdate = pdTimestamp2strdate(dt)
             dfsignal = df.loc[mpvdate]
-            tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate, mvals = \
-                dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, \
+            # tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate, mvals = \
+            tssname, tssval, tssstate, mvals = \
+                dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, dfsignal.mvals
+            '''
                 dfsignal.bbsname, dfsignal.bbsval, dfsignal.bbsstate, \
                 dfsignal.othname, dfsignal.othval, dfsignal.othstate, \
-                dfsignal.mvals
+            '''
             '''
             tssname, tssval, tssstate, bbsname, bbsval, bbsstate = \
                 df.loc[[mpvdate], ['tssname', 'tssval', 'tssstate',
                                    'bbsname', 'bbsval', 'bbsstate']]
-            '''
             if type(tssname) is not str or type(bbsname) is not str:
+            '''
+            if type(tssname) is not str:
                 print "INF: duplicated signals detected in", infile, mpvdate
                 dfsignal = dfsignal.iloc[0]
-                tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate, mvals = \
-                    dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, \
-                    dfsignal.bbsname, dfsignal.bbsval, dfsignal.bbsstate, \
-                    dfsignal.othname, dfsignal.othval, dfsignal.othstate, \
-                    dfsignal.mvals
+                tssname, tssval, tssstate, mvals = \
+                    dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, dfsignal.mvals
             if not pmaps:
-                if tssname in ["Dbg", "NUL"] and bbsname in ["Dbg", "NUL"]:
+                # if tssname in ["Dbg", "NUL"] and bbsname in ["Dbg", "NUL"]:
+                if tssname in ["Dbg", "NUL"]:
                     continue
             try:
                 if pmaps:
-                    mvals = mvals[1:-1]
-                    mvals = mvals.replace('^', '.')
+                    mvals = mvals[1:-1].replace('^', '.')
                     mval = mvals.split(".")
                     ilen = len(mval)
                     if ilen > len(cpos):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
+                    if tssval:
+                        symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
+                        fontclr = "black" if tssval > 0 else "green"
+                        ax0.plot(dt, ymax, symbolclr, markersize=7)
+                        ax0.text(dt, ymax, str(tssval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         if int(mval[i]) > 0:
-                            fontclr = "black" if i in [4, 5, 6] else \
-                                "blue" if i in [7, 8, 9] else \
-                                "brown" if i > 9 else "darkorange"
-                            mtext = hltb[int(mval[i])] if i == 1 else mval[i]
+                            fontclr = "black" if i in [5, 6, 7] else \
+                                "blue" if i in [8, 9, 10] else \
+                                "brown" if i > 10 else "orange"
+                            mtext = hltb[int(mval[i])] if i in [1, 2, 3, 4] else mval[i]
                             ax0.text(dt, cpos[i], mtext, color=fontclr, fontsize=9)
                 else:
                     ttspos, othpos, bbspos = cpos[0], cpos[1], cpos[-1]
@@ -705,12 +715,14 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         ttspos = ymin if tssval < 0 else ymax
                         ax0.plot(dt, ttspos, symbolclr)
                         ax0.text(dt, ttspos, str(tssval), color=fontclr, fontsize=9)
+                    '''
                     if bbsval:
                         ax0.plot(dt, bbspos, "bd")
                         ax0.text(dt, bbspos, str(bbsval), color="blue", fontsize=9)
                     if othval:
                         ax0.plot(dt, othpos, "c+")
                         ax0.text(dt, othpos, str(othval), color="black", fontsize=9)
+                    '''
             except Exception as e:
                 print 'plotSignals exception:', mpvdate
                 print e
@@ -741,7 +753,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             print type(mpvdate), mpvdate
             # print dfchart.index.get_loc(dfchart.iloc[chartDays].name)
 
-        figsize = (15, 7) if not showchart or pmaps else (10, 5)
+        figsize = (14, 7) if not showchart or pmaps else (10, 5)
         mondays, alldays, _, weekFmt = weekFormatter()
         if not OHLC:
             axes = dfchart.plot(x='date', figsize=figsize, subplots=True, grid=True)
@@ -754,10 +766,10 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
         else:
             fig = plt.figure(figsize=figsize)
             fig.set_canvas(plt.gcf().canvas)
-            ax1 = plt.subplot2grid((6, 1), (0, 0), rowspan=3, fig=fig)
-            ax2 = plt.subplot2grid((6, 1), (3, 0), sharex=ax1)
-            ax3 = plt.subplot2grid((6, 1), (4, 0), sharex=ax1)
-            ax4 = plt.subplot2grid((6, 1), (5, 0), sharex=ax1)
+            ax1 = plt.subplot2grid((7, 1), (0, 0), rowspan=4, fig=fig)
+            ax2 = plt.subplot2grid((7, 1), (4, 0), sharex=ax1)
+            ax3 = plt.subplot2grid((7, 1), (5, 0), sharex=ax1)
+            ax4 = plt.subplot2grid((7, 1), (6, 0), sharex=ax1)
             axes = []
             axes.append(ax1)
             axes.append(ax2)
@@ -807,13 +819,14 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
         vHigh = annotateMVP(dfchart, axes[3], "V", 24)
         vLow = dfchart.iloc[dfchart['V'].idxmin()]['V']
         cmpvHL = [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
-        # line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL)))
+        # line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL, weekly)))
         try:
             line_divergence(axes, *plotpeaks(dfchart, axes, *findpeaks(dfchart, cmpvHL, weekly)))
         except Exception as e:
             # just print error and continue without the required line in chart
             print 'line divergence exception:'
             print e
+        plotSignals(pmaps, counter, dfchart['date'], axes[0])
         try:
             if mHigh > 8:
                 axes[1].axhline(10, color='r', linestyle='--')
@@ -821,7 +834,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             axes[2].axhline(0, color='k', linestyle='--')
             if vHigh > 20:
                 axes[3].axhline(25, color='k', linestyle='--')
-            plotSignals(pmaps, counter, dfchart['date'], axes[0])
+            # plotSignals(pmaps, counter, dfchart['date'], axes[0])
             plt.tight_layout()
         except Exception as e:
             # just print error and continue without the required line in chart
