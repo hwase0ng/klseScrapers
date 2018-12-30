@@ -5,19 +5,20 @@ mpvdir=$datadir/mpv
 signaldir=$mpvdir/signals
 re='^[0-9]+$'
 
-c=16
-v=17
-m=18
-p=19
-tripleM=20
-tripleP=21
-tripleV=22
-narrowM=23
-narrowP=24
-countP=25
-lowbaseC=26
-tripleBottoms=27
-tripleTops=28
+cmpdiv=10
+c=11
+m=12
+p=13
+v=14
+tripleM=15   # 1=p3u, 2=p3d, 3=1a, 6=n3u, 7=n3d
+tripleP=16
+tripleV=17
+narrowM=18
+narrowP=19
+countP=20
+lowbaseC=21
+tripleBottoms=22
+tripleTops=23
 
 signalfile=""
 val=0
@@ -42,7 +43,7 @@ do
    fi
    ;;
   e)
-   useEqual=1
+   useEqual=$OPTARG
    ;;
   s)
    name=$OPTARG
@@ -89,7 +90,6 @@ do
    fi
    ;;
   *)
-   #usage
    echo "Usage: awkFindSignals.sh -sSvVcegd <signal name> <value> [counter|group] [equal] [datadir]" 1>&2
    exit 1
    ;;

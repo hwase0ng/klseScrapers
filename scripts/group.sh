@@ -51,9 +51,11 @@ do
    fi
    ;;
   g)
-   SET=$OPTARG
+   SET=`echo ${OPTARG} | tr '[:lower:]' '[:upper:]'`
    #echo $(eval echo "\$$SET")
    GROUP=$(eval echo "\$$SET")
+   echo $GROUP
+   exit 0
    ;;
   *)
    #usage
