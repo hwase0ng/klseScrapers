@@ -390,12 +390,13 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
     def find_divergence(matchlist):
         p1date1, p1date2, p2date1, p2date2 = None, None, None, None
         matchdt, divcount, tolerance, nodiv, matchpos = None, 0, 0, 0, -1
+        swapP = False if p1x[-1] >= p2x[-1] else True
         for v in sorted(matchlist, reverse=True):
             if matchlist[v][0] == 0:
                 nodiv += 1
                 continue
             if p1date1 is None:
-                if len(p1x) > len(p2x):
+                if not swapP:
                     p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
                     p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
                 else:
@@ -408,12 +409,12 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
             elif matchlist[v][0] == matchpos:
                 continue
             else:
-                if len(p1x) > len(p2x):
+                if not swapP:
                     p1date2, p2date2 = p1x[v], p2x[matchlist[v][0]]
                     p1y2, p2y2 = p1y[v], p2y[matchlist[v][0]]
                 else:
                     # TASCO 2012-06-08
-                    p1date2, p2date2 = p1x[v], p1x[matchlist[v][0]]
+                    p1date2, p2date2 = p2x[v], p1x[matchlist[v][0]]
                     p1y2, p2y2 = p2y[v], p1y[matchlist[v][0]]
                 if p1y1 > p1y2 and p2y1 > p2y2 or \
                         p1y1 < p1y2 and p2y1 < p2y2:
@@ -436,7 +437,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                     lstyle = "-" if peaks else "-."
                 else:
                     lstyle = "--" if peaks else ":"
-                if len(p1x) > len(p2x):
+                if not swapP:
                     annotatelines(axes, k, lstyle,
                                   p1date1, p1date2, p2date1, p2date2,
                                   p1y1, p1y2, p2y1, p2y2)

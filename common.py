@@ -384,7 +384,7 @@ def combineList(listoflists):
 
 def matchdates(l1, l2, approx=31):
     matchdict = {}
-    if len(l1) > l2:
+    if l1[-1] >= l2[-1]:
         list1, list2 = l1, l2
     else:
         # TASCO 2012-06-08
