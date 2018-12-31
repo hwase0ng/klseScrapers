@@ -383,8 +383,10 @@ def combineList(listoflists):
 
 
 def matchdates(l1, l2, approx=31):
-    matchdict = {}
-    if l1[-1] >= l2[-1]:
+    swapP, matchdict = False, {}
+    if l1[-1] < l2[-1]:
+        swapP = True
+    if not swapP:
         list1, list2 = l1, l2
     else:
         # TASCO 2012-06-08
@@ -408,7 +410,7 @@ def matchdates(l1, l2, approx=31):
                     break
         matchval = 0 if j < 0 else j - len(list2)
         matchdict[i - len(list1)] = [matchval, matchtolerance, val]
-    return matchdict
+    return swapP, matchdict
 
 
 if __name__ == '__main__':

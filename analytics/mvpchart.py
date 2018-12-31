@@ -390,7 +390,6 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
     def find_divergence(matchlist):
         p1date1, p1date2, p2date1, p2date2 = None, None, None, None
         matchdt, divcount, tolerance, nodiv, matchpos = None, 0, 0, 0, -1
-        swapP = False if p1x[-1] >= p2x[-1] else True
         for v in sorted(matchlist, reverse=True):
             if matchlist[v][0] == 0:
                 nodiv += 1
@@ -453,7 +452,7 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
 
     if p1x is None or p2x is None:
         return []
-    matchlist = matchdates(p1x, p2x)
+    swapP, matchlist = matchdates(p1x, p2x)
     matchdt, divtype, divcount, tolerance, matchpos = find_divergence(matchlist)
     return [matchlist, matchdt, divtype, divcount, tolerance, matchpos]
 
