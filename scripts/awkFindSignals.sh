@@ -5,18 +5,18 @@ mpvdir=$datadir/mpv
 signaldir=$mpvdir/signals
 re='^[0-9]+$'
 
-cmpdiv=10
+cmpdiv=10   # 1,2,3=CP+CM,CP,CM in pdiv; 4,5,6=same in ndiv
 c=11
 m=12
 p=13
 v=14
-tripleM=15   # 1=p3u, 2=p3d, 3=1a, 6=n3u, 7=n3d
+tripleM=15   # p3u=1,2,3 p3d=,4,5,6, n3u=2,5,7, n3d=3,6,8
 tripleP=16
 tripleV=17
-narrowM=18
-narrowP=19
-countP=20
-lowbaseC=21
+narrowC=18
+narrowM=19
+narrowP=20
+countP=21
 tripleBottoms=22
 tripleTops=23
 
