@@ -382,8 +382,13 @@ def combineList(listoflists):
     return ylist
 
 
-def matchdates(list1, list2, approx=31):
+def matchdates(l1, l2, approx=31):
     matchdict = {}
+    if len(l1) > l2:
+        list1, list2 = l1, l2
+    else:
+        # TASCO 2012-06-08
+        list1, list2 = l2, l1
     for i, val in enumerate(list1):
         matchtolerance = 0
         try:

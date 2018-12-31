@@ -395,14 +395,26 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 nodiv += 1
                 continue
             if p1date1 is None:
-                p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
-                p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
+                if len(p1x) > len(p2x):
+                    p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
+                    p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
+                else:
+                    # TASCO 2012-06-08
+                    p1date1, p2date1 = p2x[v], p1x[matchlist[v][0]]
+                    p1y1, p2y1 = p2y[v], p1y[matchlist[v][0]]
                 matchdt = matchlist[v][2]
                 matchpos = matchlist[v][0]
                 tolerance, nodiv = matchlist[v][1], 0
+            elif matchlist[v][0] == matchpos:
+                continue
             else:
-                p1date2, p2date2 = p1x[v], p2x[matchlist[v][0]]
-                p1y2, p2y2 = p1y[v], p2y[matchlist[v][0]]
+                if len(p1x) > len(p2x):
+                    p1date2, p2date2 = p1x[v], p2x[matchlist[v][0]]
+                    p1y2, p2y2 = p1y[v], p2y[matchlist[v][0]]
+                else:
+                    # TASCO 2012-06-08
+                    p1date2, p2date2 = p1x[v], p1x[matchlist[v][0]]
+                    p1y2, p2y2 = p2y[v], p1y[matchlist[v][0]]
                 if p1y1 > p1y2 and p2y1 > p2y2 or \
                         p1y1 < p1y2 and p2y1 < p2y2:
                     nodiv += 1
@@ -424,9 +436,15 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                     lstyle = "-" if peaks else "-."
                 else:
                     lstyle = "--" if peaks else ":"
-                annotatelines(axes, k, lstyle,
-                              p1date1, p1date2, p2date1, p2date2,
-                              p1y1, p1y2, p2y1, p2y2)
+                if len(p1x) > len(p2x):
+                    annotatelines(axes, k, lstyle,
+                                  p1date1, p1date2, p2date1, p2date2,
+                                  p1y1, p1y2, p2y1, p2y2)
+                else:
+                    # TASCO 2012-06-08
+                    annotatelines(axes, k, lstyle,
+                                  p2date1, p2date2, p1date1, p1date2,
+                                  p2y1, p2y2, p1y1, p1y2)
                 if divcount > 2:
                     # restrict matchings to max 3
                     break
@@ -702,7 +720,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         ax0.text(dt, ymax, str(tssval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         if int(mval[i]) > 0:
-                            fontclr = "black" if i in [5, 6, 7] else \
+                            fontclr = "black" if i in [0, 5, 6, 7] else \
                                 "blue" if i in [8, 9, 10] else \
                                 "brown" if i > 10 else "orange"
                             mtext = hltb[int(mval[i])] if i in [1, 2, 3, 4] else mval[i]
@@ -1111,6 +1129,13 @@ def plotSynopsis(dflist, axes):
             # axes[3].set_xlabel("M")
             axlabel = axes[i].xaxis.get_label()
             axlabel.set_visible(False)
+            x, y = [], []
+            for p in axes[1].patches:
+                x.append(p.get_x())
+                y.append(p.get_height())
+                axes[1].annotate("{:.2f}".format(p.get_height()),
+                                 (p.get_x() * 1.001, p.get_height() * 1.009), size=7)
+            axes[1].plot(x, y, 'c:')
             '''
             years, months, monthsFmt, yearsFmt = monthFormatter()
             axes[3].xaxis.set_minor_locator(months)
