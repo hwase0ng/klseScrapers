@@ -671,7 +671,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
     df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
                   names=['trxdt', 'counter',
                          'tssname', 'tssval', 'tssstate',
-                         'cmpv', 'mvals', 'lastp'])
+                         'cmpv', 'mvals', 'siglist', 'lastp'])
     '''
                          'bbsname', 'bbsval', 'bbsstate',
                          'othname', 'othval', 'othstate',
@@ -771,6 +771,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             print type(mpvdate), mpvdate
             # print dfchart.index.get_loc(dfchart.iloc[chartDays].name)
 
+        # columns, rows
         figsize = (14, 7) if not showchart or pmaps else (10, 5)
         mondays, alldays, _, weekFmt = weekFormatter()
         if not OHLC:
@@ -1073,7 +1074,7 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         # columns, rows
         figsize = (10, 6) if showchart else (15, 9)
     else:
-        figsize = (9, 6) if showchart else (15, 10)
+        figsize = (10, 6) if showchart else (15, 10)
     fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
