@@ -665,7 +665,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
         for i in range(size):
             chartpos.append(chartpos[i] - portion)
         chartsig = chartpos[:2]
-        return ymin, ymax, chartsig, chartpos[2:]
+        return ymin, ymax, chartsig, chartpos[3:]
 
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
     infile = prefix + counter + "-signals.csv"
@@ -711,19 +711,19 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 else "g^"
                         fontclr = "black" if int(nsig) > 0 else "green"
                         ax0.plot(dt, spos[1], symbolclr, markersize=7)
-                        ax0.text(dt, spos[1], str(nstate), color=fontclr, fontsize=9)
+                        ax0.text(dt, spos[1], str(nsig), color=fontclr, fontsize=9)
                     if psig:
                         symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 else "g^"
                         fontclr = "black" if int(psig) > 0 else "green"
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
-                        ax0.text(dt, ymin, str(pstate), color=fontclr, fontsize=9)
+                        ax0.text(dt, ymin, str(psig), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
-                        if int(mval[i]) > 0:
-                            fontclr = "black" if i in [0, 5, 6, 7] else \
-                                "blue" if i in [8, 9, 10] else \
-                                "brown" if i > 10 else "orange"
-                            mtext = hltb[int(mval[i])] if i in [1, 2, 3, 4] else mval[i]
-                            ax0.text(dt, cpos[i], mtext, color=fontclr, fontsize=9)
+                        fontclr = "black" if i in [0, 8, 9, 10] else \
+                            "brown" if i in [5, 6, 7] else \
+                            "blue" if i > 10 else "orange"
+                        mtext = "." if int(mval[i]) == 0 else \
+                            hltb[int(mval[i])] if i in [1, 2, 3, 4] else mval[i]
+                        ax0.text(dt, cpos[i], mtext, color=fontclr, fontsize=9)
                 else:
                     ttspos, othpos, bbspos = cpos[0], cpos[1], cpos[-1]
                     if sval:
@@ -771,7 +771,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             # print dfchart.index.get_loc(dfchart.iloc[chartDays].name)
 
         # columns, rows
-        figsize = (14, 7) if not showchart or pmaps else (10, 5)
+        figsize = (14, 7) if not showchart or pmaps else (11, 5)
         mondays, alldays, _, weekFmt = weekFormatter()
         if not OHLC:
             axes = dfchart.plot(x='date', figsize=figsize, subplots=True, grid=True)
@@ -1073,7 +1073,7 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         # columns, rows
         figsize = (10, 6) if showchart else (15, 9)
     else:
-        figsize = (10, 6) if showchart else (15, 10)
+        figsize = (10, 6) if showchart else (16, 10)
     fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
