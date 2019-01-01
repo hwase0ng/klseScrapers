@@ -16,6 +16,29 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
         xp, xn, = pnM[0], pnM[1]  # 0=XP, 1=XN, 2=YP, 3=YN
         return [xp, xn]
 
+    def printsignal(trxndate):
+        # prefix = "" if DBGMODE == 2 else '\t'
+        # print prefix + signal
+        postfix = "csv." + str(pid) if pid else "csv"
+        if "simulation" in fname:
+            outfile = mpvdir + "simulation/signals/" + counter + "-signals." + postfix
+        else:
+            outfile = mpvdir + "signals/" + counter + "-signals." + postfix
+        linenum = grepN(outfile, trxndate)  # e.g. 2012-01-01
+        if linenum > 0:
+            # Already registered
+            return
+        with open(outfile, "ab") as fh:
+            bbsline = trxndate + "," + signals
+            fh.write(bbsline + '\n')
+        if "simulation" in fname:
+            sss = mpvdir + "simulation/" + label + "-" + trxndate + ".csv"
+            # skip writing for simulation
+        else:
+            sss = mpvdir + "signals/" + label + "-" + trxndate + ".csv"
+            with open(sss, "ab") as fh:
+                fh.write(signals + '\n')
+
     global DBGMODE
     DBGMODE = dbg
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
@@ -35,14 +58,15 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
         composelist[0], composelist[1], composelist[2], composelist[3]
     # posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
     bottomrevs, bbs, bbs_stage = 0, 0, 0
-    tss, tss_state, patterns, neglist, poslist = topSellSignals(lastTrxnData, matchdate,
-                                                                cmpvlists, composelist, hstlist, div,
-                                                                extractX())
+    sss, sstate, psig, pstate, nsig, nstate, patterns, neglist, poslist = \
+        extractSignals(lastTrxnData, matchdate,
+                       cmpvlists, composelist, hstlist, div,
+                       extractX())
     '''
     bottomrevs, bbs, bbs_stage = \
         bottomBuySignals(lastTrxnData, matchdate, cmpvlists, composelist, div)
     '''
-    if not (tss or bbs or bbs_stage):
+    if not (sss or bbs or bbs_stage):
         if not dbg:
             return ""
 
@@ -57,65 +81,21 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
          p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14,
          neglist, poslist, lastprice)
     # tolerance, pdays, ndays, matchlevel)
-    signaltss, signalbbs, label = "NUL,0,0", "NUL,0,0", ""
-    if 1 == 0:
-        # 2018-12-30 not in use for now
-        [_, _, odiv, _] = div
-        label, otype, ocount = "OTH", 0, -1
-        if "MP" in odiv:
-            otype, ocount = odiv["MP"][1], odiv["MP"][2]
-        signaloth = "%s,%d,%d" % (label, otype, ocount)
-    if tss:
-        label = "TBD" if tss > 900 else "TSS" if tss > 0 else "RTR" if tss_state > 0 else "BRV"
-        signaltss = "%s,%d,%d" % (label, tss, tss_state)
-    '''
-    if bottomrevs:
-        label = "BRK" if bottomrevs == 13 else "BRV"
-        signalbbs = "%s,%d,%d" % (label, bottomrevs, bbs_stage)
-    elif bbs or bbs_stage or (dbg and dbg != 2):
-        label = "OVS" if bbs else "Dbg"
-        signalbbs = "%s,%d,%d" % (label, bottomrevs, bbs_stage)
-    '''
+    signalsss, label = "NUL,0.0,0.0.0.0", ""
+    if sss or psig or nsig:
+        label = "TBD" if sss > 900 else "TSS" if sss > 0 else "RTR" if sstate > 0 else "BRV" if sss else "NUL"
+        signalsss = "%s,%d.%d,%d.%d.%d.%d" % (label, sss, sstate, nsig, nstate, psig, pstate)
 
-    if 1 == 0:
-        # 2018-12-30 odiv not in use for now
-        signals = "%s,%s,%s,%s,%s" % (counter, signaltss, signalbbs, signaloth, signaldet)
-    else:
-        signals = "%s,%s,%s" % (counter, signaltss, signaldet)
+    signals = "%s,%s,%s" % (counter, signalsss, signaldet)
     if dbg == 2:
         print '\n("%s", %s, %s, %s, "%s"),\n' % (counter, pnlist, div, lastTrxnData, signals.replace('\t', ''))
-    if len(mpvdir):
-        printsignal(mpvdir, counter, fname, lastTrxnData[0], label, signals, pid)
+    printsignal(lastTrxnData[0])
     return signals
 
 
-def printsignal(mpvdir, counter, fname, trxndate, label, signal, pid):
-    # prefix = "" if DBGMODE == 2 else '\t'
-    # print prefix + signal
-    postfix = "csv." + str(pid) if pid else "csv"
-    if "simulation" in fname:
-        outfile = mpvdir + "simulation/signals/" + counter + "-signals." + postfix
-    else:
-        outfile = mpvdir + "signals/" + counter + "-signals." + postfix
-    linenum = grepN(outfile, trxndate)  # e.g. 2012-01-01
-    if linenum > 0:
-        # Already registered
-        return
-    with open(outfile, "ab") as fh:
-        bbsline = trxndate + "," + signal
-        fh.write(bbsline + '\n')
-    if "simulation" in fname:
-        sss = mpvdir + "simulation/" + label + "-" + trxndate + ".csv"
-        # skip writing for simulation
-    else:
-        sss = mpvdir + "signals/" + label + "-" + trxndate + ".csv"
-        with open(sss, "ab") as fh:
-            fh.write(signal + '\n')
+def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xpn):
 
-
-def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xpn):
-
-    def peakvalley(cmpv):
+    def ispeak(cmpv):
         xp, xn = xpn[0][cmpv], xpn[1][cmpv]  # 0=C, 1=M, 2=P, 3=V
         if xp is None or xn is None:
             if xp is None:
@@ -177,6 +157,12 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                             ncountup += 1
                         if nlist[i] >= nlist[i + 1]:
                             ncountdown += 1
+                '''
+                      N0   N^   Nv
+                P^    1    2    3
+                Pv    4    5    6
+                Px    X    7    8
+                '''
                 if ncountup > 1 and pcountup < 2 and pcountdown < 2:
                     tripleMPV = 7
                 elif ncountdown > 1 and pcountup < 2 and pcountdown < 2:
@@ -288,8 +274,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                             if "C" not in k:
                                 continue
                             if v[-1] < -1:
-                                # only latest divergence matters
-                                break
+                                continue
                             if v[0] > divdate:
                                 divdate = v[0]
                     return divdate
@@ -298,13 +283,14 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 pdate = getdivdt(pdiv)
                 ndate = getdivdt(ndiv)
                 if pdate == ndate:
+                    # KAWAN 2016-09-14
                     pass
                 elif pdate > ndate:
                     cmpdiv = 1 if "CP" in pdiv and "CM" in pdiv else \
-                        2 if "CP" in pdiv else 3 if "CM" in pdiv else 0
+                        2 if "CP" in pdiv else 3 if "CM" in pdiv else 7 if "MP" in pdiv else 0
                 else:
                     cmpdiv = 4 if "CP" in ndiv and "CM" in ndiv else \
-                        5 if "CP" in ndiv else 6 if "CM" in ndiv else 0
+                        5 if "CP" in ndiv else 6 if "CM" in ndiv else 8 if "MP" in pdiv else 0
                 return cmpdiv
 
             cmpdiv = checkdiv()
@@ -455,7 +441,7 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             [firstmp, firstmn, firstpp, firstpn]
 
     def evalNarrowC():
-        topSellSignal, tss_state = 0, 0
+        ssig, sstate = 0, 0
         if narrowC > 3 and (bottomP or
                             (cmpdiv in [4, 5] and
                              ((nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]) or
@@ -464,141 +450,187 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             if topM and nlistP[-1] > 0:
                 # N2N 2011-11-08
                 # PETRONM 2014-02-20
-                topSellSignal, tss_state = -1, 3
+                ssig, sstate = -1, 3
             elif newhighM and tripleM in [4, 5, 6]:
                 # DUFU 2012-04-02 with narrowM
-                topSellSignal, tss_state = 1, 0
+                ssig, sstate = 1, 0
             elif narrowM:
-                topSellSignal = -1
+                ssig = -1
                 if nlistP[-1] >= 0:
                     # KLSE 2013-03-25
-                    tss_state = 1
+                    sstate = 1
                     if nlistM[-1] > 5:
                         # KESM 2013-09-06
                         # GHLSYS 2017-02-03
-                        tss_state = 2
+                        sstate = 2
                 elif nlistM[-1] > 5:
                     # DANCO 2018-07-20
                     # YSPSAH 2017-02-21
-                    tss_state = 2
+                    sstate = 2
                 else:
-                    topSellSignal, tss_state = 901, 1
-                if posC < 2 and tss_state:
-                    tss_state = -tss_state
+                    ssig, sstate = 901, 1
+                if posC < 2 and sstate:
+                    sstate = -sstate
             elif bottomM:
                 # PADINI 2014-03-05 short rebound
-                topSellSignal, tss_state = -1, 0
+                ssig, sstate = -1, 0
             elif bottomP:
                 # PADINI 2013-05-29 oversold (could not reach here due to cmpdiv == 1
-                topSellSignal, tss_state = -1, 0
+                ssig, sstate = -1, 0
             elif nlistM[-1] > 10 and nlistP[-1] > 0:
                 # PADINI 2013-05-29 20% short push before top reversal
-                topSellSignal, tss_state = 1, -1
+                ssig, sstate = 1, -1
             elif tripleM in p3u and nlistP[-1] >= 0:
                 if newhighM and posC < 2:
                     # PETRONM 2013-03-21
-                    topSellSignal, tss_state = -1, 4
+                    ssig, sstate = -1, 4
                 elif posC > 2:
                     # SCGM 2017-02-08
-                    topSellSignal, tss_state = -1, 5
+                    ssig, sstate = -1, 5
             elif tripleP in p3u and nlistP[-1] > 0 and plistM[-1] > 10 and nlistM[-1] < 5:
                 if plistM[-1] > 10:
                     # SCGM 2013-06-05
-                    topSellSignal, tss_state = -1, 6
+                    ssig, sstate = -1, 6
                 else:
-                    topSellSignal, tss_state = 901, 2
+                    ssig, sstate = 901, 2
             elif tripleM in [2, 4, 5, 6, 7] and nlistM[-1] > 5:
                 if nlistP[-1] > 0:
                     # GHLSYS 2016-12-27
-                    topSellSignal, tss_state = -1, 7
+                    ssig, sstate = -1, 7
                 elif lastM > plistM[-1]:
                     # MAGNI 2016-08-25 Strong reversal after short retrace (p=-0.057)
-                    topSellSignal, tss_state = -1, 8
+                    ssig, sstate = -1, 8
                 else:
                     # GHLSYS 2018-03-06
-                    topSellSignal, tss_state = 1, 1
+                    ssig, sstate = 1, 1
             elif tripleP in n3u and cmpdiv in [4, 5, 6]:
                 # DANCO 2018-07-11
-                topSellSignal, tss_state = -1, 9
+                ssig, sstate = -1, 9
             elif newhighC and cmpdiv in [4, 5, 6]:
                 # MAGNI 2017-01-26
-                topSellSignal, tss_state = -1, 10
+                ssig, sstate = -1, 10
             else:
-                topSellSignal = 1
+                ssig = 1
                 if (newhighM or topM) and posC < 2:
                     # SUPERLN 2018-11-11
-                    tss_state = 2
+                    sstate = 2
                 if (newhighP or topP) and posC < 2:
-                    topSellSignal, tss_state = 901, 4
+                    ssig, sstate = 901, 4
                 else:
                     # DUFU 2012-01-16
                     # MAGNI 2018-08-02
-                    tss_state = 3
+                    sstate = 3
         elif narrowC == 1:
             if narrowM:
                 # VSTECS 2014-03-10
-                topSellSignal, tss_state = -1, 11
+                ssig, sstate = -1, 11
             elif nlistM[-1] > 5 and nlistP[-1] >= 0:
                 # KLSE 2017-01-09
-                topSellSignal, tss_state = -1, 12
+                ssig, sstate = -1, 12
             elif newhighC and cmpdiv in [4, 5, 6]:
-                topSellSignal, tss_state = -1, 13
+                ssig, sstate = -1, 13
             else:
-                topSellSignal, tss_state = 1, 4
+                ssig, sstate = 1, 4
         elif narrowC == 3:
-            topSellSignal, tss_state = 901, 6
+            ssig, sstate = 901, 6
 
-        return topSellSignal, tss_state
+        return ssig, sstate
 
-    def evalnegatives():
-        npatterns = []
-        if newlowC and cpeak:
-            npatterns.append("1")
-        else:
-            npatterns.append("0")
-        if cmpdiv in [1, 2, 3]:
-            npatterns.append("1")
-        else:
-            npatterns.append("0")
-        if tripleM in n3u and lastM < nlistM[-1]:
-            npatterns.append("1")
-        else:
-            npatterns.append("0")
-        if tripleP in n3u and lastP < nlistP[-1]:
-            npatterns.append("1")
-        else:
-            npatterns.append("0")
-        return npatterns
+    def evalsignals():
+        def evalnegatives():
+            nsignals = []
+            if newlowC and cpeak:
+                nsignals.append("1")
+            else:
+                nsignals.append("0")
+            if cmpdiv in [1, 2, 3]:
+                nsignals.append("1")
+            else:
+                nsignals.append("0")
+            if tripleM in n3u and lastM < nlistM[-1]:
+                nsignals.append("1")
+            else:
+                nsignals.append("0")
+            if tripleP in n3u and lastP < nlistP[-1]:
+                nsignals.append("1")
+            else:
+                nsignals.append("0")
+            if cmpdiv == 7:
+                nsignals.append("1")
+            else:
+                nsignals.append("0")
+            return nsignals
 
-    def evalpostives():
-        ppatterns = []
-        if newhighC and not cpeak:
-            ppatterns.append("1")
-        else:
-            ppatterns.append("0")
-        if cmpdiv in [4, 5, 6]:
-            ppatterns.append("1")
-        else:
-            ppatterns.append("0")
-        if tripleM in n3u and lastM > nlistM[-1]:
-            ppatterns.append("1")
-        else:
-            ppatterns.append("0")
-        if tripleP in n3u and lastP > nlistP[-1]:
-            ppatterns.append("1")
-        else:
-            ppatterns.append("0")
-        return ppatterns
+        def evalpostives():
+            psignals = []
+            if newhighC and not cpeak:
+                psignals.append("1")
+            else:
+                psignals.append("0")
+            if cmpdiv in [4, 5, 6]:
+                psignals.append("1")
+            else:
+                psignals.append("0")
+            if tripleM in n3u and lastM > nlistM[-1]:
+                psignals.append("1")
+            else:
+                psignals.append("0")
+            if tripleP in n3u and lastP > nlistP[-1]:
+                psignals.append("1")
+            else:
+                psignals.append("0")
+            if cmpdiv == 8:
+                psignals.append("1")
+            else:
+                psignals.append("0")
+            return psignals
+
+        psig, pstate, nsig, nstate = 0, 0, 0, 0
+        highC, cdiv, n3uM, n3uP, mpdiv = 0, 1, 2, 3, 4
+        nsignals = evalnegatives()
+        psignals = evalpostives()
+        if "1" in nsignals:
+            nsig = 9
+            nstate = 0 if "1" in nsignals[mpdiv] else 1
+            if plistM[-1] > 10:
+                if lastM < 7:
+                    if lastC > plistC[-1] and lastC > plistC[-2]:
+                        # KAWAN 2015-05-13
+                        # DANCO 2018-10-31
+                        nsig, nstate = -9, 0
+                    else:
+                        nsig, nstate = 9, 0
+            elif plistM[-2] > 10:
+                if nlistM[-1] > 5 and nlistM[-1] < 7:
+                    nsig, nstate = -9, 2
+        if "1" in psignals:
+            if not mpeak and plistM[-1] > 10:
+                if nlistM[-1] > 5:
+                    if nlistM[-1] < 7:
+                        psig, pstate = -8, 0
+                    else:
+                        psig, pstate = 8, 1
+            elif psignals[n3uP] == "1":
+                if lastP < plistP[-1]:
+                    psig, pstate = -8, 0
+                elif lastP > plistP[-1] and lastC < plistC[-1]:
+                    psig, pstate = 8, 2
+                else:
+                    psig, pstate = -8, 3
+            else:
+                psig = -8
+                pstate = 0 if "1" in psignals[mpdiv] else 1
+        return psig, pstate, nsig, nstate, nsignals, psignals
 
     # ------------------------- START ------------------------- #
 
-    topSellSignal, tss_state = 0, 0
+    ssig, sstate = 0, 0
     # [tolerance, pdays, ndays, matchlevel] = matchdate
     [pdiv, ndiv, _, mpdates] = div
     '''
     Wrong assumption as TSS 6 happens when newlowC or posC = 0
     if pricepos < 2:
-        return topSellSignal, tss_state
+        return ssig, sstate
     '''
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
@@ -636,8 +668,14 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     narrowC, narrowM, narrowP, countP, tripleM, tripleP, tripleV, tripleBottoms, tripleTops = \
         0, 0, 0, 0, 0, 0, 0, 0, 0
     p1, p2, negstr, posstr = None, None, "", ""
+    '''
+              Nx   N^   Nv
+        P^    1    2    3
+        Pv    4    5    6
+        Px    X    7    8
+    '''
     p3u, p3d, n3u, n3d = [1, 2, 3], [4, 5, 6], [2, 5, 7], [3, 6, 8]
-    cpeak, mpeak, ppeak, vpeak = peakvalley(0), peakvalley(1), peakvalley(2), peakvalley(3)
+    cpeak, mpeak, ppeak, vpeak = ispeak(0), ispeak(1), ispeak(2), ispeak(3)
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
     else:
@@ -650,68 +688,49 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     if nosignal:   # or DBGMODE == 3:
         pass
     else:
-        neglist = evalnegatives()
-        poslist = evalpostives()
+        psig, pstate, nsig, nstate, neglist, poslist = evalsignals()
         negstr = "".join(neglist)
         posstr = "".join(poslist)
-        if "1" in neglist:
-            topSellSignal, tss_state = 9, 99
-        elif "1" in poslist:
-            if not mpeak and plistM[-1] > 10:
-                if nlistM[-1] > 5:
-                    if nlistM[-1] < 7:
-                        topSellSignal, tss_state = -9, 0
-                    else:
-                        topSellSignal, tss_state = 9, 97
-            elif poslist[3] == "1":
-                if lastP < plistP[-1]:
-                    topSellSignal, tss_state = -9, 0
-                elif lastP > plistP[-1] and lastC < plistC[-1]:
-                    topSellSignal, tss_state = 9, 98
-                else:
-                    topSellSignal, tss_state = -9, 99
-            else:
-                topSellSignal, tss_state = -9, 98
-        elif narrowC:
-            topSellSignal, tss_state = evalNarrowC()
+        if narrowC:
+            ssig, sstate = evalNarrowC()
         elif newhighC or topC:
-            topSellSignal = 1
+            ssig = 1
             if tripleP in [-1, -2, -3]:
                 # KLSE 2014-05-05
-                tss_state = 1
+                sstate = 1
                 if newhighV or topV or cmpdiv in [1, 2, 3]:
                     # KLSE 2014-06-02
-                    tss_state = 2
+                    sstate = 2
             elif tripleP in p3u and topV and newlowV:
                 # YSPSAH 2018-11-05
-                tss_state = 3
+                sstate = 3
             else:
                 if newhighM or newhighP or topM or topP:
                     # KLSE 2013-07-29
                     # VSTECS 2014-08-29
-                    tss_state = 4
+                    sstate = 4
                 elif cmpdiv in [1, 2, 3]:
-                    tss_state = -1
+                    sstate = -1
                 if plistP[-1] > 0 and lastP < 0:
                     # KLSE 2013-09-02
-                    tss_state = -2
+                    sstate = -2
         elif posC == 2 and narrowM:
-            topSellSignal = -2
+            ssig = -2
             if newlowP or newhighV:
-                tss_state = 1
+                sstate = 1
             elif bottomP or newlowV:
-                tss_state = 2
+                sstate = 2
         elif not topC and posC == 3 and narrowM:
-            topSellSignal = 2
+            ssig = 2
             if tripleM in [-1, -2, -3] or tripleP in [4, 5, 6]:
                 # KLSE 2015-04-30
-                tss_state = 1
+                sstate = 1
         elif plistP is not None and len(plistP) > 3 and tripleM == 9:
             # 3 consecutive M above 10 - powerful break out / bottom reversal signal
-            topSellSignal = -1
+            ssig = -1
             if plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
                 # MAGNI 2013-03-01 top retrace with CM and CP valley divergence follow by break out
-                tss_state = 1
+                sstate = 1
             # elif posC < 2:
                 # --- bottom reversal --- #
                 # DUFU 2014-05-05, 2014-06-04 (plistP[-1] < 0) bottom break out
@@ -727,62 +746,62 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 if topC or topM:
                     if pdate > ndate:
                         # DUFU 2014-09-03 retracing
-                        tss_state = 0
+                        sstate = 0
                     else:
                         # DUFU 2014-11-21 retrace completed
                         # UCREST 2017-08-02 topM valley divergence
-                        tss_state = 2
+                        sstate = 2
                 elif not newlowC:
                     # YSPSAH 2013-04-29
-                    tss_state = 3
+                    sstate = 3
                 elif pdate > ndate or lastM < 0:
                     # ABLEGRP 2018-12-21
-                    topSellSignal = 1
-                    tss_state = 1
+                    ssig = 1
+                    sstate = 1
                 else:
-                    tss_state = 0
-                # tss_state = 2 if "CM" in ndiv or "CP" in ndiv else 1
+                    sstate = 0
+                # sstate = 2 if "CM" in ndiv or "CP" in ndiv else 1
         elif tripleTops:
             if tripleM in [-1, -2, -3] and tripleP in [-1, -2, -3] and tripleV in [-1, -2, -3] and \
                     len(nlistV) > 1 and nlistV[-1] > nlistV[-2] and \
                     plistM[-1] > 5 and plistP[-1] > 0:
                 # KLSE 2013-03-20
-                topSellSignal = -2
+                ssig = -2
             elif newhighV:
                 # KLSE 2018-05-07
-                topSellSignal = 2
+                ssig = 2
             else:
-                topSellSignal = -2
-            tss_state = 1
+                ssig = -2
+            sstate = 1
         elif tripleBottoms:
             if posC > 1:
                 # Works mostly in retrace position
-                topSellSignal = -4
+                ssig = -4
             elif (newlowM and newlowP) or (bottomM or bottomP):
                 # PADINI 2014-02-05 newlowC
                 # YSPSAH 2012-01-20 bottomP
-                topSellSignal = -4
+                ssig = -4
             elif newhighM or newhighP or topM or topP:
                 # PADINI 2015-10-02
-                topSellSignal = -4
+                ssig = -4
             elif newhighV:
                 # N2N 2017-08-28
-                topSellSignal = -4
+                ssig = -4
             else:
                 # DUFU 2011-10-12
-                topSellSignal = 4
+                ssig = 4
             if tripleBottoms == 1:
-                tss_state = 1
+                sstate = 1
             elif posC > 1:
                 if cpeak and "MP" in ndiv:
                     # DUFU 2018-06-13 retrace with valley follow by peak divergence
-                    tss_state = -1
+                    sstate = -1
                 elif not newlowC:
                     # DANCO 2018-07-23
-                    tss_state = -2
+                    sstate = -2
                 else:
                     # PETRONM 2014-04-25
-                    tss_state = 2
+                    sstate = 2
 
     '''
     elif newhighC or topC:
@@ -803,15 +822,15 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     '''
     '''
     elif retraceM10:
-        tss_state = 5
+        sstate = 5
         onetwo = 1 if peaks else 2
         if retraceM10 == 2:
             # PADINI 2011-10-03
-            topSellSignal = onetwo * -1
+            ssig = onetwo * -1
         else:
             # PADINI 2011-08-05
             # PETRONM 2013-07-18
-            topSellSignal = onetwo
+            ssig = onetwo
     elif "MP" in pdiv and mpPpos > -3:
         # elif "MP" in pdiv and mpPdate >= cmPdate and mpPdate >= cpPdate:
         # ----- PEAKS divergence ----- #
@@ -820,72 +839,72 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         # HEXZA 2018-11-23 with less than 3 peaks filtered
         # Divergent detected before topC
         if "CM" in pdiv and "CP" in pdiv:
-            tss_state = 6
+            sstate = 6
             if peaks:
                 # DUFU 2017-10-03 with double tops
-                topSellSignal = 1
+                ssig = 1
             else:
                 # PETRONM 2013-12-12
-                topSellSignal = 2
+                ssig = 2
             if not prevRetraceM10:
                 if newhighC or (topC and posV < 3):
                     if peaks:
                         # DUFU 2017-01-03
                         # PADINI 2017-07-03
-                        topSellSignal = -1
+                        ssig = -1
                     else:
-                        topSellSignal = -2
+                        ssig = -2
         elif "CM" not in pdiv and "CP" not in pdiv and posC > 1:
-            tss_state = 7
+            sstate = 7
             # Filtered DUFU 2013-04-17 newlowC after CM divergence disappears
             if len(ndiv) or newhighC:
                 if prevRetraceM10:
                     # PETRONM 2018-01-11
-                    topSellSignal = 1 if peaks else 2
+                    ssig = 1 if peaks else 2
                 elif prevbottomC:
                     # KLSE 2012-03-07
-                    topSellSignal = 1 if peaks else 2
+                    ssig = 1 if peaks else 2
                 elif peaks:
                     # DUFU 2017-01-03 newhighC with no valley divergence
                     # DUFU 2015-12-30, 2017-04-05
                     # PADINI 2018-02-19, 2012-08-29 - HighC, HighP with lowerM divergent
                     # KESM 2017-08-09 m > 10
-                    topSellSignal = -1
+                    ssig = -1
                 else:
                     # PETRONM 2015-11-26
                     # PADINI 2018-03-15
-                    topSellSignal = -2
+                    ssig = -2
             else:
                 # PADINI topC with CM divergence disappears after 2012-10-10
-                topSellSignal = 1 if peaks else 2
+                ssig = 1 if peaks else 2
         elif valleys and len(plistM) > 1:
-            tss_state = 8
+            sstate = 8
             if bottomM and not (bottomC and bottomP) and nlistM[-1] > 5 and not newlowC:
                 # PETRONM 2015-04-01
-                topSellSignal = -2
+                ssig = -2
             elif bottomP and not (bottomC and bottomM) and nlistM[-1] > 5 and not newlowC:
-                topSellSignal, tss_state = 999, 8
+                ssig, sstate = 999, 8
             elif not newlowC and posC < 3:
                 if "CP" in pdiv and firstpp > firstpn:
                     # PETRONM 2013-07-05
-                    topSellSignal = 2
+                    ssig = 2
                 elif "CM" in pdiv and firstmp > firstmn:
-                    topSellSignal = 2
+                    ssig = 2
                 elif "CP" in ndiv or "CM" in ndiv:
                     # PETRONM 2013-03-27
-                    topSellSignal = -2
+                    ssig = -2
                 else:
-                    topSellSignal = 2
+                    ssig = 2
             else:
                 # PADINI 2014-11-10 cpPdate later than mpPdate
-                topSellSignal = 2
+                ssig = 2
         elif prevtopC and bottomC and bottomM and bottomP:
-            tss_state = 9
+            sstate = 9
             if nlistM[-1] > 5:
                 # DANCO 2017-05-03 oversold rebound
-                topSellSignal = -1 if peaks else -2
+                ssig = -1 if peaks else -2
             else:
-                topSellSignal = 1 if peaks else 2
+                ssig = 1 if peaks else 2
         else:
             pdate, ndate = "", ""
             if "CM" in pdiv:
@@ -899,93 +918,93 @@ def topSellSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 ndate = cpNdate
             elif "CM" in ndiv:
                 ndate = cmNdate
-            tss_state = 10
+            sstate = 10
             if len(ndate) and ndate > pdate and not (newlowC or bottomC):
                 # DUFU 2018-07-27 with CP and CM valley divergent
                 # LIONIND 2017-02-03
                 # CARLSBG 2017-05-04 with M > 10
                 # PETRONM 2013-03-11 posC = 1
                 # PETRONM 2016-05-20 with CP divergence temporarily
-                topSellSignal = -1 if peaks else -2
+                ssig = -1 if peaks else -2
             else:
                 if peaks:
                     # KLSE 2014-05-08 TopM divergent with lower P
                     # DANCO 2018-01-10 with bottomC
-                    topSellSignal = 1
+                    ssig = 1
                 elif valleys:
                     # PETRONM 2016-04-20
-                    topSellSignal = 2
+                    ssig = 2
         '''
 
     if nosignal or DBGMODE == 3:
         pass
-    elif "MP" in ndiv and not topSellSignal:
+    elif "MP" in ndiv and not ssig:
         # ----- VALLEY divergence ----- #
         '''
         if retraceM10:
-            tss_state = 20
+            sstate = 20
             if retraceM10 == 2:
                 # PETRONM 2015-10-07, 2015-12-04
                 # DANCO 2018-12-17
-                topSellSignal = -2
+                ssig = -2
             else:
-                topSellSignal = 2
+                ssig = 2
         '''
         if plistP is not None and len(plistP) > 3 and tripleM == 9:
             # 3 consecutive M above 10 - powerful break out / bottom reversal signal
-            topSellSignal = -21
-            tss_state = 1
+            ssig = -21
+            sstate = 1
         elif tripleBottoms:
-            topSellSignal = -22
+            ssig = -22
             if tripleBottoms == 1:
-                tss_state = 2
+                sstate = 2
             else:
-                tss_state = -1
+                sstate = -1
         '''
         elif "CP" in pdiv and "CM" in pdiv:
-            topSellSignal = 2
-            tss_state = 23
+            ssig = 2
+            sstate = 23
         elif "CP" in ndiv and cpNpos == -1:
-            topSellSignal = -2
+            ssig = -2
             if posC < 2 and tripleBottoms:
                 # PADINI 2015-08-03
-                tss_state = 24
+                sstate = 24
             elif newlowP or bottomP:
                 # PADINI 2017-02-22 retrace complete
-                tss_state = 25
+                sstate = 25
             else:
-                tss_state = 0
+                sstate = 0
         elif "CP" in pdiv and cpPdate > mpNdate or \
                 "CM" in pdiv and cmPdate > mpNdate:
-            tss_state = 26
+            sstate = 26
             if topC and not (topM or topP):
                 # PADINI 2016-10-06 with CP and CM
-                topSellSignal = 2
+                ssig = 2
             elif (topM or topP) and not topC:
                 # PADINI 2016-01-04 topP
-                topSellSignal = -2
+                ssig = -2
         else:
             if not (newlowC or newhighC):
                 # PADINI 2016-10-27
-                topSellSignal = -2
+                ssig = -2
             else:
                 # DANCO 2017-03-30
                 # LAYHONG 2018-12-14
-                topSellSignal = 2
+                ssig = 2
             if newlowP or bottomP:
-                tss_state = 27
+                sstate = 27
             else:
                 # N2N 2018-04-27
-                tss_state = 0
+                sstate = 0
         '''
 
     '''
-    if topSellSignal < 0 and tss_state and posC < 2:
-        if tss_state > 0:
-            tss_state *= -1
+    if ssig < 0 and sstate and posC < 2:
+        if sstate > 0:
+            sstate *= -1
     '''
 
-    return topSellSignal, tss_state, p1, negstr, posstr
+    return ssig, sstate, psig, pstate, nsig, nstate, p1, negstr, posstr
 
 
 def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, odiv):

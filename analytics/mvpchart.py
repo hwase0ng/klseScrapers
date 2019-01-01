@@ -418,7 +418,8 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 if p1y1 > p1y2 and p2y1 > p2y2 or \
                         p1y1 < p1y2 and p2y1 < p2y2:
                     nodiv += 1
-                    if nodiv > 2:
+                    if nodiv > 3:
+                        # KAWAN 2017-10-17 nodiv > 2
                         break
                     continue
                 divcount += 1
@@ -663,49 +664,37 @@ def plotSignals(pmaps, counter, datevector, ax0):
         chartpos = [ymax]
         for i in range(size):
             chartpos.append(chartpos[i] - portion)
-        del chartpos[0]
-        return ymin, ymax, chartpos
+        chartsig = chartpos[:2]
+        return ymin, ymax, chartsig, chartpos[2:]
 
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
     infile = prefix + counter + "-signals.csv"
     df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
                   names=['trxdt', 'counter',
-                         'tssname', 'tssval', 'tssstate',
+                         'sssname', 'sssval', 'pnsig',
                          'cmpv', 'mvals', 'siglist', 'lastp'])
-    '''
-                         'bbsname', 'bbsval', 'bbsstate',
-                         'othname', 'othval', 'othstate',
-    '''
     df.set_index(df['trxdt'], inplace=True)
-    ymin, ymax, cpos = getChartPOS(14)
+    ymin, ymax, spos, cpos = getChartPOS(14 + 3)
     hltb = ['0', 'h', 'l', 't', 'b']
     for dt in datevector:
         try:
             mpvdate = pdTimestamp2strdate(dt)
             dfsignal = df.loc[mpvdate]
-            # tssname, tssval, tssstate, bbsname, bbsval, bbsstate, othname, othval, othstate, mvals = \
-            tssname, tssval, tssstate, mvals = \
-                dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, dfsignal.mvals
-            '''
-                dfsignal.bbsname, dfsignal.bbsval, dfsignal.bbsstate, \
-                dfsignal.othname, dfsignal.othval, dfsignal.othstate, \
-            '''
-            '''
-            tssname, tssval, tssstate, bbsname, bbsval, bbsstate = \
-                df.loc[[mpvdate], ['tssname', 'tssval', 'tssstate',
-                                   'bbsname', 'bbsval', 'bbsstate']]
-            if type(tssname) is not str or type(bbsname) is not str:
-            '''
-            if type(tssname) is not str:
+            sssname, sssval, pnsig, mvals = \
+                dfsignal.sssname, dfsignal.sssval, dfsignal.pnsig, dfsignal.mvals
+            if type(sssname) is not str:
                 print "INF: duplicated signals detected in", infile, mpvdate
                 dfsignal = dfsignal.iloc[0]
-                tssname, tssval, tssstate, mvals = \
-                    dfsignal.tssname, dfsignal.tssval, dfsignal.tssstate, dfsignal.mvals
+                sssname, sssval, pnsig, mvals = \
+                    dfsignal.sssname, dfsignal.sssval, dfsignal.pnsig, dfsignal.mvals
             if not pmaps:
-                # if tssname in ["Dbg", "NUL"] and bbsname in ["Dbg", "NUL"]:
-                if tssname in ["Dbg", "NUL"]:
+                if sssname in ["Dbg", "NUL"]:
                     continue
             try:
+                ssig = str(sssval).split('.')
+                sval, sstate = ssig[0], ssig[1]
+                pnval = str(pnsig).split('.')
+                nsig, nstate, psig, pstate = pnval[0], pnval[1], pnval[2], pnval[3]
                 if pmaps:
                     mvals = mvals[1:-1].replace('^', '.')
                     mval = mvals.split(".")
@@ -713,11 +702,21 @@ def plotSignals(pmaps, counter, datevector, ax0):
                     if ilen > len(cpos):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
-                    if tssval:
-                        symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
-                        fontclr = "black" if tssval > 0 else "green"
-                        ax0.plot(dt, ymax, symbolclr, markersize=7)
-                        ax0.text(dt, ymax, str(tssval), color=fontclr, fontsize=9)
+                    if sval:
+                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 else "g^"
+                        fontclr = "black" if int(sval) > 0 else "green"
+                        ax0.plot(dt, spos[0], symbolclr, markersize=7)
+                        ax0.text(dt, spos[0], str(sval), color=fontclr, fontsize=9)
+                    if nsig:
+                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 else "g^"
+                        fontclr = "black" if int(nsig) > 0 else "green"
+                        ax0.plot(dt, spos[1], symbolclr, markersize=7)
+                        ax0.text(dt, spos[1], str(nstate), color=fontclr, fontsize=9)
+                    if psig:
+                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 else "g^"
+                        fontclr = "black" if int(psig) > 0 else "green"
+                        ax0.plot(dt, ymin, symbolclr, markersize=7)
+                        ax0.text(dt, ymin, str(pstate), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         if int(mval[i]) > 0:
                             fontclr = "black" if i in [0, 5, 6, 7] else \
@@ -727,12 +726,12 @@ def plotSignals(pmaps, counter, datevector, ax0):
                             ax0.text(dt, cpos[i], mtext, color=fontclr, fontsize=9)
                 else:
                     ttspos, othpos, bbspos = cpos[0], cpos[1], cpos[-1]
-                    if tssval:
-                        symbolclr = "y." if tssstate == 0 else "rX" if tssval > 0 else "g^"
-                        fontclr = "black" if tssval > 0 else "green"
-                        ttspos = ymin if tssval < 0 else ymax
+                    if sval:
+                        symbolclr = "y." if sstate == 0 else "rX" if sval > 0 else "g^"
+                        fontclr = "black" if sval > 0 else "green"
+                        ttspos = ymin if sval < 0 else ymax
                         ax0.plot(dt, ttspos, symbolclr)
-                        ax0.text(dt, ttspos, str(tssval), color=fontclr, fontsize=9)
+                        ax0.text(dt, ttspos, str(sval), color=fontclr, fontsize=9)
                     '''
                     if bbsval:
                         ax0.plot(dt, bbspos, "bd")
