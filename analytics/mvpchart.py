@@ -702,21 +702,24 @@ def plotSignals(pmaps, counter, datevector, ax0):
                     if ilen > len(cpos):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
-                    if sval:
-                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 else "g^"
-                        fontclr = "black" if int(sval) > 0 else "green"
-                        ax0.plot(dt, spos[0], symbolclr, markersize=7)
-                        ax0.text(dt, spos[0], str(sval), color=fontclr, fontsize=9)
                     if nsig:
                         symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 else "g^"
                         fontclr = "black" if int(nsig) > 0 else "green"
-                        ax0.plot(dt, spos[1], symbolclr, markersize=7)
-                        ax0.text(dt, spos[1], str(nsig), color=fontclr, fontsize=9)
+                        if int(nsig) != 0:
+                            ax0.plot(dt, spos[0], symbolclr, markersize=7)
+                            ax0.text(dt, spos[0], str(nsig), color=fontclr, fontsize=9)
                     if psig:
                         symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 else "g^"
                         fontclr = "black" if int(psig) > 0 else "green"
-                        ax0.plot(dt, ymin, symbolclr, markersize=7)
-                        ax0.text(dt, ymin, str(psig), color=fontclr, fontsize=9)
+                        if int(psig) != 0:
+                            ax0.plot(dt, spos[1], symbolclr, markersize=7)
+                            ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
+                    if sval:
+                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 else "g^"
+                        fontclr = "black" if int(sval) > 0 else "green"
+                        if int(sval) != 0:
+                            ax0.plot(dt, ymin, symbolclr, markersize=7)
+                            ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         fontclr = "black" if i in [0, 8, 9, 10] else \
                             "brown" if i in [5, 6, 7] else \
@@ -1073,7 +1076,7 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         # columns, rows
         figsize = (10, 6) if showchart else (15, 9)
     else:
-        figsize = (10, 6) if showchart else (16, 10)
+        figsize = (12, 6) if showchart else (16, 10)
     fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
