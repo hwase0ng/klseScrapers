@@ -83,7 +83,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
     # tolerance, pdays, ndays, matchlevel)
     signalsss, label = "NUL,0.0,0.0.0.0", ""
     if sss or psig or nsig:
-        label = "TBD" if sss > 900 else "TSS" if sss > 0 else "RTR" if sstate > 0 else "BRV" if sss else "NUL"
+        label = "TBD" if sss > 900 else "TSS" if sss > 0 else "RTR" if sstate > 0 else "BRV" if sss < 0 else "NUL"
         signalsss = "%s,%d.%d,%d.%d.%d.%d" % (label, sss, sstate, nsig, nstate, psig, pstate)
 
     signals = "%s,%s,%s" % (counter, signalsss, signaldet)
@@ -182,7 +182,24 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 return tripleMPV
 
             def checkM():
-                plenM, nlenM, tripleM, narrowM = 0, 0, 0, 0
+                def narrowcount():
+                    narrowM = 0
+                    if plenM > 4 and nlenM > 4:
+                        lenm = plenM + 1 if plenM < nlenM else nlenM + 1
+                        for i in range(-1, -lenm, -1):
+                            if plistM[i] <= 10 and plistM[i] >= 5 and \
+                                    nlistM[i] <= 10 and nlistM[i] >= 5:
+                                # PADINI 2012-09-28
+                                # PETRONM 2015-10-07
+                                # YSPSAH 20116-12-23
+                                narrowM += 1
+                            else:
+                                break
+                        if narrowM < 5:
+                            narrowM = 0
+                    return narrowM
+
+                plenM, nlenM, tripleM = 0, 0, 0
                 if plistM is not None and nlistM is not None:
                     countM10, m10skip = 0, 0
                     plenM, nlenM = len(plistM), len(nlistM)
@@ -207,55 +224,58 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                         # if countM10 > 3:
                         #     tripleM = 9
 
-                    if plenM > 4 and nlenM > 4:
-                        lenm = plenM + 1 if plenM < nlenM else nlenM + 1
-                        for i in range(-1, -lenm, -1):
-                            if plistM[i] <= 10 and plistM[i] >= 5 and \
-                                    nlistM[i] <= 10 and nlistM[i] >= 5:
-                                # PADINI 2012-09-28
-                                # PETRONM 2015-10-07
-                                # YSPSAH 20116-12-23
-                                narrowM += 1
-                            else:
-                                break
-                        if narrowM < 5:
-                            narrowM = 0
+                    narrowM = narrowcount()
                 return plenM, nlenM, tripleM, narrowM
 
             def checkP():
-                plenP, nlenP, tripleP, narrowP, countP = 0, 0, 0, 0, 0
-                if plistP is not None and nlistP is not None:
+                def pnarrowcount():
                     p5 = False
-                    plenP, nlenP = len(plistP), len(nlistP)
-                    if plenP > 2:
-                        tripleP = triplecount(plistP, nlistP)
                     distanceP = maxP - minP
-                    lenp = plenP + 1 if plenP < nlenP else nlenP + 1
-                    for i in range(-1, -lenp, -1):
-                        dist = plistP[i] - nlistP[i]
-                        distp = (dist / distanceP) * 100
-                        if distp <= 15:
+                    pstart = -2 if ppeak else -1
+                    pnrange = []
+                    pnrange.append((plistP[pstart] - nlistP[-1]) / distanceP)
+                    pnrange.append((plistP[pstart] - nlistP[-2]) / distanceP)
+                    pnrange.append((plistP[pstart - 1] - nlistP[-2]) / distanceP)
+                    pnrange.append((plistP[pstart - 1] - nlistP[-3]) / distanceP)
+                    nrange1, nrange2, ncount = 0.20, 0.05, 0
+                    for i in range(len(pnrange)):
+                        if pnrange[i] <= nrange1:
+                            # MUDA 2013-04-30
                             # PADINI 2015-08-04
-                            narrowP += 1
-                            if distp <= 5:
+                            ncount += 1
+                            if pnrange[i] <= nrange2:
                                 # KLSE 2016-11-14
                                 p5 = True
                         else:
                             break
-                    if narrowP < 3 and not p5:
-                        narrowP = 0
+                    if ncount < 3 and not p5:
+                        ncount = 0
+                    return ncount
+
+                def countp():
+                    pcount = 0
                     if plistP[-1] < 0:
-                        countP = 1
+                        pcount = 1
                         if plenP > 1 and plistP[-2] < 0:
-                            countP = 2
+                            pcount = 2
                     elif nlistP[-1] > 0:
                         for i in range(-1, -lenp, -1):
                             if nlistP[i] >= 0:
-                                countP += 1
+                                pcount += 1
                             else:
                                 break
-                        if countP < 3:
-                            countP = 0
+                        if pcount < 3:
+                            pcount = 0
+                    return pcount
+
+                plenP, nlenP, tripleP, narrowP, countP = 0, 0, 0, 0, 0
+                if plistP is not None and nlistP is not None:
+                    plenP, nlenP = len(plistP), len(nlistP)
+                    lenp = plenP + 1 if plenP < nlenP else nlenP + 1
+                    if plenP > 2:
+                        tripleP = triplecount(plistP, nlistP)
+                        narrowP = pnarrowcount()
+                        countP = countp()
                 return plenP, nlenP, tripleP, narrowP, countP
 
             def checkV():
@@ -266,34 +286,6 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                         tripleV = triplecount(plistV, nlistV)
                 return plenV, nlenV, tripleV
 
-            def checkdiv():
-                def getdivdt(divlist):
-                    divdate = ""
-                    if divlist is not None and len(divlist):
-                        for k, v in divlist.iteritems():
-                            if "C" not in k:
-                                continue
-                            if v[-1] < -1:
-                                continue
-                            if v[0] > divdate:
-                                divdate = v[0]
-                    return divdate
-
-                cmpdiv = 0
-                pdate = getdivdt(pdiv)
-                ndate = getdivdt(ndiv)
-                if pdate == ndate:
-                    # KAWAN 2016-09-14
-                    pass
-                elif pdate > ndate:
-                    cmpdiv = 1 if "CP" in pdiv and "CM" in pdiv else \
-                        2 if "CP" in pdiv else 3 if "CM" in pdiv else 7 if "MP" in pdiv else 0
-                else:
-                    cmpdiv = 4 if "CP" in ndiv and "CM" in ndiv else \
-                        5 if "CP" in ndiv else 6 if "CM" in ndiv else 8 if "MP" in pdiv else 0
-                return cmpdiv
-
-            cmpdiv = checkdiv()
             c = 1 if newhighC else 2 if newlowC else 3 if topC else 4 if bottomC else 0
             m = 1 if newhighM else 2 if newlowM else 3 if topM else 4 if bottomM else 0
             p = 1 if newhighP else 2 if newlowP else 3 if topP else 4 if bottomP else 0
@@ -302,156 +294,229 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             plenM, nlenM, tripleM, narrowM = checkM()
             plenP, nlenP, tripleP, narrowP, countP = checkP()
             plenV, nlenV, tripleV = checkV()
-            return cmpdiv, c, m, p, v, tripleM, tripleP, tripleV, narrowM, narrowP, countP
+            return c, m, p, v, tripleM, tripleP, tripleV, narrowM, narrowP, countP, \
+                [plenM, nlenM, plenP, nlenP, plenV, nlenV]
 
-        def volatilityCheck():
-            minmax = maxC - minC
-            if maxC == lastC and lastC - nlistC[-1] > minmax / 2.2:
-                # VSTECS 2014-08-29 minmax=0.5653
-                return 0, 0
-            # YSPSAH 2017-02-21: [0.179, 0.035, 0.356, 0.125, 0.0302, 0.031]
-            lowvolatility1, lowvolatility2 = 0.25, 0.36
-            pstart = -2 if cpeak else -1
-            pnrange = []
-            pnrange.append((plistC[pstart] - nlistC[-1]) / minmax)
-            pnrange.append((plistC[pstart] - nlistC[-2]) / minmax)
-            pnrange.append((plistC[pstart - 1] - nlistC[-2]) / minmax)
-            pnrange.append((plistC[pstart - 1] - nlistC[-3]) / minmax)
-            if len(plistC) > abs(pstart - 1):
-                pnrange.append((plistC[pstart - 2] - nlistC[-3]) / minmax)
-                if len(nlistC) > 3:
-                    # KESM 2017-01-09
-                    pnrange.append((plistC[pstart - 2] - nlistC[-4]) / minmax)
-            averange = (pnrange[0] + pnrange[1]) / 2
-            tolerange = averange * 2
-            if tolerange < lowvolatility2:
-                tolerange = lowvolatility2
-            vcount, vcount2, alt = 0, 0, 0
-            for i in range(len(pnrange)):
-                if pnrange[i] <= lowvolatility1:
+        def narrowcount():
+            def volatilityCheck():
+                minmax = maxC - minC
+                if maxC == lastC and lastC - nlistC[-1] > minmax / 2.2:
+                    # VSTECS 2014-08-29 minmax=0.5653
+                    return 0, 0
+                # YSPSAH 2017-02-21: [0.179, 0.035, 0.356, 0.125, 0.0302, 0.031]
+                lowvolatility1, lowvolatility2 = 0.25, 0.36
+                pstart = -2 if cpeak else -1
+                pnrange = []
+                pnrange.append((plistC[pstart] - nlistC[-1]) / minmax)
+                pnrange.append((plistC[pstart] - nlistC[-2]) / minmax)
+                pnrange.append((plistC[pstart - 1] - nlistC[-2]) / minmax)
+                pnrange.append((plistC[pstart - 1] - nlistC[-3]) / minmax)
+                if len(plistC) > abs(pstart - 1):
+                    pnrange.append((plistC[pstart - 2] - nlistC[-3]) / minmax)
+                    if len(nlistC) > 3:
+                        # KESM 2017-01-09
+                        pnrange.append((plistC[pstart - 2] - nlistC[-4]) / minmax)
+                averange = (pnrange[0] + pnrange[1]) / 2
+                tolerange = averange * 2
+                if tolerange < lowvolatility2:
+                    tolerange = lowvolatility2
+                vcount, vcount2, alt = 0, 0, 0
+                for i in range(len(pnrange)):
+                    if pnrange[i] <= lowvolatility1:
+                        vcount += 1
+                    elif pnrange[i] < tolerange and pnrange[i] <= lowvolatility2:
+                        # KLSE 2017-01-09 pnrange: [0.198, 0.186, 0.333, 0.321, 0.225, 0.315]
+                        vcount2 += 0.3
+                    else:
+                        # KLSE 2013-01-28 <pnrange>: [0.125, 0.125, 0.0586, 0.309, 0.101, 0.684]
+                        break
+                if vcount2 > 0.5:
                     vcount += 1
-                elif pnrange[i] < tolerange and pnrange[i] <= lowvolatility2:
-                    # KLSE 2017-01-09 pnrange: [0.198, 0.186, 0.333, 0.321, 0.225, 0.315]
-                    vcount2 += 0.3
-                else:
-                    # KLSE 2013-01-28 <pnrange>: [0.125, 0.125, 0.0586, 0.309, 0.101, 0.684]
-                    break
-            if vcount2 > 0.5:
-                vcount += 1
-                alt = 1
-            return vcount, alt
+                    alt = 1
+                return vcount, alt
+
+            if newlowC:
+                return 0
+            ncount, alt = volatilityCheck()
+            if ncount < 4:
+                ncount = 0
+            elif ncount > 3:
+                # GHLSYS 2017-01-06
+                if alt:
+                    # KLSE 2017-01-09
+                    ncount = 1
+            if ncount:
+                pass
+            elif (newhighC or topC) and (prevbottomC or firstC == minC):
+                # PADINI 2012-09-28 beginning of tops reversal
+                ncount = 2
+                startc = plenC * -1
+                for i in range(startc, -1):
+                    if plistC[i] > lowbar:
+                        ncount = 0
+                        break
+            elif (firstC == maxC or plistC[0] == maxC) and plistC[-1] < lowbar:
+                # KAWAN 2013-05-14
+                # DUFU 2014-05-12
+                ncount = 4
+            elif plistC[0] == maxC or plistC[1] == maxC or firstC == maxC or \
+                    (plenC > 5 and plistC[2] == maxC):
+                ncount = 3
+                for i in range(-3, 0):
+                    if plistC[i] < lowbar:
+                        continue
+                    elif plistC[i] > lowbar2 and plistC[i] < midbar:
+                        ncount -= 1
+                    else:
+                        ncount = 0
+                        break
+                if ncount and ncount < 2:
+                    ncount = 0
+            return ncount
+
+        def bottomscount():
+            tripleBottoms = 0
+            if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
+                if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
+                    ''' --- lower peaks and higher valleys --- '''
+                    # KESM 2013-09-09
+                    # N2N 2014-01-30
+                    tripleBottoms = 1
+                elif nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3]:
+                    ''' --- lower peaks and lower valleys --- '''
+                    tripleBottoms = 2
+                    # PADINI 2014-02-05 newlowC, 2015-10-02
+                    # N2N 2017-08-28
+                    # DUFU 2011-10-12, 2012-04-10
+                    if nlenC > 3 and nlistC[-3] < nlistC[-4]:
+                        ''' --- lower peaks and lower valleys extension --- '''
+                        # DUFU 2018-06-13 retrace with valley follow by peak divergence
+                        # DANCO 2018-07-23
+                        # PETRONM 2014-04-25
+                        tripleBottoms = 3
+                elif nlenC > 3 and bottomC and \
+                        nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
+                    ''' --- lower peaks and lower valleys variant --- '''
+                    # DUFU 2011-10-12, 2012-04-10
+                    tripleBottoms = 4
+                elif nlenC > 3 and \
+                        nlistC[-1] < nlistC[-3] and nlistC[-1] < nlistC[-4] and \
+                        nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
+                    ''' --- lower peaks and lower valleys variant 2 --- '''
+                    # N2N 2017-08-30
+                    tripleBottoms = 5
+            return tripleBottoms
+
+        def topscount():
+            def alternateTops():
+                tops = 0
+                for i in range(-1, -5, -1):
+                    if plistC[i] > plistC[i - 1]:
+                        tops += 1
+                    elif plistC[i] > plistC[i - 2] and plistC[i] > plistC[i - 3]:
+                        tops += 1
+                    else:
+                        break
+                    if tops > 3:
+                        break
+                return tops
+
+            tripleTops = 0
+            if plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
+                    nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3] and \
+                    nlistC[-1] > maxC - range4 and posC > 2:
+                # KLSE 2013-03-06
+                tripleTops = 1
+
+            if not tripleTops and plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
+                    nlistC[-1] > nlistC[-2] and nlistC[-2] > nlistC[-3] and \
+                    lastC > nlistC[-1] and nlistC[-1] > plistC[-2] and nlistC[-2] > plistC[-3] and \
+                    (firstC < (maxC + minC) / 2 or
+                     (nlistC[0] == minC and plistC[0] < minC + (2 * range4))) and \
+                    plistC[-1] > maxC - range4 and \
+                    nlistC[0] < minC + range4:
+                # DUFU 2016-12-23
+                # KESM 2016-06-15 only works with chartdays > 500
+                tripleTops = 2
+
+            if not tripleTops and plenC > 5:
+                if alternateTops() > 3 and \
+                        (nlistC[-1] > nlistC[-2] or nlistC[-1] > nlistC[-3]):
+                    # VSTECS 2014-01-29
+                    tripleTops = 3
+
+            return tripleTops
 
         narrowC, tripleBottoms, tripleTops = 0, 0, 0
-        cmpdiv, c, m, p, v, tripleM, tripleP, tripleV, narrowM, narrowP, countP = tripleChecks()
+        c, m, p, v, tripleM, tripleP, tripleV, narrowM, narrowP, countP, mpvlen = tripleChecks()
         plenC, nlenC = 0, 0
         if plistC is None or nlistC is None:
             pass
         else:
             plenC, nlenC = len(plistC), len(nlistC)
             if plenC > 2 and nlenC > 2:
-                narrowC, alt = volatilityCheck()
-                if narrowC < 4:
-                    narrowC = 0
-                elif narrowC > 3:
-                    # GHLSYS 2017-01-06
-                    if alt:
-                        # KLSE 2017-01-09
-                        narrowC = 1
-                elif (newhighC or topC) and (prevbottomC or firstC == minC):
-                    # PADINI 2012-09-28 beginning of tops reversal
-                    narrowC = 1
-                    startc = plenC * -1
-                    for i in range(startc, -1):
-                        if plistC[i] > lowbar:
-                            narrowC = 0
-                            break
-                elif firstC == maxC and plistC[0] < midbar and plistC[-1] < lowbar:
-                    # DUFU 2014-05-12
-                    narrowC = 4
-                elif plistC[0] == maxC or plistC[1] == maxC or firstC == maxC or \
-                        (plenC > 5 and plistC[2] == maxC):
-                    narrowC = 3
-                    for i in range(-3, 0):
-                        if plistC[i] < lowbar:
-                            continue
-                        elif plistC[i] > lowbar2 and plistC[i] < midbar:
-                            narrowC -= 1
-                        else:
-                            narrowC = 0
-                            break
-                    if narrowC and narrowC < 2:
-                        narrowC = 0
-
-                if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
-                    if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
-                        ''' --- lower peaks and higher valleys --- '''
-                        # KESM 2013-09-09
-                        # N2N 2014-01-30
-                        tripleBottoms = 1
-                    elif nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3]:
-                        ''' --- lower peaks and lower valleys --- '''
-                        tripleBottoms = 2
-                        # PADINI 2014-02-05 newlowC, 2015-10-02
-                        # N2N 2017-08-28
-                        # DUFU 2011-10-12, 2012-04-10
-                        if nlenC > 3 and nlistC[-3] < nlistC[-4]:
-                            ''' --- lower peaks and lower valleys extension --- '''
-                            # DUFU 2018-06-13 retrace with valley follow by peak divergence
-                            # DANCO 2018-07-23
-                            # PETRONM 2014-04-25
-                            tripleBottoms = 3
-                    elif nlenC > 3 and bottomC and \
-                            nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
-                        ''' --- lower peaks and lower valleys variant --- '''
-                        # DUFU 2011-10-12, 2012-04-10
-                        tripleBottoms = 4
-                    elif nlenC > 3 and \
-                            nlistC[-1] < nlistC[-3] and nlistC[-1] < nlistC[-4] and \
-                            nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
-                        ''' --- lower peaks and lower valleys variant 2 --- '''
-                        # N2N 2017-08-30
-                        tripleBottoms = 5
-
-                if plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
-                        nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3] and \
-                        nlistC[-1] > maxC - range4 and posC > 2:
-                    tripleTops = 1
-
-                if plistC[-1] > plistC[-2] and plistC[-2] > plistC[-3] and \
-                        nlistC[-1] > nlistC[-2] and nlistC[-2] > nlistC[-3] and \
-                        lastC > nlistC[-1] and nlistC[-1] > plistC[-2] and nlistC[-2] > plistC[-3] and \
-                        (firstC < (maxC + minC) / 2 or
-                         (nlistC[0] == minC and plistC[0] < minC + (2 * range4))) and \
-                        plistC[-1] > maxC - range4 and \
-                        nlistC[0] < minC + range4:
-                    # DUFU 2016-12-23
-                    # KESM 2016-06-15 only works with chartdays > 500
-                    tripleTops = 2
-            elif plenC > 1:
+                narrowC = narrowcount()
+                tripleBottoms = bottomscount()
+                tripleTops = topscount()
+            elif plenC > 1 and not newlowC:
                 if firstC == maxC and plistC[0] < midbar and plistC[1] < lowbar:
-                    narrowC = 1
+                    narrowC = 9
 
         firstmp = mpdates["Mp"][-1] if "Mp" in mpdates else "1970-01-01"
         firstmn = mpdates["Mn"][-1] if "Mn" in mpdates else "1970-01-01"
         firstpp = mpdates["Pp"][-1] if "Pp" in mpdates else "1970-01-01"
         firstpn = mpdates["Pn"][-1] if "Pn" in mpdates else "1970-01-01"
 
-        return [cmpdiv, c, m, p, v, tripleM, tripleP, tripleV,
+        mpvlen.append(plenC)
+        mpvlen.append(nlenC)
+        return [c, m, p, v, tripleM, tripleP, tripleV,
                 narrowC, narrowM, narrowP, countP, tripleBottoms, tripleTops], \
-            [firstmp, firstmn, firstpp, firstpn]
+            [firstmp, firstmn, firstpp, firstpn], mpvlen
+
+    def checkdiv():
+        def getdivdt(divlist):
+            cdate, mpdate = "", ""
+            if divlist is not None and len(divlist):
+                for k, v in divlist.iteritems():
+                    if v[-1] < -1:
+                        continue
+                    if "C" not in k:
+                        if v[0] > mpdate:
+                            mpdate = v[0]
+                    elif v[0] > cdate:
+                        cdate = v[0]
+            return cdate, mpdate
+
+        def mpislater():
+            cdate = pdateC if pdateC > ndateC else ndateC
+            mpdate = pdateMP if pdateMP > ndateMP else ndateMP
+            return cdate < mpdate
+
+        cmpdiv, mpdiv = 0, 0
+        pdateC, pdateMP = getdivdt(pdiv)
+        ndateC, ndateMP = getdivdt(ndiv)
+        mpnow = mpislater()
+        if mpnow:
+            mpdiv = 7 if pdateMP > ndateMP else 8
+        if pdateC == ndateC:
+            # KAWAN 2016-09-14
+            pass
+        elif pdateC > ndateC:
+            cmpdiv = 1 if "CP" in pdiv and "CM" in pdiv else \
+                2 if "CP" in pdiv else 3 if "CM" in pdiv else 7 if "MP" in pdiv else 0
+        else:
+            cmpdiv = 4 if "CP" in ndiv and "CM" in ndiv else \
+                5 if "CP" in ndiv else 6 if "CM" in ndiv else 8 if "MP" in pdiv else 0
+        return cmpdiv, mpdiv, mpnow
 
     def evalNarrowC():
-        ssig, sstate = 0, 0
-        if narrowC > 3 and (bottomP or
-                            (cmpdiv in [4, 5] and
-                             ((nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]) or
-                              (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3])) or
-                             (tripleM in p3u or tripleP in p3u))):
+        def common_narrows():
+            ssig, sstate = 0, 0
             if topM and nlistP[-1] > 0:
                 # N2N 2011-11-08
                 # PETRONM 2014-02-20
                 ssig, sstate = -1, 3
-            elif newhighM and tripleM in [4, 5, 6]:
+            elif newhighM and tripleM in p3d:
                 # DUFU 2012-04-02 with narrowM
                 ssig, sstate = 1, 0
             elif narrowM:
@@ -464,8 +529,9 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                         # GHLSYS 2017-02-03
                         sstate = 2
                 elif nlistM[-1] > 5:
-                    # DANCO 2018-07-20
+                    # VSTECS 2014-03-10
                     # YSPSAH 2017-02-21
+                    # DANCO 2018-07-20
                     sstate = 2
                 else:
                     ssig, sstate = 901, 1
@@ -503,10 +569,10 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 else:
                     # GHLSYS 2018-03-06
                     ssig, sstate = 1, 1
-            elif tripleP in n3u and cmpdiv in [4, 5, 6]:
+            elif tripleP in n3u and cmpdiv in valleybull:
                 # DANCO 2018-07-11
                 ssig, sstate = -1, 9
-            elif newhighC and cmpdiv in [4, 5, 6]:
+            elif newhighC and cmpdiv in valleybull:
                 # MAGNI 2017-01-26
                 ssig, sstate = -1, 10
             else:
@@ -520,111 +586,178 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     # DUFU 2012-01-16
                     # MAGNI 2018-08-02
                     sstate = 3
-        elif narrowC == 1:
-            if narrowM:
-                # VSTECS 2014-03-10
-                ssig, sstate = -1, 11
-            elif nlistM[-1] > 5 and nlistP[-1] >= 0:
-                # KLSE 2017-01-09
-                ssig, sstate = -1, 12
-            elif newhighC and cmpdiv in [4, 5, 6]:
-                ssig, sstate = -1, 13
+            return ssig, sstate
+
+        ssig, sstate = 0, 0
+        if narrowC > 3 and (bottomP or
+                            (cmpdiv in [4, 5] and
+                             ((nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]) or
+                              (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3])) or
+                             (tripleM in p3u or tripleP in p3u))):
+            ssig, sstate = common_narrows()
+        elif narrowC > 0:
+            if nlistM[-1] > 5 and nlistP[-1] > 0:
+                if nlenM > 2 and (nlistM[-2] < 5 or nlistM[-3] < 5) and \
+                        nlenP > 2 and (nlistP[-2] < 0 or nlistP[-3] < 0):
+                    # KLSE 2017-01-09
+                    ssig, sstate = -1, 12
+                else:
+                    # DUFU 2013-02-18
+                    ssig, sstate = 1, 12
             else:
-                ssig, sstate = 1, 4
-        elif narrowC == 3:
-            ssig, sstate = 901, 6
+                ssig, sstate = common_narrows()
 
         return ssig, sstate
 
     def evalsignals():
         def evalnegatives():
             nsignals = []
-            if newlowC and cpeak:
-                nsignals.append("1")
-            else:
-                nsignals.append("0")
-            if cmpdiv in [1, 2, 3]:
-                nsignals.append("1")
-            else:
-                nsignals.append("0")
-            if tripleM in n3u and lastM < nlistM[-1]:
-                nsignals.append("1")
-            else:
-                nsignals.append("0")
-            if tripleP in n3u and lastP < nlistP[-1]:
-                nsignals.append("1")
-            else:
-                nsignals.append("0")
-            if cmpdiv == 7:
-                nsignals.append("1")
-            else:
-                nsignals.append("0")
+            sig = "1" if newlowC or (bottomC and cpeak and plistM[-1] < lowbar) else "0"
+            nsignals.append(sig)
+            sig = "1" if cmpdiv in peakbear else "0"
+            nsignals.append(sig)
+            sig = "1" if tripleM in n3u and lastM < nlistM[-1] else "0"
+            nsignals.append(sig)
+            sig = "1" if tripleP in n3u and lastP < nlistP[-1] else "0"
+            nsignals.append(sig)
+            sig = "1" if cmpdiv == 7 or mpdiv == 7 else "0"
+            nsignals.append(sig)
+            sig = "1" if countP > 3 else "0"
+            nsignals.append(sig)
+            sig = "1" if plenM > 3 and plenP > 3 and \
+                plistM[-1] > plistM[-2] and plistP[-1] < plistP[-2] and \
+                ((plistM[-2] < plistM[-3] or plistM[-2] < plistM[-4]) and
+                 (plistP[-2] > plistP[-3] and plistP[-2] > plistP[-4])) else "0"
+            # DUFU 2013-04-05 bearish
+            # VSTECTS 2013-03-04 bullish
+            nsignals.append(sig)
             return nsignals
 
         def evalpostives():
             psignals = []
-            if newhighC and not cpeak:
-                psignals.append("1")
-            else:
-                psignals.append("0")
-            if cmpdiv in [4, 5, 6]:
-                psignals.append("1")
-            else:
-                psignals.append("0")
-            if tripleM in n3u and lastM > nlistM[-1]:
-                psignals.append("1")
-            else:
-                psignals.append("0")
-            if tripleP in n3u and lastP > nlistP[-1]:
-                psignals.append("1")
-            else:
-                psignals.append("0")
-            if cmpdiv == 8:
-                psignals.append("1")
-            else:
-                psignals.append("0")
+            sig = "1" if newhighC or (topC and not cpeak and nlistM[-1] > highbar) else "0"
+            psignals.append(sig)
+            sig = "1" if cmpdiv in valleybull else "0"
+            psignals.append(sig)
+            sig = "1" if tripleM in n3u and lastM > nlistM[-1] else "0"
+            psignals.append(sig)
+            sig = "1" if tripleP in n3u and lastP > nlistP[-1] else "0"
+            psignals.append(sig)
+            sig = "1" if cmpdiv == 8 or mpdiv == 8 else "0"
+            psignals.append(sig)
+            sig = "1" if countP > 0 and countP < 4 else "0"
+            psignals.append(sig)
+            sig = "1" if nlenM > 3 and nlenP > 3 and \
+                nlistM[-1] < nlistM[-2] and nlistP[-1] > nlistP[-2] and \
+                ((nlistM[-2] > nlistM[-3] or nlistM[-2] > nlistM[-4]) and
+                 (nlistP[-2] < nlistP[-3] and nlistP[-2] < nlistP[-4])) else "0"
+            # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
+            psignals.append(sig)
             return psignals
 
         psig, pstate, nsig, nstate = 0, 0, 0, 0
-        highC, cdiv, n3uM, n3uP, mpdiv = 0, 1, 2, 3, 4
+        lowhighC, divC, n3uM, n3uP, divMP, pcnt, updownDiv = 0, 1, 2, 3, 4, 5, 6
         nsignals = evalnegatives()
         psignals = evalpostives()
         if "1" in nsignals:
-            nsig = 9
-            nstate = 0 if "1" in nsignals[mpdiv] else 1
-            if plistM[-1] > 10:
-                if lastM < 7:
-                    if lastC > plistC[-1] and lastC > plistC[-2]:
-                        # KAWAN 2015-05-13
-                        # DANCO 2018-10-31
-                        nsig, nstate = -9, 0
-                    else:
-                        nsig, nstate = 9, 0
-            elif plistM[-2] > 10:
-                if nlistM[-1] > 5 and nlistM[-1] < 7:
-                    nsig, nstate = -9, 2
+            if int(nsignals[updownDiv]):
+                # DUFU 2013-04-05 bearish
+                # VSTECTS 2013-03-04 bullish
+                nsig = -1 if plistM[-1] < 10 and nlistP[-1] < 0 else 1
+                nstate = 1
+            elif not mpeak or not ppeak:
+                nsig = 2
+                if plistM[-1] > 10:
+                    if lastM < 7:
+                        if lastC > plistC[-1] and lastC > plistC[-2]:
+                            # KAWAN 2015-05-13
+                            # DANCO 2018-10-31
+                            nsig, nstate = -2, 0
+                        else:
+                            nsig, nstate = 2, 0
+                elif len(plistM) > 1 and plistM[-2] > 10:
+                    if nlistM[-1] > 5 and nlistM[-1] < 7:
+                        if nlistM[-2] > 5 and nlistM[-2] < 7:
+                            # MUDA 2013-07-30
+                            nsig, nstate = 2, 1
+                        else:
+                            nsig, nstate = -2, 1
+                elif len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
+                    nstate = 0
+                elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
+                    nstate = 0
+            else:
+                nsig = 3 if cpeak else -3
+                nstate = 1 if cpeak or mpeak or ppeak else 0
+
+            if nsig > 0 and nstate > 0 and not (mpeak or ppeak):
+                if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
+                    nstate = 0
+                elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
+                    nstate = 0
+            elif nsig < 0 and nstate and (cpeak or mpeak or ppeak):
+                nstate = 0
+
         if "1" in psignals:
-            if not mpeak and plistM[-1] > 10:
+            if nsignals[lowhighC] == "1" and not (mpeak and ppeak):
+                if nlistP[-1] < 0 or cpeak:
+                    psig, pstate = 1, 0
+                else:
+                    # MUDA 2013-03-12
+                    psig, pstate = -1, 1
+            elif psignals[pcnt] == "1":
+                if countP < 3:
+                    if plistM[-1] < 10 and plistM[-2] < 10:
+                        psig, pstate = 2, 1
+                    else:
+                        psig, pstate = -2, 1
+                else:
+                    psig, pstate = -2, 2
+            elif not mpeak and plistM[-1] > 10:
                 if nlistM[-1] > 5:
                     if nlistM[-1] < 7:
-                        psig, pstate = -8, 0
+                        psig, pstate = -3, 0
                     else:
-                        psig, pstate = 8, 1
+                        psig, pstate = 3, 1
             elif psignals[n3uP] == "1":
                 if lastP < plistP[-1]:
-                    psig, pstate = -8, 0
+                    psig, pstate = -4, 0
                 elif lastP > plistP[-1] and lastC < plistC[-1]:
-                    psig, pstate = 8, 2
+                    psig, pstate = 4, 1
                 else:
-                    psig, pstate = -8, 3
+                    psig, pstate = -4, 2
+            elif psignals[divC] == "1" and nsignals[divMP] == "1":
+                psig, pstate = 5, 0
+            elif psignals[divMP] == "1":
+                if cpeak and nsignals[divC] == "1":
+                    # MUDA 2012-05-15
+                    psig, pstate = 6, 1
+                else:
+                    psig, pstate = -6, 0
+            elif topC and prevbottomC:
+                psig, pstate = 7, 0
+            if int(psignals[updownDiv]):
+                psig = -8 if plistM[-1] >= 10 and nlistP[-1] >= 0 else 8
+                # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
+                pstate = -1
             else:
-                psig = -8
-                pstate = 0 if "1" in psignals[mpdiv] else 1
+                psig = 9 if cpeak else -9
+                # pstate = 0 if "1" in psignals[divMP] else 1
+                nstate = 1 if cpeak or mpeak or ppeak else 0
+
+            if psig > 0 and pstate > 0 and not (mpeak or ppeak):
+                if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
+                    pstate = 0
+                elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
+                    pstate = 0
+            elif psig < 0 and pstate and (cpeak or mpeak or ppeak):
+                pstate = 0
+
         return psig, pstate, nsig, nstate, nsignals, psignals
 
     # ------------------------- START ------------------------- #
 
-    ssig, sstate = 0, 0
+    ssig, sstate, psig, pstate, nsig, nstate, neglist, poslist = 0, 0, 0, 0, 0, 0, "", ""
     # [tolerance, pdays, ndays, matchlevel] = matchdate
     [pdiv, ndiv, _, mpdates] = div
     '''
@@ -667,7 +800,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
     narrowC, narrowM, narrowP, countP, tripleM, tripleP, tripleV, tripleBottoms, tripleTops = \
         0, 0, 0, 0, 0, 0, 0, 0, 0
-    p1, p2, negstr, posstr = None, None, "", ""
+    p1, p2, mpdiv, negstr, posstr = None, None, 0, "", ""
     '''
               Nx   N^   Nv
         P^    1    2    3
@@ -675,15 +808,19 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         Px    X    7    8
     '''
     p3u, p3d, n3u, n3d = [1, 2, 3], [4, 5, 6], [2, 5, 7], [3, 6, 8]
+    peakbear, valleybull = [1, 2, 3], [4, 5, 6]
     cpeak, mpeak, ppeak, vpeak = ispeak(0), ispeak(1), ispeak(2), ispeak(3)
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
     else:
         nosignal = False
-        p1, p2 = patternsDiscovery()
-        [cmpdiv, c, m, p, v, tripleM, tripleP, tripleV,
-         narrowC, narrowM, narrowP, countP, tripleBottoms, tripleTops] = p1
+        cmpdiv, mpdiv, mpnow = checkdiv()
+        p0, p2, cmpvlen = patternsDiscovery()
+        p1 = [cmpdiv] + p0
+        [c, m, p, v, tripleM, tripleP, tripleV,
+         narrowC, narrowM, narrowP, countP, tripleBottoms, tripleTops] = p0
         [firstmp, firstmn, firstpp, firstpn] = p2
+        [plenM, nlenM, plenP, nlenP, plenV, nlenV, plenC, nlenC] = cmpvlen
 
     if nosignal:   # or DBGMODE == 3:
         pass
@@ -691,44 +828,17 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         psig, pstate, nsig, nstate, neglist, poslist = evalsignals()
         negstr = "".join(neglist)
         posstr = "".join(poslist)
-        if narrowC:
+        if newlowC:
+            ssig, sstate = 9, 9
+        elif narrowC:
             ssig, sstate = evalNarrowC()
-        elif newhighC or topC:
-            ssig = 1
-            if tripleP in [-1, -2, -3]:
-                # KLSE 2014-05-05
-                sstate = 1
-                if newhighV or topV or cmpdiv in [1, 2, 3]:
-                    # KLSE 2014-06-02
-                    sstate = 2
-            elif tripleP in p3u and topV and newlowV:
-                # YSPSAH 2018-11-05
-                sstate = 3
-            else:
-                if newhighM or newhighP or topM or topP:
-                    # KLSE 2013-07-29
-                    # VSTECS 2014-08-29
-                    sstate = 4
-                elif cmpdiv in [1, 2, 3]:
-                    sstate = -1
-                if plistP[-1] > 0 and lastP < 0:
-                    # KLSE 2013-09-02
-                    sstate = -2
-        elif posC == 2 and narrowM:
-            ssig = -2
-            if newlowP or newhighV:
-                sstate = 1
-            elif bottomP or newlowV:
-                sstate = 2
-        elif not topC and posC == 3 and narrowM:
-            ssig = 2
-            if tripleM in [-1, -2, -3] or tripleP in [4, 5, 6]:
-                # KLSE 2015-04-30
-                sstate = 1
         elif plistP is not None and len(plistP) > 3 and tripleM == 9:
             # 3 consecutive M above 10 - powerful break out / bottom reversal signal
-            ssig = -1
-            if plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
+            ssig = -2
+            if nlistM[-1] < 0:
+                # AXREIT 2017-10-17
+                ssig, sstate = 2, 1
+            elif plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
                 # MAGNI 2013-03-01 top retrace with CM and CP valley divergence follow by break out
                 sstate = 1
             # elif posC < 2:
@@ -736,15 +846,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 # DUFU 2014-05-05, 2014-06-04 (plistP[-1] < 0) bottom break out
                 # DUFU 2014-09-10 (5 plistM vs 4 plistP)
             else:
-                pdate, ndate = "", ""
-                if len(ndiv):
-                    pdate = mpPdate
-                    if "CP" in ndiv:
-                        ndate = cpNdate
-                    elif "CM" in ndiv:
-                        ndate = cmNdate
                 if topC or topM:
-                    if pdate > ndate:
+                    if mpeak:
                         # DUFU 2014-09-03 retracing
                         sstate = 0
                     else:
@@ -754,24 +857,28 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 elif not newlowC:
                     # YSPSAH 2013-04-29
                     sstate = 3
-                elif pdate > ndate or lastM < 0:
+                elif mpeak or lastM < 0:
                     # ABLEGRP 2018-12-21
-                    ssig = 1
-                    sstate = 1
+                    ssig = 2
+                    sstate = 2
                 else:
                     sstate = 0
                 # sstate = 2 if "CM" in ndiv or "CP" in ndiv else 1
         elif tripleTops:
-            if tripleM in [-1, -2, -3] and tripleP in [-1, -2, -3] and tripleV in [-1, -2, -3] and \
+            if tripleM in p3d and tripleP in p3d and tripleV in p3d and \
                     len(nlistV) > 1 and nlistV[-1] > nlistV[-2] and \
                     plistM[-1] > 5 and plistP[-1] > 0:
                 # KLSE 2013-03-20
-                ssig = -2
+                ssig = -3
             elif newhighV:
                 # KLSE 2018-05-07
-                ssig = 2
+                ssig = 3
+            elif ((bottomM and newhighM) or
+                  (topM and prevbottomM)) and not newhighP:
+                # MUDA 2014-08-05, 2014-08-12
+                ssig = 3
             else:
-                ssig = -2
+                ssig = -3
             sstate = 1
         elif tripleBottoms:
             if posC > 1:
@@ -802,6 +909,41 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 else:
                     # PETRONM 2014-04-25
                     sstate = 2
+        elif posC == 2 and narrowM:
+            ssig, sstate = -5, 1
+            if newlowP or newhighV:
+                sstate = 2
+            elif bottomP or newlowV:
+                sstate = 3
+        elif not topC and posC == 3 and narrowM:
+            ssig = 6
+            if tripleM in p3d or tripleP in n3u:
+                # KLSE 2015-04-30
+                sstate = 1
+        elif newhighC or topC:
+            ssig = 7
+            if countP == 3:
+                # MUDA 2014-02-04
+                ssig, sstate = -7, 1
+            elif tripleP in p3d:
+                # KLSE 2014-05-05
+                sstate = 1
+                if newhighV or topV or cmpdiv in peakbear:
+                    # KLSE 2014-06-02
+                    sstate = 2
+            elif tripleP in p3u and topV and newlowV:
+                # YSPSAH 2018-11-05
+                sstate = 3
+            else:
+                if newhighM or newhighP or topM or topP:
+                    # KLSE 2013-07-29
+                    # VSTECS 2014-08-29
+                    sstate = 4
+                elif cmpdiv in peakbear:
+                    sstate = -1
+                if plistP[-1] > 0 and lastP < 0:
+                    # KLSE 2013-09-02
+                    sstate = -2
 
     '''
     elif newhighC or topC:
@@ -954,6 +1096,9 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             # 3 consecutive M above 10 - powerful break out / bottom reversal signal
             ssig = -21
             sstate = 1
+            if nlistM[-1] < 0:
+                # AXREIT 2017-10-17
+                ssig, sstate = 21, 1
         elif tripleBottoms:
             ssig = -22
             if tripleBottoms == 1:
@@ -1003,6 +1148,14 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         if sstate > 0:
             sstate *= -1
     '''
+
+    if ssig > 0 and sstate > 0 and not (mpeak or ppeak):
+        if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
+            sstate = 0
+        elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
+            sstate = 0
+    elif ssig < 0 and sstate and (cpeak or mpeak or ppeak):
+        sstate = 0
 
     return ssig, sstate, psig, pstate, nsig, nstate, p1, negstr, posstr
 
@@ -1206,7 +1359,7 @@ def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, od
 
 
 def checkposition(pntype, pnlist, firstpos, lastpos):
-    clist, profiling, snapshot = "", "", ""
+    profiling, snapshot = "", ""
     pos, newlow, newhigh, bottom, top, prevbottom, prevtop = \
         0, 0, False, False, False, False, False
     if len(pnlist) > 6 and pntype == 'C':
