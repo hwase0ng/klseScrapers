@@ -702,24 +702,21 @@ def plotSignals(pmaps, counter, datevector, ax0):
                     if ilen > len(cpos):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
-                    if nsig:
-                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 else "g^"
+                    if int(nsig) != 0:
+                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 and int(nstate) > 0 else "g^"
                         fontclr = "black" if int(nsig) > 0 else "green"
-                        if int(nsig) != 0:
-                            ax0.plot(dt, spos[0], symbolclr, markersize=7)
-                            ax0.text(dt, spos[0], str(nsig), color=fontclr, fontsize=9)
-                    if psig:
-                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 else "g^"
+                        ax0.plot(dt, spos[0], symbolclr, markersize=7)
+                        ax0.text(dt, spos[0], str(nsig), color=fontclr, fontsize=9)
+                    if int(psig) != 0:
+                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 and int(pstate) > 0 else "g^"
                         fontclr = "black" if int(psig) > 0 else "green"
-                        if int(psig) != 0:
-                            ax0.plot(dt, spos[1], symbolclr, markersize=7)
-                            ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
-                    if sval:
-                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 else "g^"
+                        ax0.plot(dt, spos[1], symbolclr, markersize=7)
+                        ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
+                    if int(sval) != 0:
+                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 and int(sstate) > 0 else "g^"
                         fontclr = "black" if int(sval) > 0 else "green"
-                        if int(sval) != 0:
-                            ax0.plot(dt, ymin, symbolclr, markersize=7)
-                            ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
+                        ax0.plot(dt, ymin, symbolclr, markersize=7)
+                        ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         fontclr = "black" if i in [0, 8, 9, 10] else \
                             "brown" if i in [5, 6, 7] else \
