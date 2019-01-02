@@ -5,12 +5,23 @@ mpvdir=$datadir/mpv
 signaldir=$mpvdir/signals
 re='^[0-9]+$'
 
+# Regular divergence                   Hidden divergence:
+#   Bias,     Price,       Oscillator      Bias,     Price,       Oscillator
+#   ----------------------------------    -----------------------------------
+#   Bullish,  Lower Low,   Higher Low      Bullish,  Higher Low,  Lower Low
+#   Bearish,  Higher High, Lower High      Bearish,  Lower High,  Higher High
+#
+#  i.e. PEAK divergence = Bearish, VALLEY divergence = BULLISH
+#
 #        Nx   N^   Nv
 #  P^    1    2    3
 #  Pv    4    5    6
 #  Px    X    7    8
 # p3u=1,2,3 p3d=,4,5,6, n3u=2,5,7, n3d=3,6,8
-cmpdiv=14   # 1,2,3=CP+CM,CP,CM in pdiv; 4,5,6=same in ndiv
+ss=4
+ns=6
+ps=8
+cmpdiv=14   # 1,2,3=CP+CM,CP,CM in pdiv (PEAK divergence); 4,5,6=same in ndiv (VALLEY)
 c=15
 m=16
 p=17
