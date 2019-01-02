@@ -22,7 +22,7 @@ ss=4
 ns=6
 ps=8
 cmpdiv=14   # 1,2,3=CP+CM,CP,CM in pdiv (PEAK divergence); 4,5,6=same in ndiv (VALLEY)
-c=15
+c=15		# hltb = ['0', 'h', 'l', 't', 'b']
 m=16
 p=17
 v=18

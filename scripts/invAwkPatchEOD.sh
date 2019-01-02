@@ -1,4 +1,4 @@
-COUNTER=$1
+COUNTER=`echo $1 | tr '[:lower:]' '[:upper:]'`
 SRCDIR=/c/git/klseScrapers
 INDATA=$SRCDIR/data
 OUTDATA=/z/data
