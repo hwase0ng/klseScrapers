@@ -77,7 +77,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
         [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = patterns
     lastprice = lastTrxnData[1]
     signaldet = "(c%s.m%s.p%s.v%s),(%d.%d.%d.%d.%d^%d.%d.%d^%d.%d.%d^%d.%d.%d),(%s^%s),%.2f" % \
-        (strC, strM, strP, strV,
+        (strC[:1], strM[:1], strP[:1], strV[:1],
          p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14,
          neglist, poslist, lastprice)
     # tolerance, pdays, ndays, matchlevel)
@@ -209,17 +209,14 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                             if plistM[i] >= 10:
                                 countM10 += 1
                             else:
-                                break
-                                '''
+                                # ??? 2011-05 variant with one M lower than 10 in the middle
                                 m10skip += 1
-                                if m10skip > 3:
+                                if m10skip > 1:
                                     break
-                                '''
                     if countM10 > 2:
                         # DUFU 2014-11-21 retrace completed
                         # UCREST 2017-08-02 topM valley divergence
                         # YSPSAH 2013-04-29
-                        # PADINI 2011-05 variant with one M lower than 10 in the middle
                         tripleM = 9
                         # if countM10 > 3:
                         #     tripleM = 9
@@ -272,7 +269,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 if plistP is not None and nlistP is not None:
                     plenP, nlenP = len(plistP), len(nlistP)
                     lenp = plenP + 1 if plenP < nlenP else nlenP + 1
-                    if plenP > 2:
+                    if plenP > 3:
                         tripleP = triplecount(plistP, nlistP)
                         narrowP = pnarrowcount()
                         countP = countp()
@@ -513,25 +510,25 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         def common_narrows():
             ssig, sstate = 0, 0
             if topM and nlistP[-1] > 0:
-                # N2N 2011-11-08
-                # PETRONM 2014-02-20
+                # 2011-11-08 N2N
+                # 2014-02-20 PETRONM
                 ssig, sstate = -1, 3
             elif newhighM and tripleM in p3d:
-                # DUFU 2012-04-02 with narrowM
+                # 2012-04-02 DUFU with narrowM
                 ssig, sstate = 1, 0
             elif narrowM:
                 ssig = -1
                 if nlistP[-1] >= 0:
-                    # KLSE 2013-03-25
+                    # 2013-03-25 KLSE
                     sstate = 1
                     if nlistM[-1] > 5:
-                        # KESM 2013-09-06
-                        # GHLSYS 2017-02-03
+                        # 2013-09-06 KESM
+                        # 2017-02-03 GHLSYS
                         sstate = 2
                 elif nlistM[-1] > 5:
-                    # VSTECS 2014-03-10
-                    # YSPSAH 2017-02-21
-                    # DANCO 2018-07-20
+                    # 2014-03-10 VSTECS
+                    # 2017-02-21 YSPSAH
+                    # 2018-07-20 DANCO
                     sstate = 2
                 else:
                     ssig, sstate = 901, 1
@@ -541,50 +538,56 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 # PADINI 2014-03-05 short rebound
                 ssig, sstate = -1, 0
             elif bottomP:
-                # PADINI 2013-05-29 oversold (could not reach here due to cmpdiv == 1
+                # 2013-05-29 PADINI oversold (could not reach here due to cmpdiv == 1
                 ssig, sstate = -1, 0
             elif nlistM[-1] > 10 and nlistP[-1] > 0:
-                # PADINI 2013-05-29 20% short push before top reversal
+                # 2013-05-29 PADINI 20% short push before top reversal
                 ssig, sstate = 1, -1
             elif tripleM in p3u and nlistP[-1] >= 0:
                 if newhighM and posC < 2:
-                    # PETRONM 2013-03-21
+                    # 2013-03-21 PETRONM
                     ssig, sstate = -1, 4
                 elif posC > 2:
-                    # SCGM 2017-02-08
+                    # 2017-02-08 SCGM
                     ssig, sstate = -1, 5
+                else:
+                    ssig, sstate = -1, 6
+                    if topV and plistP[-1] < plistP[-2]:
+                        # 2012-08-02 ORNA
+                        ssig, sstate = -1, 7
             elif tripleP in p3u and nlistP[-1] > 0 and plistM[-1] > 10 and nlistM[-1] < 5:
                 if plistM[-1] > 10:
-                    # SCGM 2013-06-05
+                    # 2013-06-05 SCGM
                     ssig, sstate = -1, 6
                 else:
                     ssig, sstate = 901, 2
             elif tripleM in [2, 4, 5, 6, 7] and nlistM[-1] > 5:
                 if nlistP[-1] > 0:
-                    # GHLSYS 2016-12-27
+                    # 2016-12-27 GHLSYS
                     ssig, sstate = -1, 7
                 elif lastM > plistM[-1]:
-                    # MAGNI 2016-08-25 Strong reversal after short retrace (p=-0.057)
+                    # 2016-08-25 MAGNI Strong reversal after short retrace (p=-0.057)
+                    # 2013-07-04 ORNA
                     ssig, sstate = -1, 8
                 else:
-                    # GHLSYS 2018-03-06
+                    # 2018-03-06 GHLSYS
                     ssig, sstate = 1, 1
             elif tripleP in n3u and cmpdiv in valleybull:
-                # DANCO 2018-07-11
+                # 2018-07-11 DANCO
                 ssig, sstate = -1, 9
             elif newhighC and cmpdiv in valleybull:
-                # MAGNI 2017-01-26
+                # 2017-01-26 MAGNI
                 ssig, sstate = -1, 10
             else:
                 ssig = 1
                 if (newhighM or topM) and posC < 2:
-                    # SUPERLN 2018-11-11
+                    # 2018-11-11 SUPERLN
                     sstate = 2
                 if (newhighP or topP) and posC < 2:
                     ssig, sstate = 901, 4
                 else:
-                    # DUFU 2012-01-16
-                    # MAGNI 2018-08-02
+                    # 2012-01-16 DUFU
+                    # 2018-08-02 MAGNI
                     sstate = 3
             return ssig, sstate
 
@@ -599,10 +602,10 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             if nlistM[-1] > 5 and nlistP[-1] > 0:
                 if nlenM > 2 and (nlistM[-2] < 5 or nlistM[-3] < 5) and \
                         nlenP > 2 and (nlistP[-2] < 0 or nlistP[-3] < 0):
-                    # KLSE 2017-01-09
+                    # 2017-01-09 KLSE
                     ssig, sstate = -1, 12
                 else:
-                    # DUFU 2013-02-18
+                    # 2013-02-18 DUFU
                     ssig, sstate = 1, 12
             else:
                 ssig, sstate = common_narrows()
@@ -612,7 +615,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     def evalsignals():
         def evalnegatives():
             nsignals = []
-            sig = "1" if newlowC or (bottomC and cpeak and plistM[-1] < lowbar) else "0"
+            sig = "1" if newlowC or (bottomC and cpeak and plistC[-1] < lowbar) else "0"
             nsignals.append(sig)
             sig = "1" if cmpdiv in peakbear else "0"
             nsignals.append(sig)
@@ -635,7 +638,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
         def evalpostives():
             psignals = []
-            sig = "1" if newhighC or (topC and not cpeak and nlistM[-1] > highbar) else "0"
+            sig = "1" if newhighC or (topC and not cpeak and nlistC[-1] > highbar) else "0"
             psignals.append(sig)
             sig = "1" if cmpdiv in valleybull else "0"
             psignals.append(sig)
@@ -653,18 +656,21 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                  (nlistP[-2] < nlistP[-3] and nlistP[-2] < nlistP[-4])) else "0"
             # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
             psignals.append(sig)
+            sig = "1" if len(plistM) > 1 and not mpeak and nlistM[-1] > plistM[-2] else "0"
+            psignals.append(sig)
             return psignals
 
         psig, pstate, nsig, nstate = 0, 0, 0, 0
-        lowhighC, divC, n3uM, n3uP, divMP, pcnt, updownDiv = 0, 1, 2, 3, 4, 5, 6
+        lowhighC, divC, n3uM, n3uP, divMP, pcnt, updownDiv, higherM = 0, 1, 2, 3, 4, 5, 6, 7
         nsignals = evalnegatives()
         psignals = evalpostives()
         if "1" in nsignals:
             if int(nsignals[updownDiv]):
                 # DUFU 2013-04-05 bearish
                 # VSTECTS 2013-03-04 bullish
+                # SCGM 2012-01-20 bottomC bullish nlistM[-1] > plistM[-2]
                 nsig = -1 if plistM[-1] < 10 and nlistP[-1] < 0 else 1
-                nstate = 1
+                nstate = -1 if posC < 2 else 1
             elif not mpeak or not ppeak:
                 nsig = 2
                 if plistM[-1] > 10:
@@ -688,7 +694,10 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     nstate = 0
             else:
                 nsig = 3 if cpeak else -3
-                nstate = 1 if cpeak or mpeak or ppeak else 0
+                if "1" not in psignals and int(nsignals[divC]):
+                    nstate = 2
+                else:
+                    nstate = 0 if cpeak or mpeak or ppeak else 1
 
             if nsig > 0 and nstate > 0 and not (mpeak or ppeak):
                 if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
@@ -699,12 +708,15 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 nstate = 0
 
         if "1" in psignals:
-            if nsignals[lowhighC] == "1" and not (mpeak and ppeak):
-                if nlistP[-1] < 0 or cpeak:
+            if int(psignals[lowhighC]):
+                if not cpeak and int(psignals[divC]):
+                    # 2013-12-19 ORNA
+                    psig, pstate = -1, 1
+                elif nlistP[-1] < 0 or cpeak:
                     psig, pstate = 1, 0
                 else:
-                    # MUDA 2013-03-12
-                    psig, pstate = -1, 1
+                    # 2013-03-12 MUDA
+                    psig, pstate = -1, 2
             elif psignals[pcnt] == "1":
                 if countP < 3:
                     if plistM[-1] < 10 and plistM[-2] < 10:
@@ -720,7 +732,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     else:
                         psig, pstate = 3, 1
             elif psignals[n3uP] == "1":
-                if lastP < plistP[-1]:
+                if not ppeak and lastP < plistP[-1]:
                     psig, pstate = -4, 0
                 elif lastP > plistP[-1] and lastC < plistC[-1]:
                     psig, pstate = 4, 1
@@ -736,22 +748,34 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     psig, pstate = -6, 0
             elif topC and prevbottomC:
                 psig, pstate = 7, 0
-            if int(psignals[updownDiv]):
-                psig = -8 if plistM[-1] >= 10 and nlistP[-1] >= 0 else 8
+            elif int(psignals[updownDiv]):
+                psig = -8 if nlistP[-1] >= 0 else 8
                 # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
                 pstate = -1
+            elif int(psignals[higherM]):
+                # SCGM 2012-01-20
+                psig = -9
+                pstate = -1 if posC < 2 else 1
             else:
-                psig = 9 if cpeak else -9
-                # pstate = 0 if "1" in psignals[divMP] else 1
-                nstate = 1 if cpeak or mpeak or ppeak else 0
+                psig = 10 if cpeak else -10
+                if "1" not in nsignals and int(psignals[divC]):
+                    # 2013-03-13 ORNA lowerV and bottomV
+                    pstate = -2
+                else:
+                    pstate = 0 if mpeak or ppeak else -1 if posC < 2 else 1
 
-            if psig > 0 and pstate > 0 and not (mpeak or ppeak):
+            if psig == -1 and pstate == 1:
+                pass
+            elif psig > 0 and pstate > 0 and not (mpeak or ppeak):
                 if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
                     pstate = 0
                 elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
                     pstate = 0
             elif psig < 0 and pstate and (cpeak or mpeak or ppeak):
-                pstate = 0
+                if abs(psig) == 10 and pstate < -1:
+                    pass
+                else:
+                    pstate = 0
 
         return psig, pstate, nsig, nstate, nsignals, psignals
 
@@ -832,33 +856,35 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             ssig, sstate = 9, 9
         elif narrowC:
             ssig, sstate = evalNarrowC()
+        if ssig:
+            pass
         elif plistP is not None and len(plistP) > 3 and tripleM == 9:
             # 3 consecutive M above 10 - powerful break out / bottom reversal signal
             ssig = -2
             if nlistM[-1] < 0:
-                # AXREIT 2017-10-17
+                # 2017-10-17 AXREIT
                 ssig, sstate = 2, 1
             elif plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
-                # MAGNI 2013-03-01 top retrace with CM and CP valley divergence follow by break out
+                # 2013-03-01 MAGNI top retrace with CM and CP valley divergence follow by break out
                 sstate = 1
             # elif posC < 2:
                 # --- bottom reversal --- #
-                # DUFU 2014-05-05, 2014-06-04 (plistP[-1] < 0) bottom break out
-                # DUFU 2014-09-10 (5 plistM vs 4 plistP)
+                # 2014-05-05, DUFU 2014-06-04 (plistP[-1] < 0) bottom break out
+                # 2014-09-10 DUFU (5 plistM vs 4 plistP)
             else:
                 if topC or topM:
                     if mpeak:
-                        # DUFU 2014-09-03 retracing
+                        # 2014-09-03 DUFU retracing
                         sstate = 0
                     else:
-                        # DUFU 2014-11-21 retrace completed
-                        # UCREST 2017-08-02 topM valley divergence
+                        # 2014-11-21 DUFU retrace completed
+                        # 2017-08-02 UCREST topM valley divergence
                         sstate = 2
                 elif not newlowC:
-                    # YSPSAH 2013-04-29
+                    # 2013-04-29 YSPSAH
                     sstate = 3
                 elif mpeak or lastM < 0:
-                    # ABLEGRP 2018-12-21
+                    # 2018-12-21 ABLEGRP
                     ssig = 2
                     sstate = 2
                 else:
@@ -868,14 +894,14 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             if tripleM in p3d and tripleP in p3d and tripleV in p3d and \
                     len(nlistV) > 1 and nlistV[-1] > nlistV[-2] and \
                     plistM[-1] > 5 and plistP[-1] > 0:
-                # KLSE 2013-03-20
+                # 2013-03-20 KLSE
                 ssig = -3
             elif newhighV:
-                # KLSE 2018-05-07
+                # 2018-05-07 KLSE
                 ssig = 3
             elif ((bottomM and newhighM) or
                   (topM and prevbottomM)) and not newhighP:
-                # MUDA 2014-08-05, 2014-08-12
+                # 2014-08-05, 2014-08-12 MUDA
                 ssig = 3
             else:
                 ssig = -3
@@ -885,29 +911,29 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 # Works mostly in retrace position
                 ssig = -4
             elif (newlowM and newlowP) or (bottomM or bottomP):
-                # PADINI 2014-02-05 newlowC
-                # YSPSAH 2012-01-20 bottomP
+                # 2014-02-05 PADINI newlowC
+                # 2012-01-20 YSPSAH bottomP
                 ssig = -4
             elif newhighM or newhighP or topM or topP:
-                # PADINI 2015-10-02
+                # 2015-10-02 PADINI
                 ssig = -4
             elif newhighV:
-                # N2N 2017-08-28
+                # 2017-08-28 N2N
                 ssig = -4
             else:
-                # DUFU 2011-10-12
+                # 2011-10-12 DUFU
                 ssig = 4
             if tripleBottoms == 1:
                 sstate = 1
             elif posC > 1:
                 if cpeak and "MP" in ndiv:
-                    # DUFU 2018-06-13 retrace with valley follow by peak divergence
+                    # 2018-06-13 DUFU retrace with valley follow by peak divergence
                     sstate = -1
                 elif not newlowC:
-                    # DANCO 2018-07-23
+                    # 2018-07-23 DANCO
                     sstate = -2
                 else:
-                    # PETRONM 2014-04-25
+                    # 2014-04-25 PETRONM
                     sstate = 2
         elif posC == 2 and narrowM:
             ssig, sstate = -5, 1
@@ -918,32 +944,36 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         elif not topC and posC == 3 and narrowM:
             ssig = 6
             if tripleM in p3d or tripleP in n3u:
-                # KLSE 2015-04-30
+                # 2015-04-30 KLSE
                 sstate = 1
         elif newhighC or topC:
             ssig = 7
             if countP == 3:
-                # MUDA 2014-02-04
+                # 2014-02-04 MUDA
                 ssig, sstate = -7, 1
             elif tripleP in p3d:
-                # KLSE 2014-05-05
+                # 2014-05-05 KLSE
                 sstate = 1
                 if newhighV or topV or cmpdiv in peakbear:
-                    # KLSE 2014-06-02
+                    # 2014-06-02 KLSE
                     sstate = 2
-            elif tripleP in p3u and topV and newlowV:
-                # YSPSAH 2018-11-05
-                sstate = 3
+            elif tripleP in p3u:
+                if topV and newlowV:
+                    # 2018-11-05 YSPSAH
+                    sstate = 3
+                elif nlistP[-1] < 0:
+                    # 2013-12-19 ORNA
+                    ssig, sstate = -7, -1
             else:
                 if newhighM or newhighP or topM or topP:
-                    # KLSE 2013-07-29
-                    # VSTECS 2014-08-29
+                    # 2013-07-29 KLSE
+                    # 2014-08-29 VSTECS
                     sstate = 4
                 elif cmpdiv in peakbear:
-                    sstate = -1
+                    sstate = -2
                 if plistP[-1] > 0 and lastP < 0:
                     # KLSE 2013-09-02
-                    sstate = -2
+                    sstate = -3
 
     '''
     elif newhighC or topC:
@@ -1142,20 +1172,6 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 # N2N 2018-04-27
                 sstate = 0
         '''
-
-    '''
-    if ssig < 0 and sstate and posC < 2:
-        if sstate > 0:
-            sstate *= -1
-    '''
-
-    if ssig > 0 and sstate > 0 and not (mpeak or ppeak):
-        if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
-            sstate = 0
-        elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
-            sstate = 0
-    elif ssig < 0 and sstate and (cpeak or mpeak or ppeak):
-        sstate = 0
 
     return ssig, sstate, psig, pstate, nsig, nstate, p1, negstr, posstr
 
