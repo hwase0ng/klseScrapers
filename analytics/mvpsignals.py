@@ -679,11 +679,13 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 return 0, 0
             nsig, nstate = 0, 0
 
-            if int(nsignals[updownDiv]):
+            if not mpnow and cpeak and "1" not in psignals:
+                nsig, nstate = 1, 1
+            elif int(nsignals[updownDiv]):
                 # DUFU 2013-04-05 bearish
                 # VSTECTS 2013-03-04 bullish
                 # SCGM 2012-01-20 bottomC bullish nlistM[-1] > plistM[-2]
-                nsig = -1 if plistM[-1] < 10 and nlistP[-1] < 0 else 1
+                nsig = -2 if plistM[-1] < 10 and nlistP[-1] < 0 else 1
                 nstate = -1 if posC < 2 else 1
             elif not mpeak or not ppeak:
                 nsig = 2
@@ -722,48 +724,50 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 return 0, 0
             psig, pstate = 0, 0
 
-            if int(psignals[lowhighC]):
+            if mpnow and not cpeak and "1" not in nsignals:
+                psig, pstate = -1, -1
+            elif int(psignals[lowhighC]):
                 if not cpeak and int(psignals[divC]):
                     # 2013-12-19 ORNA
-                    psig, pstate = -1, 1
+                    psig, pstate = -2, 1
                 elif nlistP[-1] < 0 or cpeak:
-                    psig, pstate = 1, 0
+                    psig, pstate = 2, 0
                 else:
                     # 2013-03-12 MUDA
-                    psig, pstate = -1, 2
+                    psig, pstate = -2, 2
             elif psignals[pcnt] == "1":
                 if countP < 3:
                     if plistM[-1] < 10 and plistM[-2] < 10:
-                        psig, pstate = 2, 1
+                        psig, pstate = 3, 1
                     else:
-                        psig, pstate = -2, 1
+                        psig, pstate = -3, 1
                 else:
-                    psig, pstate = -2, 2
+                    psig, pstate = -3, 2
             elif not mpeak and plistM[-1] > 10:
                 if nlistM[-1] > 5:
                     if nlistM[-1] < 7:
-                        psig, pstate = -3, 0
+                        psig, pstate = -4, 0
                     else:
-                        psig, pstate = 3, 1
+                        psig, pstate = 4, 1
             elif psignals[n3uP] == "1":
                 if not ppeak and lastP < plistP[-1]:
-                    psig, pstate = -4, 0
+                    psig, pstate = -5, 0
                 elif lastP > plistP[-1] and lastC < plistC[-1]:
-                    psig, pstate = 4, 1
+                    psig, pstate = 5, 1
                 else:
-                    psig, pstate = -4, 2
+                    psig, pstate = -5, 2
             elif psignals[divC] == "1" and nsignals[divMP] == "1":
-                psig, pstate = 5, 0
+                psig, pstate = 6, 0
             elif psignals[divMP] == "1":
                 if cpeak and nsignals[divC] == "1":
                     # MUDA 2012-05-15
-                    psig, pstate = 6, 1
+                    psig, pstate = 7, 1
                 else:
-                    psig, pstate = -6, 0
+                    psig, pstate = -7, 0
             elif topC and prevbottomC:
-                psig, pstate = 7, 0
+                psig, pstate = 8, 0
             elif int(psignals[updownDiv]):
-                psig = -8 if nlistP[-1] >= 0 else 8
+                psig = -9 if nlistP[-1] >= 0 else 9
                 # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
                 pstate = -1
             '''
@@ -774,7 +778,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 pstate = -1 if posC < 2 else 1
             '''
 
-            if psig == -1 and pstate == 1:
+            if psig == 1 or psig == -2 and pstate == 1:
                 pass
             elif psig > 0 and pstate > 0 and not (mpeak or ppeak):
                 if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
