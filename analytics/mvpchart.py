@@ -387,9 +387,9 @@ def annotatelines(axes, k, lstyle, p1date1, p1date2, p2date1, p2date2, p1y1, p1y
 
 def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
 
-    def find_divergence(matchlist):
+    def find_divergence():
         p1date1, p1date2, p2date1, p2date2 = None, None, None, None
-        matchdt, divcount, tolerance, nodiv, matchpos = None, 0, 0, 0, -1
+        matchdt1, matchdt2, divcount, tolerance, nodiv, matchpos = None, None, 0, 0, 0, -1
         for v in sorted(matchlist, reverse=True):
             if matchlist[v][0] == 0:
                 nodiv += 1
@@ -398,11 +398,14 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 if not swapP:
                     p1date1, p2date1 = p1x[v], p2x[matchlist[v][0]]
                     p1y1, p2y1 = p1y[v], p2y[matchlist[v][0]]
+                    matchdt1 = p1date1  # = matchlist[v][2]
+                    matchdt2 = p2date1
                 else:
                     # TASCO 2012-06-08
                     p1date1, p2date1 = p2x[v], p1x[matchlist[v][0]]
                     p1y1, p2y1 = p2y[v], p1y[matchlist[v][0]]
-                matchdt = matchlist[v][2]
+                    matchdt1 = p2date1  # = matchlist[v][2]
+                    matchdt2 = p1date1
                 matchpos = matchlist[v][0]
                 tolerance, nodiv = matchlist[v][1], 0
             elif matchlist[v][0] == matchpos:
@@ -449,13 +452,13 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                 if divcount > 2:
                     # restrict matchings to max 3
                     break
-        return matchdt, 1, divcount, tolerance, matchpos
+        return matchdt1, matchdt2, 1, divcount, tolerance, matchpos
 
     if p1x is None or p2x is None:
         return []
     swapP, matchlist = matchdates(p1x, p2x)
-    matchdt, divtype, divcount, tolerance, matchpos = find_divergence(matchlist)
-    return [matchlist, matchdt, divtype, divcount, tolerance, matchpos]
+    matchdt1, matchdt2, divtype, divcount, tolerance, matchpos = find_divergence()
+    return [matchlist, matchdt1, matchdt2, divtype, divcount, tolerance, matchpos]
 
 
 def plotlinesV2(wfm, axes, cmpvXYPN):
@@ -548,18 +551,18 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
                 print "For setting breakpoint to debug month chart only"
         matchdata = drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
         if len(matchdata):
-            [matchlist, matchdt, divtype, divcount, matchtol, matchpos] = matchdata
+            [matchlist, matchdt, matchdt2, divtype, divcount, matchtol, matchpos] = matchdata
         else:
-            matchlist, matchdt, divtype, divcount, matchtol, matchpos = None, None, 0, 0, 0, 0
+            matchlist, matchdt, matchdt2, divtype, divcount, matchtol, matchpos = None, None, None, 0, 0, 0, 0
         if divcount > 0:
             if matchpos > -3:
                 # Only consider first 3 peaks/valleys
                 if peaks:
-                    pdiv[k] = [matchdt, divtype, divcount, matchtol, matchpos]
+                    pdiv[k] = [matchdt, matchdt2, divtype, divcount, matchtol, matchpos]
                     if p1x[-1] > matchdt:
                         pmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
                 else:
-                    ndiv[k] = [matchdt, divtype, divcount, matchtol, matchpos]
+                    ndiv[k] = [matchdt, matchdt2, divtype, divcount, matchtol, matchpos]
                     if p1x[-1] > matchdt or p2x[-1] > matchdt:
                         nmatch[k] = [matchlist, p1x, p2x, p1y, p2y]
         else:

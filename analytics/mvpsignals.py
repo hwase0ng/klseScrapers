@@ -96,14 +96,16 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xpn):
 
     def ispeak(cmpv):
-        xp, xn = xpn[0][cmpv], xpn[1][cmpv]  # 0=C, 1=M, 2=P, 3=V
-        if xp is None or xn is None:
-            if xp is None:
-                return False
-            return True
-        if xp[-1] > xn[-1]:
-            return True
-        return False
+        xpc, xnc = xpn[0][cmpv], xpn[1][cmpv]  # 0=C, 1=M, 2=P, 3=V
+        if xpc is None or xnc is None:
+            if xpc is None and xnc is not None:
+                return False, "", xnc
+            if xnc is None and xpc is not None:
+                return True, xpc, ""
+            return False, "", ""
+        if xpc[-1] > xnc[-1]:
+            return True, xpc, xnc
+        return False, xpc, xnc
 
     def minmaxC():
         minC, maxC = None, None
@@ -473,6 +475,10 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     def checkdiv():
         def getdivdt(divlist):
             cdate, mpdate = "", ""
+            # 2018-09-06 MAGNI
+            # dict: {'CP': ['2018-08-31', '2018-08-31', 1, 1, 0, -1],
+            #        'MP': ['2018-08-31', '2018-07-31', 1, 2, 3, -1],
+            #        'CM': ['2018-08-31', '2018-07-31', 1, 1, 2, -1]}
             if divlist is not None and len(divlist):
                 for k, v in divlist.iteritems():
                     if v[-1] < -1:
@@ -480,13 +486,18 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     if "C" not in k:
                         if v[0] > mpdate:
                             mpdate = v[0]
-                    elif v[0] > cdate:
-                        cdate = v[0]
+                        if v[1] > mpdate:
+                            mpdate = v[1]
+                    else:
+                        if v[0] > cdate:
+                            cdate = v[0]
+                        if v[1] > mpdate:
+                            mpdate = v[1]
             return cdate, mpdate
 
         def mpislater():
-            cdate = pdateC if pdateC > ndateC else ndateC
-            mpdate = pdateMP if pdateMP > ndateMP else ndateMP
+            cdate = pdateC if cpeak else ndateC
+            mpdate = pdateMP if mpeak else ndateMP
             return cdate < mpdate
 
         cmpdiv, mpdiv = 0, 0
@@ -495,10 +506,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         mpnow = mpislater()
         if mpnow:
             mpdiv = 7 if pdateMP > ndateMP else 8
-        if pdateC == ndateC:
-            # KAWAN 2016-09-14
-            pass
-        elif pdateC > ndateC:
+        if pdateC > ndateC:
             cmpdiv = 1 if "CP" in pdiv and "CM" in pdiv else \
                 2 if "CP" in pdiv else 3 if "CM" in pdiv else 7 if "MP" in pdiv else 0
         else:
@@ -558,26 +566,30 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             elif tripleP in p3u and nlistP[-1] > 0 and plistM[-1] > 10 and nlistM[-1] < 5:
                 if plistM[-1] > 10:
                     # 2013-06-05 SCGM
-                    ssig, sstate = -1, 6
+                    ssig, sstate = -1, 7
                 else:
                     ssig, sstate = 901, 2
             elif tripleM in [2, 4, 5, 6, 7] and nlistM[-1] > 5:
                 if nlistP[-1] > 0:
                     # 2016-12-27 GHLSYS
-                    ssig, sstate = -1, 7
+                    ssig, sstate = -1, 8
                 elif lastM > plistM[-1]:
                     # 2016-08-25 MAGNI Strong reversal after short retrace (p=-0.057)
                     # 2013-07-04 ORNA
-                    ssig, sstate = -1, 8
+                    ssig, sstate = -1, 9
                 else:
                     # 2018-03-06 GHLSYS
                     ssig, sstate = 1, 1
             elif tripleP in n3u and cmpdiv in valleybull:
-                # 2018-07-11 DANCO
-                ssig, sstate = -1, 9
+                if nlistM[-1] > nlistM[-2]:
+                    # 2018-07-11 DANCO
+                    ssig, sstate = -1, 10
+                else:
+                    # 2012-01-16 DUFU
+                    ssig, sstate = 1, 10
             elif newhighC and cmpdiv in valleybull:
                 # 2017-01-26 MAGNI
-                ssig, sstate = -1, 10
+                ssig, sstate = -1, 11
             else:
                 ssig = 1
                 if (newhighM or topM) and posC < 2:
@@ -586,7 +598,6 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 if (newhighP or topP) and posC < 2:
                     ssig, sstate = 901, 4
                 else:
-                    # 2012-01-16 DUFU
                     # 2018-08-02 MAGNI
                     sstate = 3
             return ssig, sstate
@@ -613,7 +624,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         return ssig, sstate
 
     def evalsignals():
-        def evalnegatives():
+        def nCompilation():
             nsignals = []
             sig = "1" if newlowC or (bottomC and cpeak and plistC[-1] < lowbar) else "0"
             nsignals.append(sig)
@@ -636,7 +647,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             nsignals.append(sig)
             return nsignals
 
-        def evalpostives():
+        def pCompilation():
             psignals = []
             sig = "1" if newhighC or (topC and not cpeak and nlistC[-1] > highbar) else "0"
             psignals.append(sig)
@@ -656,15 +667,18 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                  (nlistP[-2] < nlistP[-3] and nlistP[-2] < nlistP[-4])) else "0"
             # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
             psignals.append(sig)
-            sig = "1" if len(plistM) > 1 and not mpeak and nlistM[-1] > plistM[-2] else "0"
+            '''
+            sig = "1" if len(plistM) > 1 and not mpeak and \
+                nlistM[-2] > 6 and plistM[-1] < 9 and nlistM[-1] > plistM[-2] else "0"
             psignals.append(sig)
+            '''
             return psignals
 
-        psig, pstate, nsig, nstate = 0, 0, 0, 0
-        lowhighC, divC, n3uM, n3uP, divMP, pcnt, updownDiv, higherM = 0, 1, 2, 3, 4, 5, 6, 7
-        nsignals = evalnegatives()
-        psignals = evalpostives()
-        if "1" in nsignals:
+        def nEvaluation():
+            if "1" not in nsignals:
+                return 0, 0
+            nsig, nstate = 0, 0
+
             if int(nsignals[updownDiv]):
                 # DUFU 2013-04-05 bearish
                 # VSTECTS 2013-03-04 bullish
@@ -692,12 +706,6 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     nstate = 0
                 elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
                     nstate = 0
-            else:
-                nsig = 3 if cpeak else -3
-                if "1" not in psignals and int(nsignals[divC]):
-                    nstate = 2
-                else:
-                    nstate = 0 if cpeak or mpeak or ppeak else 1
 
             if nsig > 0 and nstate > 0 and not (mpeak or ppeak):
                 if len(nlistP) > 1 and nlistP[-1] > nlistP[-2]:
@@ -707,7 +715,13 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             elif nsig < 0 and nstate and (cpeak or mpeak or ppeak):
                 nstate = 0
 
-        if "1" in psignals:
+            return nsig, nstate
+
+        def pEvaluation():
+            if "1" not in psignals:
+                return 0, 0
+            psig, pstate = 0, 0
+
             if int(psignals[lowhighC]):
                 if not cpeak and int(psignals[divC]):
                     # 2013-12-19 ORNA
@@ -752,17 +766,13 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 psig = -8 if nlistP[-1] >= 0 else 8
                 # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
                 pstate = -1
+            '''
             elif int(psignals[higherM]):
-                # SCGM 2012-01-20
+                # 2012-01-20 SCGM
+                # 2018-08-02 MAGNI
                 psig = -9
                 pstate = -1 if posC < 2 else 1
-            else:
-                psig = 10 if cpeak else -10
-                if "1" not in nsignals and int(psignals[divC]):
-                    # 2013-03-13 ORNA lowerV and bottomV
-                    pstate = -2
-                else:
-                    pstate = 0 if mpeak or ppeak else -1 if posC < 2 else 1
+            '''
 
             if psig == -1 and pstate == 1:
                 pass
@@ -772,10 +782,29 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 elif len(nlistM) > 1 and nlistM[-1] > nlistM[-2]:
                     pstate = 0
             elif psig < 0 and pstate and (cpeak or mpeak or ppeak):
-                if abs(psig) == 10 and pstate < -1:
-                    pass
-                else:
-                    pstate = 0
+                pstate = 0
+
+            return psig, pstate
+
+        lowhighC, divC, n3uM, n3uP, divMP, pcnt, updownDiv = 0, 1, 2, 3, 4, 5, 6
+        nsignals = nCompilation()
+        psignals = pCompilation()
+        nsig, nstate = nEvaluation()
+        psig, pstate = pEvaluation()
+
+        if not psig and "1" in psignals and "1" not in nsignals:
+            psig = 99 if cpeak else -99
+            if int(psignals[divC]):
+                # 2013-03-13 ORNA lowerV and bottomV
+                pstate = -2
+            else:
+                pstate = 0 if mpeak or ppeak else -1 if posC < 2 else 1
+        elif not nsig and "1" in nsignals and "1" not in psignals:
+            nsig = 99 if cpeak else -99
+            if int(nsignals[divC]):
+                nstate = 2
+            else:
+                nstate = 0 if cpeak or mpeak or ppeak else 1
 
         return psig, pstate, nsig, nstate, nsignals, psignals
 
@@ -784,11 +813,6 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     ssig, sstate, psig, pstate, nsig, nstate, neglist, poslist = 0, 0, 0, 0, 0, 0, "", ""
     # [tolerance, pdays, ndays, matchlevel] = matchdate
     [pdiv, ndiv, _, mpdates] = div
-    '''
-    Wrong assumption as TSS 6 happens when newlowC or posC = 0
-    if pricepos < 2:
-        return ssig, sstate
-    '''
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
     [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
@@ -796,6 +820,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
     [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
 
+    '''
     cmPpos, cpPpos, mpPpos, cmNpos, cpNpos, mpNpos = -99, -99, -99, -99, -99, -99
     cmPdate, cpPdate, mpPdate = "1970-01-01", "1970-01-01", "1970-01-01"
     cmNdate, cpNdate, mpNdate = "1970-01-01", "1970-01-01", "1970-01-01"
@@ -811,6 +836,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         [cpNdate, cpNtype, cpNcount, cpNtol, cpNpos] = ndiv['CP']
     if 'MP' in ndiv:
         [mpNdate, mpNtype, mpNcount, mpNtol, mpNpos] = ndiv['MP']
+    '''
 
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
@@ -833,7 +859,10 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     '''
     p3u, p3d, n3u, n3d = [1, 2, 3], [4, 5, 6], [2, 5, 7], [3, 6, 8]
     peakbear, valleybull = [1, 2, 3], [4, 5, 6]
-    cpeak, mpeak, ppeak, vpeak = ispeak(0), ispeak(1), ispeak(2), ispeak(3)
+    cpeak, pdateC, ndateC = ispeak(0)
+    mpeak, pdateM, ndateM = ispeak(1)
+    ppeak, pdateP, ndateP = ispeak(2)
+    vpeak, pdateV, ndateV = ispeak(3)
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
     else:
