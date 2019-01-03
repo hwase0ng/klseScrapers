@@ -672,10 +672,16 @@ def plotSignals(pmaps, counter, datevector, ax0):
 
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
     infile = prefix + counter + "-signals.csv"
-    df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
-                  names=['trxdt', 'counter',
-                         'sssname', 'sssval', 'pnsig',
-                         'cmpv', 'mvals', 'siglist', 'lastp'])
+    try:
+        df = read_csv(infile, sep=',', header=None, parse_dates=['trxdt'],
+                      names=['trxdt', 'counter',
+                             'sssname', 'sssval', 'pnsig',
+                             'cmpv', 'mvals', 'siglist', 'lastp'])
+    except Exception as e:
+        print "Error in signal file:", infile
+        print e
+        return
+
     df.set_index(df['trxdt'], inplace=True)
     ymin, ymax, spos, cpos = getChartPOS(14 + 3)
     hltb = ['0', 'h', 'l', 't', 'b']
@@ -747,6 +753,8 @@ def plotSignals(pmaps, counter, datevector, ax0):
                 print 'plotSignals exception:', mpvdate
                 print e
         except KeyError as ke:
+            if S.DBG_ALL:
+                print ke
             continue
 
 
