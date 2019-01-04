@@ -21,20 +21,23 @@ re='^[0-9]+$'
 ss=4
 ns=6
 ps=8
-cmpdiv=14   # 1,2,3=CP+CM,CP,CM in pdiv (PEAK divergence); 4,5,6=same in ndiv (VALLEY)
+cmpdiv=14   # 1,2,3,7=CP+CM,CP,CM in pdiv (PEAK bearish divergence); 4,5,6,8=same in ndiv (VALLEY bullish)
 c=15		# hltb = ['0', 'h', 'l', 't', 'b']
 m=16
 p=17
 v=18
-tripleM=19
+tripleM=19	# 9=3xM>10
 tripleP=20
 tripleV=21
 narrowC=22
-narrowM=23
-narrowP=24
+narrowM=23  # 5,6,7,8=5<m<10, 9=decreasing prange
+narrowP=24	# 1,2=p<0, 3,4=prange<0.20, 9=decreasing prange
 countP=25
 tripleBottoms=26
 tripleTops=27
+cmpsync=28
+
+# lowhighC, divC, n3uM, n3uP, divMP, pcnt, hlP/lhP, hlM/lhM = 0, 1, 2, 3, 4, 5, 6, 7
 
 signalfile=""
 val=0
