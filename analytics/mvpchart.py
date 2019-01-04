@@ -683,7 +683,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
         return
 
     df.set_index(df['trxdt'], inplace=True)
-    ymin, ymax, spos, cpos = getChartPOS(14 + 3)
+    ymin, ymax, spos, cpos = getChartPOS(15 + 3)
     hltb = ['0', 'h', 'l', 't', 'b']
     for dt in datevector:
         try:
@@ -712,23 +712,23 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
                     if int(nsig) != 0:
-                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 and int(nstate) > 0 else "g^"
+                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 and int(nstate) > 0 else "g^" if int(nsig) < 0 else "c+"
                         fontclr = "black" if int(nsig) > 0 else "green"
                         ax0.plot(dt, spos[0], symbolclr, markersize=7)
                         ax0.text(dt, spos[0], str(nsig), color=fontclr, fontsize=9)
                     if int(psig) != 0:
-                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 and int(pstate) > 0 else "g^"
+                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 and int(pstate) > 0 else "g^" if int(psig) < 0 else "c+"
                         fontclr = "black" if int(psig) > 0 else "green"
                         ax0.plot(dt, spos[1], symbolclr, markersize=7)
                         ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
                     if int(sval) != 0:
-                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 and int(sstate) > 0 else "g^"
+                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 and int(sstate) > 0 else "g^" if int(sval) < 0 else "c+"
                         fontclr = "black" if int(sval) > 0 else "green"
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
                         ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         fontclr = "black" if i in [0, 8, 9, 10] else \
-                            "brown" if i in [5, 6, 7] else \
+                            "brown" if i in [5, 6, 7] else "turquoise" if i > 13 else \
                             "blue" if i > 10 else "orange"
                         mtext = "." if int(mval[i]) == 0 else \
                             hltb[int(mval[i])] if i in [1, 2, 3, 4] else mval[i]
@@ -795,10 +795,10 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
         else:
             fig = plt.figure(figsize=figsize)
             fig.set_canvas(plt.gcf().canvas)
-            ax1 = plt.subplot2grid((7, 1), (0, 0), rowspan=4, fig=fig)
-            ax2 = plt.subplot2grid((7, 1), (4, 0), sharex=ax1)
-            ax3 = plt.subplot2grid((7, 1), (5, 0), sharex=ax1)
-            ax4 = plt.subplot2grid((7, 1), (6, 0), sharex=ax1)
+            ax1 = plt.subplot2grid((8, 1), (0, 0), rowspan=5, fig=fig)
+            ax2 = plt.subplot2grid((8, 1), (5, 0), sharex=ax1)
+            ax3 = plt.subplot2grid((8, 1), (6, 0), sharex=ax1)
+            ax4 = plt.subplot2grid((8, 1), (7, 0), sharex=ax1)
             axes = []
             axes.append(ax1)
             axes.append(ax2)
@@ -855,7 +855,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             # just print error and continue without the required line in chart
             print 'line divergence exception:'
             print e
-        plotSignals(pmaps, counter, dfchart['date'], axes[0])
+        # plotSignals(pmaps, counter, dfchart['date'], axes[0])
         try:
             if mHigh > 8:
                 axes[1].axhline(10, color='r', linestyle='--')
@@ -863,7 +863,7 @@ def mvpChart(counter, scode, chartDays=S.MVP_CHART_DAYS,
             axes[2].axhline(0, color='k', linestyle='--')
             if vHigh > 20:
                 axes[3].axhline(25, color='k', linestyle='--')
-            # plotSignals(pmaps, counter, dfchart['date'], axes[0])
+            plotSignals(pmaps, counter, dfchart['date'], axes[0])
             plt.tight_layout()
         except Exception as e:
             # just print error and continue without the required line in chart
@@ -1082,9 +1082,9 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
 
     if len(dfplot) > 1:
         # columns, rows
-        figsize = (10, 6) if showchart else (15, 9)
+        figsize = (12, 7) if showchart else (15, 9)
     else:
-        figsize = (12, 6) if showchart else (16, 10)
+        figsize = (10, 6) if showchart else (13, 9)
     fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
