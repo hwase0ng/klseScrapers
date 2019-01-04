@@ -247,9 +247,10 @@ def mvpUpdateMPV(counter, scode):
     for eod in lines:
         if updateMPV(counter, scode, eod):
             chartdays = load_mvp_args(True, False)
-            mvpSynopsis(counter, scode, chartdays)
-            chartdays = load_mvp_args(False, True)
-            mvpChart(counter, scode, chartdays)
+            if mvpSynopsis(counter, scode, chartdays):
+                if 1 == 0:  # 2018-12-21 skip to speed up daily download
+                    chartdays = load_mvp_args(False, True)
+                    mvpChart(counter, scode, chartdays)
 
 
 def mpvUpdateKlseRelated():
