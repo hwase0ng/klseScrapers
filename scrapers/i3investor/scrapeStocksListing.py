@@ -157,12 +157,14 @@ def i3ScrapeStocks(initials="", concurrency=False):
         initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     stocksListing = {}
     que, jobs, cpus = None, [], cpu_count()
+    if concurrency:
+        que = Queue()
     for initial in list(initials):
         if not concurrency:
             # eod = scrapeLatestPrice(connectStocksListing(initial))
             stocksListing.update(scrapeInitials(initial))
         else:
-            que = Queue()
+            print "Scraping", initial
             p = Process(target=scrapeInitials, args=(initial, que,))
             p.start()
             jobs.append(p)
@@ -196,6 +198,28 @@ def unpackStockData(key, lastTradingDate, skey):
     return eod, shortname, stockCode
 
 
+def loadfromi3(i3file, initials=""):
+    def exportjson():
+        import json
+        with open(i3file, 'w') as fp:
+            json.dump(slisting, fp)
+            print "Exported to json:", i3file
+
+    def importjson():
+        import json
+        with open(i3file, 'r') as fp:
+            slisting = json.load(fp)
+        return slisting
+
+    try:
+        slisting = importjson()
+        print "Loaded from json:", i3file
+    except Exception:
+        slisting = i3ScrapeStocks(initials)
+        exportjson()
+    return slisting
+
+
 def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resume=False):
 
     def checkMPV():
@@ -217,7 +241,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
                     # 2018-12-21 limit to 300 due to AKNIGHT exceeds Locator.MAXTICKS error
                     mvpChart(shortname, stockCode, 300)
 
-    stocksListing = i3ScrapeStocks()
+    stocksListing = loadfromi3(S.DATA_DIR + "i3/" + getToday() + ".json")
     eodlist = []
 
     print ' Writing latest price from i3 ...'
@@ -252,6 +276,10 @@ if __name__ == '__main__':
     '''
     writeStocksListing()
     writeLatestPrice(getDataDir(S.DATA_DIR) + 'i3/', False)
-    '''
+
     from timeit import timeit
     print(timeit('i3ScrapeStocks()', number=2, setup="from __main__ import i3ScrapeStocks"))
+    '''
+    # slisting = i3ScrapeStocks("0", concurrency=True)
+    slisting = loadfromi3(S.DATA_DIR + "i3/" + getToday() + ".json", "0")
+    print slisting
