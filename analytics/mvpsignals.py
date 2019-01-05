@@ -96,7 +96,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xpn):
 
     def ispeak(cmpv):
-        xpc, xnc = xpn[0][cmpv], xpn[1][cmpv]  # 0=C, 1=M, 2=P, 3=V
+        xpc, xnc = xpn[0][cmpv], xpn[1][cmpv]  # cmpv: 0=C, 1=M, 2=P, 3=V
         if xpc is None or xnc is None:
             if xpc is None and xnc is not None:
                 return False, "", xnc
@@ -107,6 +107,63 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         if xp > xn:
             return True, xp, xn
         return False, xp, xn
+
+    def isDivergentSync():
+        def countdate():
+            xpm, xpp = xpn[0][1], xpn[0][2]  # cmpv: 0=C, 1=M, 2=P, 3=V
+            xnm, xnp = xpn[1][1], xpn[1][2]  # cmpv: 0=C, 1=M, 2=P, 3=V
+            if xpm is None or xpp is None or xnm is None or xnp is None:
+                return 0, 0
+            if len(xpm) < 3 or len(xpp) < 3:
+                return 0, 0
+            if len(xpm) < len(xpp):
+                date1, date2 = xpm[-4], xpm[-1]
+                cntref = xpp
+                matchref = xpm
+            else:
+                date1, date2 = xpp[-4], xpp[-1]
+                cntref = xpm
+                matchref = xpp
+            skipcnt, matchcnt, cnt = 0, 0, 0
+            for dt in reversed(cntref):
+                if dt > date2:
+                    skipcnt += 1
+                    continue
+                if dt < date1:
+                    break
+                cnt += 1
+                if dt in matchref or dt in xnm or dt in xnp:
+                    matchcnt += 1
+            return cnt + skipcnt - 4, matchcnt
+
+        cmpsync, mpsync = 0, 0
+        if (cpeak and mpeak and ppeak and
+            pdateC == pdateM and pdateM == pdateP) or (cvalley and mvalley and pvalley and
+                                                       ndateC == ndateM and ndateM == ndateP):
+            cmpsync = 1
+        elif pdateC == pdateM or pdateC == pdateP:
+            cmpsync = 2
+
+        datecnt, match = countdate()
+        if datecnt < 3 and match > 1:
+            mpsync = 1
+            cmpsync = 3
+        return cmpsync, mpsync
+
+    def isretrace():
+        retrace = 0
+        if plenM < 2:
+            return retrace
+        if nlistM[-1] >= 5 and nlistM[-1] < 7.5:
+            if mvalley and plistM[-1] >= 10:
+                retrace = 1
+            elif mpeak and plistM[-1] < plistM[-2] and plistM[-2] >= 10:
+                retrace = 2
+        elif prevbottomM and bottomP:
+            if mpeak and plistM[-1] < 10 and tripleM in p3d:
+                # 2013-03-13 ORNA
+                retrace = 3
+        return retrace
 
     def minmaxC():
         minC, maxC = None, None
@@ -550,6 +607,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
         def divHighLow():
             def highlowM():
+                if not mpInSync:
+                    return False
                 if len(plistM) < 4 or len(plistP) < 4:
                     return False
                 if plistM[-2] > plistM[-1] and plistM[-2] > plistM[-3] and \
@@ -560,6 +619,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 return False
 
             def highlowP():
+                if not mpInSync:
+                    return False
                 if len(plistM) < 4 or len(plistP) < 4:
                     return False
                 if plistP[-2] > plistP[-1] and plistP[-2] > plistP[-3] and \
@@ -576,6 +637,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
         def divLowHigh():
             def lowhighM():
+                if not mpInSync:
+                    return False
                 if len(nlistM) < 3 or len(nlistP) < 3:
                     return False
                 if nlistM[-2] < nlistM[-1] and nlistM[-2] < nlistM[-3] and \
@@ -585,6 +648,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 return False
 
             def lowHighP():
+                if not mpInSync:
+                    return False
                 if len(nlistM) < 3 or len(nlistP) < 3:
                     return False
                 if nlistP[-2] < nlistP[-1] and nlistP[-2] < nlistP[-3] and \
@@ -603,11 +668,11 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         lowhighM, lowhighP = divLowHigh()
         return cmpdiv, mpdiv, mpnow, highlowM, highlowP, lowhighM, lowhighP
 
-    def evalsignals():
+    def evalPNsignals():
         def nCompilation():
             nsignals = []
-            sig = "1" if newlowC or (bottomC and cpeak and plistC[-1] < lowbar) else "0"
-            nsignals.append(sig)
+            # sig = "1" if newlowC or (bottomC and cpeak and plistC[-1] < lowbar) else "0"
+            # nsignals.append(sig)
             sig = "1" if cmpdiv in peakbear else "0"
             nsignals.append(sig)
             sig = "1" if cmpdiv == 7 or mpdiv == 7 else "0"
@@ -626,8 +691,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
         def pCompilation():
             psignals = []
-            sig = "1" if newhighC or (topC and cvalley and nlistC[-1] > highbar) else "0"
-            psignals.append(sig)
+            # sig = "1" if newhighC or (topC and cvalley and nlistC[-1] > highbar) else "0"
+            # psignals.append(sig)
             sig = "1" if cmpdiv in valleybull else "0"
             psignals.append(sig)
             sig = "1" if cmpdiv == 8 or mpdiv == 8 else "0"
@@ -660,17 +725,20 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 # SCGM 2012-01-20 bottomC bullish nlistM[-1] > plistM[-2]
                 nsig = -2 if plistM[-1] < 10 and nlistP[-1] < 0 else 2
                 nstate = -1 if posC < 2 else 1
+            elif int(nsignals[pcnt]) and countP > 5:
+                # 2017-08-30 ORNA
+                nsig, nstate = 3, 1
             elif int(nsignals[hlM]):
-                nsig = 3
+                nsig = 4
                 nstate = 1 if topP or newhighC or topC else 0
-            elif mvalley or pvalley:
-                nval = 4
+            elif "1" in nsignals[1:] and (mvalley or pvalley):
+                nval = -5 if tripleM in n3u else 4
                 nsig = nval
                 if plistM[-1] > 10:
                     if lastM < 7:
                         if lastC > plistC[-1] and lastC > plistC[-2]:
-                            # KAWAN 2015-05-13
-                            # DANCO 2018-10-31
+                            # 2015-05-13 KAWAN
+                            # 2018-10-31 DANCO
                             nsig, nstate = -nval, 0
                         else:
                             nsig, nstate = nval, 0
@@ -678,16 +746,45 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     if nlistM[-1] > 5 and nlistM[-1] < 7:
                         if nlistM[-2] > 5 and nlistM[-2] < 7:
                             # MUDA 2013-07-30
-                            nsig, nstate = nval, 1
+                            nsig, nstate = nval, 2
                         else:
-                            nsig, nstate = -nval, 2
-                elif nlenP > 1 and nlistP[-1] > nlistP[-2]:
+                            nsig, nstate = -nval, 3
+                elif pvalley and nlenP > 1 and nlistP[-1] > nlistP[-2]:
                     nstate = 0
-                elif nlenM > 1 and nlistM[-1] > nlistM[-2]:
-                    nstate = 0
-            elif not mpnow and cpeak and "1" not in psignals:
-                nsig, nstate = 1, 1
+                else:
+                    if nlistM[-1] < 0:
+                        # 2016-01-21 ORNA
+                        nstate = 4
+                    else:
+                        nsig, nstate = -nval, 5
+                    # if nlenM > 1 and nlistM[-1] > nlistM[-2]:
+                    #     nstate = 0
 
+            if nstate == 0 and not mpnow and cpeak and "1" not in psignals:
+                sig, state = 1, 1
+                if newlowP or bottomP:
+                    if nlistM[-1] < 0:
+                        if newlowM or bottomM:
+                            # 2011-09-07 ORNA
+                            state = 2
+                        else:
+                            # 2011-09-22 ORNA
+                            state = 3
+                            if mpInSync or cvalley:
+                                # 2013-09-19 ORNA
+                                state = -4
+                    elif nlistP[-1] < 0:
+                        # 2015-09-17 ORNA
+                        state = -6
+                elif nlistP[-1] < 0:
+                    # 2015-12-11 ORNA
+                    state = 7
+                if state != 0:
+                    nsig, nstate = sig, state
+
+            '''
+                elif nlistP[-1] > nlistP[-2]:
+                    sig, state = -1, 5
             if nsig > 0 and nstate > 0 and not (mpeak or ppeak):
                 if nlenP > 1 and nlistP[-1] > nlistP[-2]:
                     nstate = 0
@@ -695,80 +792,99 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     nstate = 0
             elif nsig < 0 and nstate and (cpeak or mpeak or ppeak):
                 nstate = 0
+            '''
 
             return nsig, nstate
 
         def pEvaluation():
+            def evalLHC(sval):
+                sig, state = sval, 0
+                if cvalley and int(psignals[divC]):
+                    if nlistP[-1] < 0:
+                        if prevtopP:
+                            # 2013-01-31 ORNA
+                            sig, state = 2, 1
+                        else:
+                            # 2013-12-19 ORNA
+                            sig, state = -2, 2
+                    elif highlowM:
+                        # 2011-05-12 ORNA
+                        sig = 2 if newhighC or newhighP or topP else -2
+                        state = 3
+                    elif newhighC and newhighM:
+                        sig, state = 2, 4
+                    else:
+                        # 2014-02-20 ORNA
+                        sig = 2 if newhighP or topP else -2
+                        state = 5
+                elif nlistP[-1] < 0 or cpeak:
+                    sig, state = 2, 0
+                else:
+                    # 2013-03-12 MUDA
+                    sig, state = -2, 6
+                return sig, state
+
             if "1" not in psignals:
                 return 0, 0
             psig, pstate = 0, 0
 
-            if int(psignals[lowhighC]):
-                if cvalley and int(psignals[divC]):
-                    if nlistP[-1] < 0:
-                        # 2013-12-19 ORNA
-                        psig, pstate = -2, 1
-                    elif highlowM:
-                        # 2011-05-12 ORNA
-                        psig = 2 if newhighP or topP else -2
-                        pstate = 2
-                    else:
-                        # 2014-02-20 ORNA
-                        psig = 2 if newhighP or topP else -2
-                        pstate = 3
-                elif nlistP[-1] < 0 or cpeak:
-                    psig, pstate = 2, 0
-                else:
-                    # 2013-03-12 MUDA
-                    psig, pstate = -2, 4
-            elif psignals[pcnt] == "1":
+            # if int(psignals[lowhighC]):
+            #     psig, pstate = evalLHC(2)
+            if int(psignals[pcnt]):
                 if countP < 3:
                     if plistM[-1] < 10 and plistM[-2] < 10:
-                        psig, pstate = 3, 1
+                        psig, pstate = 2, 1
                     else:
-                        psig, pstate = -3, 1
+                        psig, pstate = -2, 2
                 else:
-                    psig, pstate = -3, 2
-            elif mvalley and plistM[-1] > 10:
-                if nlistM[-1] > 5:
-                    if nlistM[-1] < 7:
-                        psig, pstate = -4, 0
-                    else:
-                        psig, pstate = 4, 1
-            elif psignals[n3uP] == "1":
-                if pvalley and lastP < plistP[-1]:
-                    psig, pstate = -5, 0
-                elif lastP > plistP[-1] and lastC < plistC[-1]:
-                    psig, pstate = 5, 1
-                else:
-                    psig, pstate = -5, 2
-            elif psignals[divC] == "1" and nsignals[divMP] == "1":
-                psig, pstate = 6, 0
-            elif mvalley and psignals[divMP] == "1":
-                if cpeak and nsignals[divC] == "1":
+                    psig, pstate = -2, 3
+            elif int(psignals[n3uP]):
+                # 2012-08-23 ORNA
+                if nlistP[-1] > 0 and lastP > nlistP[-1]:
+                    psig, pstate = -3, 1
+                    if newhighC:
+                        # 2012-10-25 ORNA
+                        psig, pstate = 3, 2
+            elif mvalley and int(psignals[divMP]):
+                if cpeak and int(nsignals[divC]):
                     # MUDA 2012-05-15
-                    psig, pstate = 7, 1
+                    psig, pstate = 4, 1
                 else:
-                    psig, pstate = -7, 0
-            elif topC and prevbottomC:
-                psig, pstate = 8, 0
+                    psig, pstate = -4, 0
+            elif tripleM in n3d:
+                if nlistM[-1] < 0:
+                    # 2012-01-04 ORNA
+                    psig, pstate = -5, 0
+                    if lastM > plistM[-3]:
+                        pstate = 1
+                elif tripleP in n3d and tripleV in n3d:
+                    if nlistP[-1] < 0 and not bottomP:
+                        # 2014-11-27 ORNA
+                        psig, pstate = -5, 0
+                        if lastP < 0 and lastP > nlistP[-1]:
+                            pstate = 2
             elif int(psignals[lhP]):
-                psig = -9 if nlistP[-1] >= 0 else 9
+                psig = -6 if nlistP[-1] >= 0 else 6
                 # ORNA 2018-10-30 short rebound due to nlistP[-1] < 0
                 pstate = -1
             elif int(psignals[lhM]):
-                psig = 10 if nlistP[-1] > 0 else -10
+                # 2011-07-21 ORNA
+                psig = -7 if nlistP[-1] > 0 else 7
                 pstate = 1
-            elif mpnow and cvalley and "1" not in nsignals:
-                psig, pstate = -1, -1
-            '''
-            elif int(psignals[higherM]):
-                # 2012-01-20 SCGM
-                # 2018-08-02 MAGNI
-                psig = -9
-                pstate = -1 if posC < 2 else 1
-            '''
+            elif isretrace():
+                psig, pstate = -9, 1
+            elif topC and prevbottomC:
+                psig, pstate = 10, 0
+            elif int(psignals[divC]) and int(nsignals[divMP]):
+                psig, pstate = 11, 0
 
+            if pstate == 0 and mpnow and cvalley and "1" not in nsignals:
+                psig, pstate = -1, 1
+                if newhighC and bottomM:
+                    # 2013-01-03 ORNA
+                    psig, pstate = 1, 2
+
+            '''
             if psig == 1 or psig == -2 and pstate == 1:
                 pass
             elif psig > 0 and pstate > 0 and not (mpeak or ppeak):
@@ -778,27 +894,43 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     pstate = 0
             elif psig < 0 and pstate and (cpeak or mpeak or ppeak):
                 pstate = 0
+            '''
 
             return psig, pstate
 
-        lowhighC, divC, divMP, n3uM, n3uP, pcnt = 0, 1, 2, 3, 4, 5
-        hlP, hlM, lhP, lhM = 6, 7, 6, 7
+        divC, divMP, n3uM, n3uP, pcnt = 0, 1, 2, 3, 4
+        hlP, hlM, lhP, lhM = 5, 6, 5, 6
         nsignals = nCompilation()
         psignals = pCompilation()
         nsig, nstate = nEvaluation()
         psig, pstate = pEvaluation()
 
         if not psig and "1" in psignals and "1" not in nsignals:
-            psig = 99 if cpeak else -99
             if int(psignals[divC]):
-                # 2013-03-13 ORNA lowerV and bottomV
-                pstate = -2
+                if newhighV:
+                    # 2015-01-29 ORNA
+                    psig, pstate = 99, 1
+                elif prevtopC and not (newhighM or newhighP):
+                    psig, pstate = 99, 0
+                    if mpeak or ppeak:
+                        pstate = 2
+                elif isretrace():
+                    # 2013-03-13 ORNA lowerV and bottomV
+                    # 2015-01-08 ORNA
+                    psig, pstate = -99, 3
+                else:
+                    # 2013-11-14 ORNA
+                    psig, pstate = -99, 4
             else:
+                psig = 99 if cpeak else -99
                 pstate = 0 if mpeak or ppeak else -1 if posC < 2 else 1
         elif not nsig and "1" in nsignals and "1" not in psignals:
-            nsig = 99 if cpeak else -99
+            nsig = 98 if cpeak else -98
             if int(nsignals[divC]):
-                nstate = 2
+                nsig, nstate = 98, 2
+                if newlowP and not newlowM:
+                    # 2013-09-05 ORNA
+                    nstate = 0
             else:
                 nstate = 0 if cpeak or mpeak or ppeak else 1
 
@@ -809,8 +941,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     def eval3Bottoms(sval):
         sig, state = 0, 0
         if posC > 1:
-            # Works mostly in retrace position
-            sig = -sval
+            sig = sval if newhighC else -sval
         elif (newlowM and newlowP) or (bottomM or bottomP):
             # 2014-02-05 PADINI newlowC
             # 2012-01-20 YSPSAH bottomP
@@ -828,15 +959,15 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         if tripleBottoms == 1:
             state = 1
         elif posC > 1:
-            if cpeak and "MP" in ndiv:
-                # 2018-06-13 DUFU retrace with valley follow by peak divergence
-                state = -2
-            elif not newlowC:
-                # 2018-07-23 DANCO
-                state = -3
-            else:
-                # 2014-04-25 PETRONM
-                state = 4
+            if cpeak and cmpdiv in peakbear:
+                # 2016-02-03 ORNA
+                sig, state = sval, 2
+            elif newhighC:
+                # 2012-10-25 ORNA
+                state = 3
+            elif plistM[-1] < 10:
+                # 2016-01-21 ORNA
+                sig, state = sval, 4
         return sig, state
 
     def eval3Tops(sval):
@@ -848,15 +979,18 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             sig, state = -sval, 1
         elif posV > 3:
             sig, state = sval, 2
-            if newhighV:
+            if newhighV and topP:
                 # 2018-05-07 KLSE
                 sig, state = sval, 3
+            else:
+                # 2011-04-07 ORNA
+                sig, state = -sval, 4
         elif ((bottomM and newhighM) or
               (topM and prevbottomM)) and not newhighP:
             # 2014-08-05, 2014-08-12 MUDA
-            sig, state = sval, 4
-        else:
             sig, state = sval, 5
+        else:
+            sig, state = sval, 6
         return sig, state
 
     def evalM10x3(sval):
@@ -898,83 +1032,106 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         def common_narrows():
             def evalP(sval2):
                 sigP, stateP = 0, 0
-                if narrowP == 9:
-                    if nlistP[-2] < 0 and nlistP[-2] >= 0:
-                        # 2012-08-02 ORNA with topV
-                        sigP = -sval2
-                        stateP = -1 if posC < 2 else 1
-                    else:
-                        sigP, stateP = 900 + sval2, 1
-                elif tripleP in n3u and cmpdiv in valleybull:
-                    if nlistM[-1] > nlistM[-2]:
-                        # 2018-07-11 DANCO
-                        sigP, stateP = -sval2, 2
-                    else:
-                        # 2012-01-16 DUFU
-                        sigP, stateP = sval2, 3
-                elif bottomP:
-                    # 2013-05-29 PADINI oversold (could not reach here due to cmpdiv == 1
-                    sigP, stateP = -sval2, 0
+                if not tripleP:
+                    pass
+                elif cmpdiv in valleybull:
+                    if narrowP:
+                        # 2016-12-27 GHLSYS
+                        # 2018-06-13 DUFU retrace with valley follow by peak divergence
+                        sigP, stateP = -sval2, 1
+                    elif tripleP in n3u and cmpdiv in valleybull:
+                        if nlistP[-2] < 0:
+                            # 2012-08-16 ORNA
+                            # 2018-07-11 DANCO
+                            sigP, stateP = -sval2, 2
+                        elif nlistM[-1] > nlistM[-2]:
+                            # 2018-07-11 DANCO
+                            sigP, stateP = -sval2, 3
+                        else:
+                            # 2012-01-16 DUFU
+                            sigP, stateP = sval2, 4
                 elif tripleP in p3u and nlistP[-1] > 0 and plistM[-1] >= 10 and nlistM[-1] < 5:
                     if plistM[-1] >= 10:
                         # 2013-06-05 SCGM
-                        sigP, stateP = -sval2, 4
+                        sigP, stateP = -sval2, 5
                     else:
-                        sigP, stateP = 900 + sval2, 2
+                        sigP, stateP = 900 + sval2, 6
+                elif bottomP:
+                    # 2013-05-29 PADINI oversold (could not reach here due to cmpdiv == 1
+                    sigP, stateP = -sval2, 0
+                elif narrowP == 9:
+                    if nlistP[-2] < 0 and nlistP[-1] >= 0:
+                        # 2012-08-02 ORNA with topV
+                        sigP = -sval2
+                        stateP = -7 if posC < 2 else 7
+                    else:
+                        sigP, stateP = 900 + sval2, 1
+                elif narrowP:
+                    if tripleM in n3u and tripleP in n3u:
+                        # 2017-01-12 ORNA
+                        if lastM >= nlistM[-1]:
+                            sigP, stateP = -sval2, 8
+                        else:
+                            sigP, stateP = -sval2, 0
                 return sigP, stateP
 
             def evalM(sval3):
                 sigM, stateM = 0, 0
-                if topM and nlistP[-1] > 0:
+                if not tripleM:
+                    pass
+                elif topM and nlistP[-1] > 0:
                     # 2011-11-08 N2N
                     # 2014-02-20 PETRONM
                     sigM, stateM = -sval3, 1
                 elif newhighM and tripleM in p3d:
                     # 2012-04-02 DUFU with narrowM
                     sigM, stateM = sval3, 0
-                elif bottomM:
-                    # PADINI 2014-03-05 short rebound
-                    sigM, stateM = -sval3, 0
+                elif bottomM or prevbottomM:
+                    # 2014-03-05 PADINI short rebound
+                    # 2015-09-17 ORNA
+                    if bottomM:
+                        sigM, stateM = -sval3, 2
+                    else:
+                        sigM, stateM = sval3, 2
                 elif nlistM[-1] > 10 and nlistP[-1] > 0:
                     # 2013-05-29 PADINI 20% short push before top reversal
-                    sigM, stateM = sval3, -2
+                    sigM, stateM = sval3, -3
                 elif tripleM in p3u and nlistP[-1] >= 0:
                     if newhighM and posC < 2:
                         # 2013-03-21 PETRONM
-                        sigM, stateM = -sval3, 3
+                        sigM, stateM = -sval3, 4
                     elif posC > 2:
                         # 2017-02-08 SCGM
-                        sigM, stateM = -sval3, 4
-                    else:
                         sigM, stateM = -sval3, 5
+                    else:
+                        sigM, stateM = -sval3, 6
                         if topV and plistP[-1] < plistP[-2]:
                             # 2012-08-02 ORNA
-                            sigM, stateM = -sval3, 6
+                            sigM, stateM = -sval3, 7
                 elif tripleM in [2, 4, 5, 6, 7] and nlistM[-1] >= 5:
                     if nlistP[-1] > 0:
-                        # 2016-12-27 GHLSYS
-                        sigM, stateM = -sval3, 7
+                        sigM, stateM = -sval3, 8
                     elif lastM > plistM[-1]:
                         # 2016-08-25 MAGNI Strong reversal after short retrace (p=-0.057)
                         # 2013-07-04 ORNA
-                        sigM, stateM = -sval3, 8
+                        sigM, stateM = -sval3, 9
                     else:
                         # 2018-03-06 GHLSYS
-                        sigM, stateM = sval3, 9
+                        sigM, stateM = sval3, 10
                 elif narrowM:
                     sigM = -sval3
                     if nlistP[-1] >= 0:
                         # 2013-03-25 KLSE
-                        stateM = 10
+                        stateM = 11
                         if nlistM[-1] > 5:
                             # 2013-09-06 KESM
                             # 2017-02-03 GHLSYS
-                            stateM = 11
+                            stateM = 12
                     elif nlistM[-1] > 5:
                         # 2014-03-10 VSTECS
                         # 2017-02-21 YSPSAH
                         # 2018-07-20 DANCO
-                        stateM = 12
+                        stateM = 13
                     else:
                         sigM, stateM = 900 + sval3, 1
                     if posC < 2 and stateM:
@@ -983,8 +1140,14 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
             sig, state = 0, 0
             if newhighC and cmpdiv in valleybull:
-                # 2017-01-26 MAGNI
-                sig, state = -sval, 1
+                if lastM > 10:
+                    sig, state = sval, 0
+                    if newhighM:
+                        # 2014-07-17 ORNA
+                        sig, state = sval, 1
+                else:
+                    # 2017-01-26 MAGNI
+                    sig, state = -sval, 2
             else:
                 sig, state = evalP(2)
                 if not sig or sig > 900:
@@ -993,16 +1156,16 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                         sig = sval
                         if (newhighM or topM) and posC < 2:
                             # 2018-11-11 SUPERLN
-                            state = 2
+                            state = 3
                         if (newhighP or topP) and posC < 2:
                             sig, state = 903, 1
                         else:
                             # 2018-08-02 MAGNI
-                            state = 3
+                            state = 4
             return sig, state
 
         ssig, sstate = 0, 0
-        if narrowC > 3 and (bottomP or
+        if narrowC > 3 and (bottomP or narrowP or
                             (cmpdiv in [4, 5] and
                              ((nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]) or
                               (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3])) or
@@ -1014,9 +1177,13 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                         nlenP > 2 and (nlistP[-2] < 0 or nlistP[-3] < 0):
                     # 2017-01-09 KLSE
                     ssig, sstate = -sval, 4
-                else:
-                    # 2013-02-18 DUFU
-                    ssig, sstate = sval, 5
+                elif posC < 2 and tripleP in n3u:
+                    if nlenP > 2 and nlistP[-3] < 0:
+                        # 2016-12-29 ORNA
+                        ssig, sstate = -sval, 5
+                    else:
+                        # 2013-02-18 DUFU
+                        ssig, sstate = sval, 6
             else:
                 ssig, sstate = common_narrows()
 
@@ -1038,35 +1205,84 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         return sig, state
 
     def evalHighC(sval):
+        def evalLHC():
+            sig, state = sval, 0
+            return sig, state
+
         sig, state = sval, 0
         if countP == 3:
             # 2014-02-04 MUDA
             sig, state = -sval, 1
         elif tripleP in p3d:
             # 2014-05-05 KLSE
-            state = 1
+            state = 2
             if newhighV or topV or cmpdiv in peakbear:
                 # 2014-06-02 KLSE
                 # 2011-12-01 ORNA
-                state = 2
+                state = 3
+        elif tripleM in p3d:
+            if bottomM:
+                # 2013-01-03 ORNA
+                sig, state = sval, 4
+            elif newlowM:
+                # 2011-08-18 ORNA
+                sig, state = sval, 5
+            else:
+                sig, state = sval, 0
         elif tripleP in p3u:
             if topV and newlowV:
                 # 2018-11-05 YSPSAH
-                state = 3
+                state = 6
             elif nlistP[-1] < 0:
                 # 2013-12-19 ORNA
-                sig, state = -sval, -1
+                sig, state = -sval, -7
+            elif nlistP[-2] < 0:
+                # 2014-01-09 ORNA
+                sig, state = -sval, -8
+            else:
+                sig, state = -sval, -9
         else:
             if newhighM or newhighP or topM or topP:
                 # 2013-07-29 KLSE
                 # 2014-08-29 VSTECS
-                state = 4
+                state = 10
             elif cmpdiv in peakbear:
                 # 2011-11-17 ORNA
-                state = 2
-            if plistP[-1] > 0 and lastP < 0:
-                # KLSE 2013-09-02
-                state = -3
+                state = 11
+            elif plistP[-1] > 0:
+                if lastM < 5 and lastP < 0:
+                    # 2013-09-02 KLSE
+                    state = -12
+                elif lastM >= 0:
+                    state = 0
+                else:
+                    # 2014-08-21 ORNA
+                    state = 13
+            else:
+                # from pEvaluation
+                if cvalley and cmpdiv in valleybull:
+                    if nlistP[-1] < 0:
+                        if prevtopP:
+                            # 2013-01-31 ORNA
+                            sig, state = sval, 14
+                        else:
+                            # 2013-12-19 ORNA
+                            sig, state = -sval, 15
+                    elif highlowM:
+                        # 2011-05-12 ORNA
+                        sig = sval if newhighC or newhighP or topP else -sval
+                        state = 16
+                    elif newhighC and newhighM:
+                        sig, state = sval, 17
+                    else:
+                        # 2014-02-20 ORNA
+                        sig = sval if newhighP or topP else -sval
+                        state = 18
+                elif nlistP[-1] < 0 or cpeak:
+                    sig, state = sval, 0
+                else:
+                    # 2013-03-12 MUDA
+                    sig, state = -sval, 19
         return sig, state
 
     ssig, sstate, psig, pstate, nsig, nstate, neglist, poslist = 0, 0, 0, 0, 0, 0, "", ""
@@ -1126,11 +1342,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     mvalley = not mpeak
     pvalley = not ppeak
     vvalley = not vpeak
-    cmpInSync = False
-    if (cpeak and mpeak and ppeak and
-        pdateC == pdateM and pdateM == pdateP) or (cvalley and mvalley and pvalley and
-                                                   ndateC == ndateM and ndateM == ndateP):
-        cmpInSync = True
+    cmpInSync, mpInSync = isDivergentSync()
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
     else:
@@ -1146,7 +1358,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
     if nosignal:   # or DBGMODE == 3:
         pass
     else:
-        psig, pstate, nsig, nstate, neglist, poslist = evalsignals()
+        psig, pstate, nsig, nstate, neglist, poslist = evalPNsignals()
         negstr = "".join(neglist)
         posstr = "".join(poslist)
         if newlowC:
