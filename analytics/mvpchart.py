@@ -712,18 +712,18 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
                     if int(nsig) != 0:
-                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 and int(nstate) > 0 else "g^" if int(nsig) < 0 else "c+"
-                        fontclr = "black" if int(nsig) > 0 else "green"
+                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 and int(nstate) > 0 else "g^" if int(nsig) < 0 else "cd"
+                        fontclr = "green" if int(nstate) < 0 else "black" if int(nsig) > 0 else "green"
                         ax0.plot(dt, spos[0], symbolclr, markersize=7)
                         ax0.text(dt, spos[0], str(nsig), color=fontclr, fontsize=9)
                     if int(psig) != 0:
-                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 and int(pstate) > 0 else "g^" if int(psig) < 0 else "c+"
-                        fontclr = "black" if int(psig) > 0 else "green"
+                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 and int(pstate) > 0 else "g^" if int(psig) < 0 else "cd"
+                        fontclr = "green" if int(nstate) < 0 else "black" if int(psig) > 0 else "green"
                         ax0.plot(dt, spos[1], symbolclr, markersize=7)
                         ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
                     if int(sval) != 0:
-                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 and int(sstate) > 0 else "g^" if int(sval) < 0 else "c+"
-                        fontclr = "black" if int(sval) > 0 else "green"
+                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 and int(sstate) > 0 else "g^" if int(sval) < 0 else "cd"
+                        fontclr = "green" if int(nstate) < 0 else "black" if int(sval) > 0 else "green"
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
                         ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
@@ -1084,7 +1084,7 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         # columns, rows
         figsize = (12, 7) if showchart else (15, 9)
     else:
-        figsize = (10, 6) if showchart else (13, 9)
+        figsize = (10, 6) if showchart else (15, 9)
     fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
     fig.canvas.set_window_title(plttitle)
     _, pnList, div = plotSynopsis(dfplot, axes)
@@ -1093,23 +1093,24 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
     if pid:
         print "PID:", pid, lsttxn[0]
     signals = scanSignals(datadir, dbg, counter, outname, pnList, div, lsttxn, pid)
-    if len(signals):
-        title = plttitle + " [" + signals + "]"
-    else:
-        title = plttitle + " [" + counter + "]"
-    fsize = 10 if showchart else 15
-    fig.suptitle(title, fontsize=fsize)
-    if dbg:
-        print '\t', title
-
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    if showchart:
-        plt.show()
-    else:
+    if dbg != 2:
         if len(signals):
-            if len(numslen) > 0:
-                outname = outname + "-" + lsttxn[0]
-            plt.savefig(outname + "-synopsis.png")
+            title = plttitle + " [" + signals + "]"
+        else:
+            title = plttitle + " [" + counter + "]"
+        fsize = 10 if showchart else 15
+        fig.suptitle(title, fontsize=fsize)
+        if dbg:
+            print '\t', title
+
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        if showchart:
+            plt.show()
+        else:
+            if len(signals):
+                if len(numslen) > 0:
+                    outname = outname + "-" + lsttxn[0]
+                plt.savefig(outname + "-synopsis.png")
     plt.close()
     return len(signals) > 0
 
