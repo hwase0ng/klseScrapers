@@ -37,7 +37,7 @@ tripleBottoms=26
 tripleTops=27
 cmpsync=28
 
-# lowhighC, divC, n3uM, n3uP, divMP, pcnt, hlP/lhP, hlM/lhM = 0, 1, 2, 3, 4, 5, 6, 7
+# divC, divMP, n3uM, n3uP, pcnt, hlP/lhP, hlM/lhM = 0, 1, 2, 3, 4, 5, 6
 
 signalfile=""
 val=0
