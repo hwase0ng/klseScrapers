@@ -712,18 +712,18 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
                     if int(nsig) != 0:
-                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) > 0 and int(nstate) > 0 else "g^" if int(nsig) < 0 else "cd"
-                        fontclr = "green" if int(nstate) < 0 else "black" if int(nsig) > 0 else "green"
+                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) < 0 and int(nstate) > 0 else "g^" if int(nsig) > 0 else "cd"
+                        fontclr = "green" if int(nstate) < 0 else "black" if int(nsig) < 0 else "green"
                         ax0.plot(dt, spos[0], symbolclr, markersize=7)
                         ax0.text(dt, spos[0], str(nsig), color=fontclr, fontsize=9)
                     if int(psig) != 0:
-                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) > 0 and int(pstate) > 0 else "g^" if int(psig) < 0 else "cd"
-                        fontclr = "green" if int(nstate) < 0 else "black" if int(psig) > 0 else "green"
+                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) < 0 and int(pstate) > 0 else "g^" if int(psig) > 0 else "cd"
+                        fontclr = "green" if int(nstate) < 0 else "black" if int(psig) < 0 else "green"
                         ax0.plot(dt, spos[1], symbolclr, markersize=7)
                         ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
                     if int(sval) != 0:
-                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) > 0 and int(sstate) > 0 else "g^" if int(sval) < 0 else "cd"
-                        fontclr = "green" if int(nstate) < 0 else "black" if int(sval) > 0 else "green"
+                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) < 0 and int(sstate) > 0 else "g^" if int(sval) > 0 else "cd"
+                        fontclr = "green" if int(nstate) < 0 else "black" if int(sval) < 0 else "green"
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
                         ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
