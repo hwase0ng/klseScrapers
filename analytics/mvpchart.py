@@ -672,8 +672,12 @@ def plotSignals(pmaps, counter, datevector, ax0):
 
     def getSymbolColor(sig, state):
         if int(state) == 0:
-            symbolclr = "y."
-            fontclr = "green"
+            if int(sig) > 0:
+                symbolclr = "y."
+                fontclr = "green"
+            else:
+                symbolclr = "r."
+                fontclr = "red"
         elif int(sig) < 0:
             if int(state) > 0:
                 symbolclr = "rX"
