@@ -37,6 +37,7 @@ tripleBottoms=26
 tripleTops=27
 cmpsync=28
 
+# 1,2,3(narrowC), 4(m10x3), 5(3tops), 6(3bottoms), 7(narrowM), 8(highC), 9(lowC)
 # divC, divMP, n3uM, n3uP, pcnt, hlP/lhP, hlM/lhM = 0, 1, 2, 3, 4, 5, 6
 
 signalfile=""
