@@ -670,6 +670,26 @@ def plotSignals(pmaps, counter, datevector, ax0):
         chartsig = chartpos[:2]
         return ymin, ymax, chartsig, chartpos[3:]
 
+    def getSymbolColor(sig, state):
+        if int(state) == 0:
+            symbolclr = "y."
+            fontclr = "green"
+        elif int(sig) < 0:
+            if int(state) > 0:
+                symbolclr = "rX"
+                fontclr = "black"
+            else:
+                symbolclr = "md"
+                fontclr = "green"
+        else:
+            if int(state) > 0:
+                symbolclr = "g^"
+                fontclr = "green"
+            else:
+                symbolclr = "cd"
+                fontclr = "green"
+        return symbolclr, fontclr
+
     prefix = S.DATA_DIR + S.MVP_DIR + "signals/"
     infile = prefix + counter + "-signals.csv"
     try:
@@ -712,18 +732,15 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         print "Len needs adjustment:", ilen, len(cpos)
                         ilen = len(cpos)
                     if int(nsig) != 0:
-                        symbolclr = "y." if int(nstate) == 0 else "rX" if int(nsig) < 0 and int(nstate) > 0 else "g^" if int(nsig) > 0 else "cd"
-                        fontclr = "green" if int(nstate) < 0 else "black" if int(nsig) < 0 else "green"
+                        symbolclr, fontclr = getSymbolColor(nsig, nstate)
                         ax0.plot(dt, spos[0], symbolclr, markersize=7)
                         ax0.text(dt, spos[0], str(nsig), color=fontclr, fontsize=9)
                     if int(psig) != 0:
-                        symbolclr = "y." if int(pstate) == 0 else "rX" if int(psig) < 0 and int(pstate) > 0 else "g^" if int(psig) > 0 else "cd"
-                        fontclr = "green" if int(nstate) < 0 else "black" if int(psig) < 0 else "green"
+                        symbolclr, fontclr = getSymbolColor(psig, pstate)
                         ax0.plot(dt, spos[1], symbolclr, markersize=7)
                         ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
                     if int(sval) != 0:
-                        symbolclr = "y." if int(sstate) == 0 else "rX" if int(sval) < 0 and int(sstate) > 0 else "g^" if int(sval) > 0 else "cd"
-                        fontclr = "green" if int(nstate) < 0 else "black" if int(sval) < 0 else "green"
+                        symbolclr, fontclr = getSymbolColor(sval, sstate)
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
                         ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
