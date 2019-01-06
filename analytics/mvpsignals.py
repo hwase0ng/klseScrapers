@@ -114,7 +114,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             xnm, xnp = xpn[1][1], xpn[1][2]  # cmpv: 0=C, 1=M, 2=P, 3=V
             if xpm is None or xpp is None or xnm is None or xnp is None:
                 return 0, 0
-            if len(xpm) < 3 or len(xpp) < 3:
+            if len(xpm) < 4 or len(xpp) < 4:
                 return 0, 0
             if len(xpm) < len(xpp):
                 date1, date2 = xpm[-4], xpm[-1]
@@ -673,7 +673,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             nsignals = []
             # sig = "1" if newlowC or (bottomC and cpeak and plistC[-1] < lowbar) else "0"
             # nsignals.append(sig)
-            sig = "1" if cmpdiv in peakbear else "0"
+            sig = "1" if cmpdiv in bearpeak else "0"
             nsignals.append(sig)
             sig = "1" if cmpdiv == 7 or mpdiv == 7 else "0"
             nsignals.append(sig)
@@ -693,7 +693,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             psignals = []
             # sig = "1" if newhighC or (topC and cvalley and nlistC[-1] > highbar) else "0"
             # psignals.append(sig)
-            sig = "1" if cmpdiv in valleybull else "0"
+            sig = "1" if cmpdiv in bullvalley else "0"
             psignals.append(sig)
             sig = "1" if cmpdiv == 8 or mpdiv == 8 else "0"
             psignals.append(sig)
@@ -725,9 +725,6 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 # SCGM 2012-01-20 bottomC bullish nlistM[-1] > plistM[-2]
                 nsig = -2 if plistM[-1] < 10 and nlistP[-1] < 0 else 2
                 nstate = -1 if posC < 2 else 1
-            elif int(nsignals[pcnt]) and countP > 5:
-                # 2017-08-30 ORNA
-                nsig, nstate = 3, 1
             elif int(nsignals[hlM]):
                 nsig = 4
                 nstate = 1 if topP or newhighC or topC else 0
@@ -942,32 +939,33 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         sig, state = 0, 0
         if posC > 1:
             sig = sval if newhighC else -sval
-        elif (newlowM and newlowP) or (bottomM or bottomP):
-            # 2014-02-05 PADINI newlowC
-            # 2012-01-20 YSPSAH bottomP
-            sig = -sval
-        elif newhighM or newhighP or topM or topP:
-            # 2015-10-02 PADINI
-            sig = -sval
-        elif newhighV:
-            # 2017-08-28 N2N
-            sig = -sval
-        else:
-            # 2011-10-12 DUFU
-            sig = sval
-
-        if tripleBottoms == 1:
             state = 1
-        elif posC > 1:
-            if cpeak and cmpdiv in peakbear:
+            if cpeak and cmpdiv in bearpeak:
                 # 2016-02-03 ORNA
                 sig, state = sval, 2
             elif newhighC:
                 # 2012-10-25 ORNA
-                state = 3
+                sig, state = sval, 3
             elif plistM[-1] < 10:
                 # 2016-01-21 ORNA
                 sig, state = sval, 4
+        elif (newlowM and newlowP) or (bottomM or bottomP):
+            # 2014-02-05 PADINI newlowC
+            # 2012-01-20 YSPSAH bottomP
+            sig, state = -sval, 5
+        elif newhighM or newhighP or topM or topP:
+            # 2015-10-02 PADINI
+            sig, state = -sval, 6
+        elif newhighV:
+            # 2017-08-28 N2N
+            sig, state = -sval, 7
+        elif cmpdiv in bearpeak:
+            sig, state = -sval, 8
+        elif cmpdiv in bullvalley:
+            sig, state = -sval, 9
+        else:
+            # 2011-10-12 DUFU
+            sig, state = sval, 8
         return sig, state
 
     def eval3Tops(sval):
@@ -1034,12 +1032,12 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 sigP, stateP = 0, 0
                 if not tripleP:
                     pass
-                elif cmpdiv in valleybull:
+                elif cmpdiv in bullvalley:
                     if narrowP:
                         # 2016-12-27 GHLSYS
                         # 2018-06-13 DUFU retrace with valley follow by peak divergence
                         sigP, stateP = -sval2, 1
-                    elif tripleP in n3u and cmpdiv in valleybull:
+                    elif tripleP in n3u and cmpdiv in bullvalley:
                         if nlistP[-2] < 0:
                             # 2012-08-16 ORNA
                             # 2018-07-11 DANCO
@@ -1139,7 +1137,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 return sigM, stateM
 
             sig, state = 0, 0
-            if newhighC and cmpdiv in valleybull:
+            if newhighC and cmpdiv in bullvalley:
                 if lastM > 10:
                     sig, state = sval, 0
                     if newhighM:
@@ -1205,10 +1203,6 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         return sig, state
 
     def evalHighC(sval):
-        def evalLHC():
-            sig, state = sval, 0
-            return sig, state
-
         sig, state = sval, 0
         if countP == 3:
             # 2014-02-04 MUDA
@@ -1216,7 +1210,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         elif tripleP in p3d:
             # 2014-05-05 KLSE
             state = 2
-            if newhighV or topV or cmpdiv in peakbear:
+            if newhighV or topV or cmpdiv in bearpeak:
                 # 2014-06-02 KLSE
                 # 2011-12-01 ORNA
                 state = 3
@@ -1246,7 +1240,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 # 2013-07-29 KLSE
                 # 2014-08-29 VSTECS
                 state = 10
-            elif cmpdiv in peakbear:
+            elif cmpdiv in bearpeak:
                 # 2011-11-17 ORNA
                 state = 11
             elif plistP[-1] > 0:
@@ -1260,7 +1254,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     state = 13
             else:
                 # from pEvaluation
-                if cvalley and cmpdiv in valleybull:
+                if cvalley and cmpdiv in bullvalley:
                     if nlistP[-1] < 0:
                         if prevtopP:
                             # 2013-01-31 ORNA
@@ -1283,6 +1277,20 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 else:
                     # 2013-03-12 MUDA
                     sig, state = -sval, 19
+        return sig, state
+
+    def evalLowC(sval):
+        sig, state = sval, 0
+        if tripleBottoms:
+            if newlowM and not newlowP:
+                if plistP[-1] > 0 and lastP > 0:
+                    # 2009-03-18 KLSE
+                    sig, state = -sval, 1
+                else:
+                    sig, state = -sval, 0
+            elif newlowC and not (newlowM or newlowP):
+                # 2009-03-25 KLSE
+                sig, state = -sval, 2
         return sig, state
 
     ssig, sstate, psig, pstate, nsig, nstate, neglist, poslist = 0, 0, 0, 0, 0, 0, "", ""
@@ -1333,7 +1341,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         Px    X    7    8
     '''
     p3u, p3d, n3u, n3d = [1, 2, 3], [4, 5, 6], [2, 5, 7], [3, 6, 8]
-    peakbear, valleybull = [1, 2, 3], [4, 5, 6]
+    bearpeak, bullvalley = [1, 2, 3], [4, 5, 6]
     cpeak, pdateC, ndateC = ispeak(0)
     mpeak, pdateM, ndateM = ispeak(1)
     ppeak, pdateP, ndateP = ispeak(2)
@@ -1362,7 +1370,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         negstr = "".join(neglist)
         posstr = "".join(poslist)
         if newlowC:
-            ssig, sstate = 9, 9
+            ssig, sstate = evalLowC(9)
         elif narrowC:
             ssig, sstate = evalNarrowC(1)
         if not ssig or sstate > 900:
