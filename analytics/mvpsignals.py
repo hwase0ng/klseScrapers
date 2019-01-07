@@ -617,17 +617,36 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             return cmpdiv, mpdiv, mpnow
 
         def divHighLow():
+            def findpos(opt, li):
+                if len(li) < 4:
+                    return -99
+                pos = len(li) - 4
+                li2 = li[pos:]
+                if opt == 1:
+                    if li2[0] == max(li2):
+                        li2 = li2[1:]
+                    m = max(li2)
+                else:
+                    if li2[0] == min(li2):
+                        li2 = li2[1:]
+                    m = min(li2)
+                return m
+
             def highlowM():
                 if not mpInSync:
                     return False
-                if len(plistM) < 4 or len(plistP) < 4:
-                    return False
-                if plistM[-2] > plistM[-1] and plistM[-2] > plistM[-3] and \
-                    (plistP[-1] > plistP[-2] and (plistP[-2] < plistP[-3] or
-                                                  plistP[-2] < plistP[-4])):
-                    # 2011-05-12 ORNA
-                    return True
-                return False
+                m = findpos(1, plistM)
+                p = findpos(2, plistP)
+                if m == -99 or p == -99:
+                    return 0
+                if p == plistP[-2] or p == plistP[-3]:
+                    if m == plistM[-2]:
+                        # 2011-05-12 ORNA
+                        return 1
+                    elif m == plistM[-3]:
+                        # 2015-03-05 ORNA
+                        return 2
+                return 0
 
             def highlowP():
                 if not mpInSync:
@@ -748,7 +767,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     else:
                         nsig, nstate = -2, 0
             elif int(nsignals[hlM]):
-                if topP or newlowV:
+                if topP or newlowV and not newhighC:
                     # 2018-04-03 MUDA
                     nsig, nstate = 3, 1
                 elif mpeak or newhighC:
@@ -1373,6 +1392,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     state = 11
                 else:
                     # 2014-06-24 MUDA
+                    # 2019-01-06 DUFU
                     sig, state = sval, 12
             elif plistP[-1] > 0:
                 if lastM < 5 and lastP < 0:
