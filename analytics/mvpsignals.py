@@ -827,12 +827,13 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     elif nlistP[-1] < 0:
                         # 2015-09-17 ORNA
                         state = -5
-                elif nlistP[-1] < 0 and nlistM[-1] < 5:
+                elif nlistP[-1] < 0:
                     # 2015-12-11 ORNA
+                    # 2016-01-28 ORNA
                     sig, state = -1, 6
-                elif nlistP[-1] < 0 and nlistM[-1] > 5:
-                    # 2015-12-11 ORNA
-                    sig, state = 1, 7
+                    if newlowC:
+                        # 2018-02-27 MUDA
+                        sig, state = 1, 7
                 elif plistM[-1] > 10:
                     # 2013-12-17 MUDA
                     sig, state = 1, 8
@@ -986,12 +987,13 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         if not psig and "1" in psignals and "1" not in nsignals:
             if int(psignals[divC]):
                 if newhighV or topV:
-                    # 2015-01-29 ORNA
-                    # 2011-06-28 MUDA
-                    psig, pstate = 99, 0
+                    # 2012-08-02 ORNA
+                    psig, pstate = 99, 1
                     if newhighP:
                         psig, pstate = -99, 0
-                    if topP or topV:
+                    if newhighC and (topP or topV):
+                        # 2015-01-29 ORNA
+                        # 2011-06-28 MUDA
                         psig, pstate = -99, 1
                 elif prevtopC and not (newhighM or newhighP):
                     psig, pstate = -99, 0
@@ -1017,8 +1019,12 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                                 else:
                                     psig, pstate = 99, 0
                     else:
-                        # 2017-03-14 MUDA
-                        psig, pstate = -99, 7
+                        if newhighC:
+                            # 2014-01-09 ORNA
+                            psig, pstate = 99, 7
+                        else:
+                            # 2017-03-14 MUDA
+                            psig, pstate = -99, 7
             else:
                 psig = -97 if cpeak else 97
                 pstate = 0 if mpeak or ppeak else -1 if posC < 2 else 1
