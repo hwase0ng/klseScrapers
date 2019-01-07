@@ -83,7 +83,9 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
     # tolerance, pdays, ndays, matchlevel)
     signalsss, label = "NUL,0.0,0.0.0.0", ""
     if sss or psig or nsig:
-        label = "TBD" if sss > 900 else "TSS" if sss < 0 else "BBS" if sss > 0 else "NUL"
+        label = "TBD" if sss > 900 or not (sstate or pstate or nstate) else \
+                "TSS" if sss < 0 or psig < 0 or nsig < 0 else \
+                "BBS" if sss > 0 or psig > 0 or nsig > 0 else "NUL"
         signalsss = "%s,%d.%d,%d.%d.%d.%d" % (label, sss, sstate, nsig, nstate, psig, pstate)
 
     signals = "%s,%s,%s" % (counter, signalsss, signaldet)
@@ -735,23 +737,32 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     nsig, nstate = -2, 1
                 else:
                     if nlistP[-1] < 0:
-                        if lastP > 0:
-                            # VSTECTS 2013-03-11
+                        if nlistM[-1] > 5 and not newlowC:
+                            # 2013-03-11 VSTECTS
                             nsig, nstate = 2, 2
                         else:
+                            # 2012-04-30 MUDA
+                            # 2016-11-06 MUDA newlowC
                             # 2016-11-21 MUDA (wrong hlP shape)
-                            nsig, nstate = -3, 3
+                            nsig, nstate = -2, 3
                     else:
                         nsig, nstate = -2, 0
             elif int(nsignals[hlM]):
-                if mpeak or topP or newhighC:
-                    nsig, nstate = -3, 1
+                if topP or newlowV:
+                    # 2018-04-03 MUDA
+                    nsig, nstate = 3, 1
+                elif mpeak or newhighC:
+                    # 2018-05-08 MUDA
+                    nsig, nstate = -3, 2
                 else:
-                    # 2011-10-04 MUDA short rebound
-                    # 2017-05-09 MUDA short rebound
-                    nsig, nstate = 3, 2
-                    if nlistP[-1] > 0:
+                    if nlistM[-1] < 0:
+                        # 2017-05-09 MUDA short rebound
                         nsig, nstate = 3, 3
+                        if lastM > plistM[-1]:
+                            nsig, nstate = -3, 4
+                    else:
+                        # 2012-07-17 MUDA
+                        nsig, nstate = -3, 5
             elif "1" in nsignals[1:] and (mvalley or pvalley):
                 nval = 4 if tripleM in n3u else -4
                 nsig = nval
@@ -797,15 +808,18 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     elif nlistP[-1] < 0:
                         # 2015-09-17 ORNA
                         state = -5
-                elif nlistP[-1] < 0:
+                elif nlistP[-1] < 0 and nlistM[-1] < 5:
                     # 2015-12-11 ORNA
                     sig, state = -1, 6
+                elif nlistP[-1] < 0 and nlistM[-1] > 5:
+                    # 2015-12-11 ORNA
+                    sig, state = 1, 7
                 elif plistM[-1] > 10:
                     # 2013-12-17 MUDA
-                    sig, state = 1, 7
+                    sig, state = 1, 8
                 else:
                     # 2017-05-09 MUDA
-                    sig, state = -1, 8
+                    sig, state = -1, 9
 
                 if state != 0:
                     nsig, nstate = sig, state
@@ -884,8 +898,9 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     # 2012-01-04 ORNA
                     # 2016-11-15 MUDA (also lhP)
                     psig, pstate = 5, 0
-                    if lastM > plistM[-3]:
-                        pstate = 1
+                    # wrong signal for 2018-12 muda
+                    # if lastM > plistM[-3]:
+                    #     pstate = 1
                 elif tripleP in n3d and tripleV in n3d:
                     if nlistP[-1] < 0 and not bottomP:
                         # 2014-11-27 ORNA
@@ -910,13 +925,21 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                     psig, pstate = 7, 1
                 else:
                     if mvalley:
-                        # 2011-10-25 MUDA
+                        # 2011-11-01 MUDA
                         psig, pstate = 7, 2
                     else:
-                        psig, pstate = -7, 3
+                        psig, pstate = 7, 0
+                        if newlowM and not newlowP:
+                            # 2012-01-03 MUDA
+                            psig, pstate = 7, 3
+                        elif lastP < 0:
+                            psig, pstate = -7, 4
+                        else:
+                            psig, pstate = 7, 0
             elif isretrace():
                 psig, pstate = -8, -1
             elif topC and prevbottomC:
+                # 2011-10-25 MUDA
                 psig, pstate = -9, 0
             elif int(psignals[divC]) and int(nsignals[divMP]):
                 psig, pstate = -10, 0
@@ -943,9 +966,14 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
         if not psig and "1" in psignals and "1" not in nsignals:
             if int(psignals[divC]):
-                if newhighV:
+                if newhighV or topV:
                     # 2015-01-29 ORNA
-                    psig, pstate = -99, 1
+                    # 2011-06-28 MUDA
+                    psig, pstate = 99, 0
+                    if newhighP:
+                        psig, pstate = -99, 0
+                    if topP or topV:
+                        psig, pstate = -99, 1
                 elif prevtopC and not (newhighM or newhighP):
                     psig, pstate = -99, 0
                     if mpeak or ppeak:
@@ -970,7 +998,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                                 else:
                                     psig, pstate = 99, 0
                     else:
-                        psig, pstate = 99, 7
+                        # 2017-03-14 MUDA
+                        psig, pstate = -99, 7
             else:
                 psig = -97 if cpeak else 97
                 pstate = 0 if mpeak or ppeak else -1 if posC < 2 else 1
