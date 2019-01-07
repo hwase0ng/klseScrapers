@@ -502,7 +502,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         def topscount():
             def alternateTops():
                 tops = 0
-                for i in range(-1, -5, -1):
+                for i in range(-1, -4, -1):
                     if plistC[i] > plistC[i - 1]:
                         tops += 1
                     elif plistC[i] > plistC[i - 2] and plistC[i] > plistC[i - 3]:
@@ -970,7 +970,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                                 else:
                                     psig, pstate = 99, 0
                     else:
-                        psig, pstate = 99, 6
+                        psig, pstate = 99, 7
             else:
                 psig = -97 if cpeak else 97
                 pstate = 0 if mpeak or ppeak else -1 if posC < 2 else 1
