@@ -19,8 +19,11 @@ re='^[0-9]+$'
 #  Px    X    7    8
 # p3u=1,2,3 p3d=,4,5,6, n3u=2,5,7, n3d=3,6,8
 ss=4
+sss=5
 ns=6
+nss=7
 ps=8
+pss=9
 cmpdiv=14   # 1,2,3,7=CP+CM,CP,CM in pdiv (PEAK bearish divergence); 4,5,6,8=same in ndiv (VALLEY bullish)
 c=15		# hltb = ['0', 'h', 'l', 't', 'b']
 m=16
@@ -45,7 +48,7 @@ val=0
 val2=0
 signal=""
 signal2=""
-useEqual=0
+useEqual="0"
 
 while getopts ":s:S:v:V:c:e:g:d:" opt
 do
@@ -139,7 +142,7 @@ then
 	then
         if [ -z "${signal2}" -o "${val2}" -eq 0 ]
         then
-			if [ $useEqual -eq 1 ]
+			if [[  "$useEqual" == "1" ]]
 			then
 				awk -F'[,.^]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $@
 			else
@@ -158,19 +161,20 @@ fi
 for counter in $group
 do
 	signalfile=${signaldir}/${counter}-signals.csv
-	echo $counter, $signal, $val, $signalfile
     if [ -f $signalfile ]
     then
 		if [ -z "${signal2}" -o "${val2}" -eq 0 ]
 		then
-			if [ $useEqual -eq 1 ]
+			echo "Searching $counter: e=$useEqual, s=$signal, v=$val, file=$signalfile"
+			if [[ "$useEqual" == "1" ]]
 			then
 				awk -F'[,.^]' -v sn=$signal -v val=$val '{if ($sn == val) {print $0}}' $signalfile
 			else
 				awk -F'[,.^]' -v sn=$signal -v val=$val '{if ($sn > val) {print $0}}' $signalfile
 			fi
 		else
-			if [ $useEqual -eq 1 ]
+			echo "Searching $counter: e=$useEqual, s=$signal, v=$val, s2=$signal2, v2=$val2, file=$signalfile"
+			if [[  "$useEqual" == "1" ]]
 			then
   				awk -F'[,.^]' -v sn=$signal -v sn2=${signal2} -v val=$val -v val2=$val2 '{if ($sn == val && $sn2 == val2) {print $0}}' $signalfile
   			else
