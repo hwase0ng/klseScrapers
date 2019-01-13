@@ -11,4 +11,3 @@ then
 else
  python analytics/mvpchart.py -ps -Du $@
 fi
-cd -
