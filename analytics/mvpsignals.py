@@ -17,6 +17,9 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
         return [xp, xn]
 
     def printsignal(trxndate):
+        if not len(mpvdir):
+            # call from pytest
+            return
         # prefix = "" if DBGMODE == 2 else '\t'
         # print prefix + signal
         postfix = "csv." + str(pid) if pid else "csv"
@@ -83,9 +86,11 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
     # tolerance, pdays, ndays, matchlevel)
     signalsss, label = "NUL,0.0,0.0.0.0", ""
     if sss or psig or nsig:
-        label = "TBD" if sss > 900 or not (sstate or pstate or nstate) else \
-                "TSS" if sss < 0 or psig < 0 or nsig < 0 else \
-                "BBS" if sss > 0 or psig > 0 or nsig > 0 else "NUL"
+        label = "TBD" if sss > 900 else \
+                "TSS" if sss < 0 else "BBS" if sss > 0 else \
+                "TSS" if psig < 0 or nsig < 0 else \
+                "BBS" if psig > 0 or nsig > 0 else \
+                "NUL"
         signalsss = "%s,%d.%d,%d.%d.%d.%d" % (label, sss, sstate, nsig, nstate, psig, pstate)
 
     signals = "%s,%s,%s" % (counter, signalsss, signaldet)
@@ -1376,7 +1381,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
     def eval3Tops(sval):
         def evalHigherTops():
-            return sig, state
+            sig, state = 0, 0
             if tripleM in p3d and tripleP in p3d and tripleV in p3d and \
                     nlenV > 1 and nlistV[-1] > nlistV[-2] and \
                     plistM[-1] > 5 and plistP[-1] > 0:
@@ -1828,103 +1833,132 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
         return sig, state
 
     def evalTopC(sval):
-        def evalTopPM(st):
+        def evalBottomPM(st=0):
+            sig, state = 0, 0
+            if (prevbottomM or prevbottomP) and not (topM or topP):
+                if newlowM or newlowP:
+                    if newlowM and newlowP and nlistM[-1] > 5:
+                        # 2018-04-04 PADINI
+                        sig, state = -sval, st + 1
+                    elif newlowM:
+                        # 2011-09-21 KLSE newlowM, bottomP
+                        # 2011-09-28 KLSE newlowM, newlowP
+                        # 2013-02-06 KLSE newlowM
+                        # 2014-12-09 MUDA plistP[-1] < 0
+                        # 2014-12-29 MUDA bottomM, newlowP
+                        # 2018-05-02 PADINI newlowM
+                        sig, state = sval, st + 1
+                    else:
+                        # 2011-08-03 KLSE
+                        sig, state = -sval, st + 1
+                elif prevbottomM or prevbottomP:
+                    # 2011-11-16 KLSE
+                    # 2011-12-07 KLSE
+                    sig, state = sval, st + 2
+                    if plistM[-1] > 10:
+                        # 2015-02-24 MUDA final push before collapse
+                        sig, state = -sval, -st - 2
+                        if bottomM or bottomP:
+                            # 2015-02-10 MUDA
+                            sig, state = sval, st + 3
+                    elif nlistM[-1] > 5:
+                        # 2018-05-16 PADINI
+                        sig, state = sval, st + 3
+                    elif plistM[-1] > plistM[-2] and plistM[-1] > plistM[-3]:
+                        # 2011-11-16 KLSE
+                        # 2011-12-07 KLSE
+                        sig, state = sval, -st - 4
+                    else:
+                        # 2008-05-07 KLSE
+                        sig, state = -sval, st + 4
+                else:
+                    if cmpdiv in bullvalley:
+                        sig, state = sval, st + 5
+                    else:
+                        sig, state = -sval, st + 5
+            elif (newlowM and newlowP) or (bottomM and bottomP) or \
+                    (newlowM and bottomP) or (bottomM and newlowP):
+                if topM or topP or prevtopM or prevtopP:
+                    # 2014-10-14 MUDA topM
+                    # 2018-12-05 PADINI
+                    sig, state = -sval, st + 7
+                    if bottomM or bottomP:
+                        if plistP[-1] < 0:
+                            # 2015-01-06 MUDA
+                            # 2019-01-02 PADINI
+                            sig, state = sval, st + 7
+                elif newlowP:
+                    if newlowM:
+                        # 2008-03-12 KLSE === 2011-09-28 KLSE
+                        if nlistM[-1] < 5:
+                            # 2011-09-28 KLSE
+                            sig, state = sval, st + 9
+                        else:
+                            # 2008-03-12 KLSE
+                            sig, state = -sval, -st - 9
+                    elif nlistM[-1] > 5:
+                        # 2018-04-11 PADINI
+                        sig, state = sval, -st - 10
+                    else:
+                        # 2011-10-05 KLSE bottomM, newlowP
+                        sig, state = sval, st + 10
+                elif bottomM or bottomP:
+                    if newhighM or newhighP:
+                        # 2011-11-02 KLSE
+                        sig, state = sval, -st - 12
+                    elif bottomM and bottomP:
+                        # 2008-04-02 KLSE
+                        # 2011-10-12 KLSE bottomM, bottomP
+                        sig, state = sval, st + 12
+            elif newlowP and not newlowM:
+                sig, state = -sval, st + 14
+                if topP:
+                    # 2015-03-02 DUFU
+                    sig, state = sval, st + 14
+            elif newlowM or bottomM:
+                if topM and topP or prevtopM and prevtopP:
+                    # 2018-11-21 PADINI
+                    sig, state = sval, st + 16
+                elif newlowP or bottomP:
+                    # 2018-04-04 PADINI
+                    # 2018-11-07 PADINI
+                    sig, state = -sval, st + 16
+                else:
+                    if cmpdiv in bullvalley:
+                        # 2018-05-16 PADINI
+                        sig, state = sval, st + 18
+                    else:
+                        # 2012-11-28 KLSE
+                        # 2018-04-25 PADINI
+                        sig, state = sval, -st - 18
+            return sig, state
+
+        def evalTopPM(st=10):
             # 2014-10-07 MUDA topM
             # 2016-03-01 MUDA === PADINI 2018-11-21 === 2014-12-29 MUDA
             # 2018-05-07 KLSE
             sig, state = -sval, st + 1
-            if topP and topM:
+            if topM and topP or prevtopM and prevtopP:
                 # 2018-08-29 PADINI
+                # 2018-10-03 PADINI
                 sig, state = -sval, st + 2
             elif lastM < nlistM[-2]:
                 # 2015-04-13 DUFU prevtopP
                 sig, state = -sval, st + 3
             return sig, state
 
-        def evalBottomPM(st):
-            sig, state = 0, 0
-            if prevbottomM or prevbottomP:
-                if newlowM or newlowP:
-                    # 2011-11-23 KLSE
-                    # 2014-12-09 MUDA plistP[-1] < 0
-                    sig, state = sval, st + 1
-                elif prevbottomM and prevbottomP:
-                    # 2011-12-07 KLSE
-                    sig, state = sval, st + 2
-                    if plistM[-1] > 10:
-                        # 2015-02-24 MUDA
-                        sig, state = -sval, -st - 3
-                else:
-                    # 2015-02-10 MUDA
-                    sig, state = -sval, st + 3
-            elif newlowM and newlowP or bottomM and bottomP or \
-                    newlowM and bottomP or bottomM and newlowP:
-                if topM or topP or prevtopM or prevtopP:
-                    # 2014-10-14 MUDA topM
-                    sig, state = -sval, st + 4
-                    if plistP[-1] < 0:
-                        # 2015-01-06 MUDA
-                        sig, state = sval, st + 4
-                else:
-                    # 2011-09-21 KLSE newlowM, bottomP
-                    # 2011-09-28 KLSE newlowM, newlowP
-                    # 2011-10-05 KLSE bottomM, newlowP
-                    # 2011-10-12 KLSE bottomM, bottomP
-                    sig, state = sval, st + 5
-            elif newlowP and not newlowM:
-                # 2018-04-11 PADINI
-                sig, state = -sval, st + 6
-                if topP:
-                    # 2015-03-02 DUFU
-                    sig, state = sval, st + 6
-                elif nlistM[-1] < 5 and plistP[-1] < 0:
-                    # 2014-12-29 MUDA
-                    sig, state = sval, st + 7
-            elif newlowM or bottomM:
-                if newlowP or bottomP:
-                    # 2018-04-04 PADINI
-                    # 2018-11-07 PADINI
-                    sig, state = -sval, st + 7
-                    if nlistM[-1] < 5 and plistP[-1] < 0:
-                        # 2014-12-16 MUDA
-                        sig, state = sval, st + 8
-                else:
-                    # 2012-11-28 KLSE
-                    # 2013-02-06 KLSE
-                    # 2018-05-02 PADINI
-                    sig, state = sval, st + 9
-            return sig, state
-
-        if topP or topM or prevtopP or prevtopM:
-            sig, state = evalTopPM(0)
-        elif newlowP or newlowM or bottomP or bottomM:
-            sig, state = evalBottomPM(10)
-        elif bottomM and bottomP:
-            if nlistM[-1] >= 5 and nlistP[-1] > 0:
-                # 2007-04-04 KLSE
-                sig, state = sval, 11
-            elif nlistM[-1] < 5 and nlistP[-1] < 0:
-                if cmpdiv in bullvalley and (not mpdiv or mpdiv in bullvalley):
-                    # 2011-10-25 KLSE
-                    # 2015-07-20 DUFU
-                    sig, state = sval, 12
-                else:
-                    # 2014-11-04 MUDA mpdiv > cmpdiv
-                    # 2015-07-20 DUFU
-                    sig, state = -sval, 12
-            else:
-                sig, state = sval, 0
-        elif bottomP and plistM[-1] > 10:
-            # 2015-02-17 MUDA
-            sig, state = -sval, 0
-        elif prevbottomP and plistM[-1] > 10:
-            # 2015-02-24 MUDA
-            sig, state = -sval, 13
+        if newlowP or newlowM or bottomP or bottomM or prevbottomP or prevbottomM:
+            sig, state = evalBottomPM()
+        elif topP or topM or prevtopP or prevtopM:
+            sig, state = evalTopPM()
+        elif cmpdiv in bearpeak:
+            # 2008-02-06 KLSE
+            sig, state = -sval, 21
         elif plistM[-1] < plistM[-2] and plistM[-1] < plistM[-3]:
             # 2012-11-07 KLSE
             # 2013-08-07 KLSE
             # 2018-01-24 PADINI
-            sig, state = -sval, 15
+            sig, state = -sval, 25
             if tripleM in n3u:
                 # 2013-08-28
                 sig, state = sval, 15
@@ -1975,8 +2009,8 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                 else:
                     sig, state = sval, 0
             elif newlowC and not (newlowM or newlowP):
-                if plistM[-1] > plistM[-2] and plistM[-1] > plistM[-3]:
-                    if plistP[-1] > plistP[-2] and plistP[-1] > plistP[-3]:
+                if plenM > 2 and plistM[-1] > plistM[-2] and plistM[-1] > plistM[-3]:
+                    if plenP > 2 and plistP[-1] > plistP[-2] and plistP[-1] > plistP[-3]:
                         # 2009-03-25 KLSE
                         sig, state = sval, 3
         return sig, state
@@ -2011,7 +2045,7 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
 
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
-        lastTrxn[6], lastTrxn[7], lastTrxn[8], lastTrxn[9]
+        lastTrxn[7], lastTrxn[8], lastTrxn[9], lastTrxn[10]
     cmpvMC, cmpvMM, cmpvMP, cmpvMV = cmpvlists[0], cmpvlists[1], cmpvlists[2], cmpvlists[3]
     plistC, nlistC, plistM, nlistM, plistP, nlistP, plistV, nlistV = \
         cmpvMC[2], cmpvMC[3], cmpvMM[2], cmpvMM[3], cmpvMP[2], cmpvMP[3], cmpvMV[2], cmpvMV[3]  # 0=XP, 1=XN, 2=YP, 3=YN
@@ -2500,7 +2534,7 @@ def collectCompositions(pnlist, lastTrxn):
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
     lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
         lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
-        lastTrxn[6], lastTrxn[7], lastTrxn[8], lastTrxn[9]
+        lastTrxn[7], lastTrxn[8], lastTrxn[9], lastTrxn[10]
     if DBGMODE:
         print "first:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, firstC, firstM, firstP, firstV)
         print "last:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, lastC, lastM, lastP, lastV)

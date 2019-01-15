@@ -14,6 +14,7 @@ Options:
     -d,--displaychart       Display chart [default: False]
     -D,--debug=(dbgopt)     Enable debug mode (A)ll, (p)attern charting, (s)ignal, (u)nit test input generation
     -e,--datadir=<dd>       Use data directory provided
+    -j,--json=<jval>        Use json snapshot (jval 1=export snapshot, 2=use snapshot)
 
     -w,--weekly             Include weekly columns else month only [default: False]
     -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
@@ -31,18 +32,18 @@ Created on Oct 16, 2018
 '''
 
 from common import retrieveCounters, loadCfg, formStocklist, \
-    loadKlseCounters, match_approximate2, getSkipRows, matchdates
+    loadKlseCounters, match_approximate2, getSkipRows
 from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
 from mpl_finance import candlestick_ohlc
 from multiprocessing import Process, cpu_count
 from mvpsignals import scanSignals
-from pandas import read_csv, Grouper
+from pandas import read_csv, Grouper, concat
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset,\
-    weekFormatter
+    weekFormatter, getDayOffset
 from utils.fileutils import tail2, wc_line_count, grepN, mergefiles,\
-    purgeOldFiles
+    purgeOldFiles, jsonLastDate
 import numpy as np
 import operator
 import os
@@ -50,51 +51,61 @@ import settings as S
 import traceback
 
 
-def dfLoadMPV(counter, chartDays, start=0):
+def dfLoadMPV(counter, chartDays, start=0, dojson=0):
     prefix = S.DATA_DIR + S.MVP_DIR
     incsv = prefix + counter + ".csv"
     if start > 0:
         prefix = prefix + "simulation/"
     outname = prefix + "synopsis/" + counter
-    if start > 0:
-        row_count = wc_line_count(incsv)
-        if row_count < S.MVP_CHART_DAYS:
-            skiprow = -1
+    if dojson == "2":
+        df, skiprow = None, 0
+    else:
+        if start > 0:
+            row_count = wc_line_count(incsv)
+            if row_count < S.MVP_CHART_DAYS:
+                skiprow = -1
+            else:
+                lines = tail2(incsv, start)
+                # heads = lines[:chartDays] if SYNOPSIS else lines
+                incsv += "tmp"
+                with open(incsv, 'wb') as f:
+                    for item in lines:
+                        f.write("%s" % item)
+                skiprow = 0
         else:
-            lines = tail2(incsv, start)
-            # heads = lines[:chartDays] if SYNOPSIS else lines
-            incsv += "tmp"
-            with open(incsv, 'wb') as f:
-                for item in lines:
-                    f.write("%s" % item)
-            skiprow = 0
-    else:
-        skiprow, row_count = getSkipRows(incsv, chartDays)
+            skiprow, row_count = getSkipRows(incsv, chartDays)
 
-    if skiprow < 0 or row_count <= 0:
-        print "File not available:", incsv
-        return None, skiprow, None
-    # series = Series.from_csv(incsv, sep=',', parse_dates=[1], header=None)
-    if OHLC:
-        usecols = ['date', 'open', 'high', 'low', 'close', 'volume', 'M', 'P', 'V']
-    else:
-        usecols = ['date', 'close', 'V', 'M', 'P']
-    df = read_csv(incsv, sep=',', header=None, parse_dates=['date'], skiprows=skiprow, usecols=usecols,
-                  names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
-                         'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
+        if skiprow < 0 or row_count <= 0:
+            print "File not available:", incsv
+            return None, skiprow, None
+        # series = Series.from_csv(incsv, sep=',', parse_dates=[1], header=None)
+        if OHLC:
+            usecols = ['date', 'open', 'high', 'low', 'close', 'volume', 'M', 'P', 'V']
+        else:
+            usecols = ['date', 'close', 'V', 'M', 'P']
+        df = read_csv(incsv, sep=',', header=None, parse_dates=['date'], skiprows=skiprow, usecols=usecols,
+                      names=['name', 'date', 'open', 'high', 'low', 'close', 'volume',
+                             'total vol', 'total price', 'dayB4 motion', 'M', 'P', 'V'])
     return df, skiprow, outname
 
 
 def dfGetDates(df, start, end):
+    if df is None:
+        return None
     dfmpv = df[(df['date'] >= start) & (df['date'] <= end)]
     dfmpv = dfmpv.reset_index()
     return dfmpv
 
 
-def annotateMVP(df, axes, MVP, cond):
+def annotateMVP(df, axes, MVP, cond, cond2=0):
     if SYNOPSIS:
         df = df.reset_index()
-    idxMV = df.index[df[MVP] > cond]
+    if cond2 == 0:
+        idxMV = df.index[df[MVP] > cond]
+    else:
+        c1, c2 = df[MVP] > cond, df[MVP] < cond2
+        df = concat([df, c1, c2], axis=1)
+        idxMV = df.index[c1 & c2]
     if len(idxMV) == 0:
         return 0
     group_mvp = []
@@ -106,8 +117,12 @@ def annotateMVP(df, axes, MVP, cond):
         if i > len(df.index) or idxMV[j] < 0:
             break
         mpvdate = pdTimestamp2strdate(df.iloc[idxMV[j]]['date'])
-        mv = df.iloc[idxMV[j]][MVP]
-        mv = int(mv)
+        if cond2 == 0:
+            mv = df.iloc[idxMV[j]][MVP]
+            mv = int(mv)
+        else:
+            mv = df.iloc[idxMV[j]][MVP][0]
+            mv = float("{:.2f}".format(mv))
         if DBG_ALL:
             print j, mpvdate, mv
         if i <= len(idxMV):
@@ -185,7 +200,8 @@ def findpeaks(df, cmpvHL, weekly=False, dwfm=-1):
             pdist = 3 if dwfm < 0 else \
                 5 if dwfm == 0 else \
                 4 if dwfm == 1 else \
-                1  # 2018-11-30 was 3 but changed for PETRONM 2016-08-02 and DUFU 2012-05-22
+                3  # 2018-11-30 was 3 but changed to 1 for PETRONM 2016-08-02 and DUFU 2012-05-22
+            # 2019-01-09 restored to 3 due to 2008-03-05 KLSE chart missing dots
         else:
             pdist = 3 if dwfm < 0 else 1
     if MVP_PEAKS_THRESHOLD > 0:
@@ -195,13 +211,14 @@ def findpeaks(df, cmpvHL, weekly=False, dwfm=-1):
         vpt = MVP_PEAKS_THRESHOLD
     else:
         cpt = ((cHigh - cLow) / 2) / 10
-        mpt = ((mHigh - mLow) / 2) / 8   # 2018-11-30 was 50 but changed for PETRONM 2016-08-02
+        mpt = ((mHigh - mLow) / 2) / 50   # 2018-11-30 was 50 but changed to 8 for PETRONM 2016-08-02
+        # 2019-01-09 restored to 50 due to 2008-03-05 KLSE chart missing dots
         ppt = ((pHigh - pLow) / 2) / 10
         vpt = ((vHigh - vLow) / 2) / 20
     cIndexesP, cIndexesN = indpeaks('C', df['close'], cpt, pdist, -1)
     mIndexesP, mIndexesN = indpeaks('M', df['M'], mpt, pdist, 1 if mLow > 0 else -1)
     pIndexesP, pIndexesN = indpeaks('P', df['P'], ppt, pdist, 1 if pLow > 0 else -1)
-    vIndexesP, vIndexesN = indpeaks('V', df['V'], vpt, pdist)
+    vIndexesP, vIndexesN = indpeaks('V', df['V'], vpt, pdist, 1 if vLow > 0 else -1)
     if DBG_ALL:
         print pdist, cpt, mpt, ppt, vpt
         print('C Peaks are: %s, %s' % (cIndexesP, cIndexesN))
@@ -386,6 +403,36 @@ def annotatelines(axes, k, lstyle, p1date1, p1date2, p2date1, p2date2, p1y1, p1y
 
 
 def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
+
+    def matchdates(l1, l2, approx=31):
+        swapP, matchdict = False, {}
+        if l1[-1] < l2[-1]:
+            swapP = True
+        if not swapP:
+            list1, list2 = l1, l2
+        else:
+            # TASCO 2012-06-08
+            list1, list2 = l2, l1
+        for i, val in enumerate(list1):
+            matchtolerance = 0
+            try:
+                j = list2.index(val)
+            except ValueError:
+                j = -1
+                if approx:
+                    dtstart = getDayOffset(val, approx * -1)
+                    dtend = getDayOffset(val, approx)
+                    for newval in list2:
+                        if newval < dtstart:
+                            continue
+                        if newval > dtend:
+                            break
+                        matchtolerance = 1
+                        j = list2.index(newval)
+                        break
+            matchval = 0 if j < 0 else j - len(list2)
+            matchdict[i - len(list1)] = [matchval, matchtolerance, val]
+        return swapP, matchdict
 
     def find_divergence():
         p1date1, p1date2, p2date1, p2date2 = None, None, None, None
@@ -683,14 +730,16 @@ def plotSignals(pmaps, counter, datevector, ax0):
                 symbolclr = "rX"
                 fontclr = "black"
             else:
-                symbolclr = "md"
+                # dead cat bounce
+                symbolclr = "r^"
                 fontclr = "green"
         else:
             if int(state) > 0:
                 symbolclr = "g^"
                 fontclr = "green"
             else:
-                symbolclr = "cd"
+                # retrace
+                symbolclr = "gv"
                 fontclr = "green"
         return symbolclr, fontclr
 
@@ -708,7 +757,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
 
     df.set_index(df['trxdt'], inplace=True)
     ymin, ymax, spos, cpos = getChartPOS(15 + 3)
-    hltb = ['0', 'h', 'l', 't', 'b']
+    hltb = ['0', 'h', 't', 'l', 'b']
     for dt in datevector:
         try:
             mpvdate = pdTimestamp2strdate(dt)
@@ -748,11 +797,11 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
                         ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
                     for i in range(0, ilen):
-                        fontclr = "black" if i in [0, 8, 9, 10] else \
-                            "brown" if i in [5, 6, 7] else "turquoise" if i > 13 else \
-                            "blue" if i > 10 else "orange"
-                        mtext = "." if int(mval[i]) == 0 else \
-                            hltb[int(mval[i])] if i in [1, 2, 3, 4] else mval[i]
+                        fontclr = "black" if i in [7, 8, 9] else \
+                            "brown" if i in [4, 5, 6] else "magenta" if i > 13 else \
+                            "blue" if i > 9 else "orange"
+                        mtext = mval[i] if i == ilen - 2 else "." if int(mval[i]) == 0 else \
+                            hltb[int(mval[i])] if i in [0, 1, 2, 3] else mval[i]
                         ax0.text(dt, cpos[i], mtext, color=fontclr, fontsize=9)
                 else:
                     ttspos, othpos, bbspos = cpos[0], cpos[1], cpos[-1]
@@ -959,57 +1008,76 @@ def numsFromDate(counter, datestr, cdays=S.MVP_CHART_DAYS):
     return nums.split(',')
 
 
-def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
+def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=False,
                 concurrency=False, showchart=False, simulation=""):
-    def getMpvDf(counter, chartDays, start=0):
-        df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
+    def getMpvDf(start=0):
+        df, skiprows, fname = dfLoadMPV(counter, chartDays, start, dojson)
         return df, skiprows, fname
 
     def getSynopsisDFs(counter, scode, chartDays, df, skiprows):
-        try:
-            # df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
-            dfm = None
-            if skiprows >= 0 and df is not None:
-                if weekly:
-                    dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
-                    dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
-                dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
+        def loadfromdf(df):
+            try:
+                # df, skiprows, fname = dfLoadMPV(counter, chartDays, start)
+                dfm = None
+                if skiprows >= 0 and df is not None:
+                    if weekly:
+                        dfw = df.groupby([Grouper(key='date', freq='W')]).mean()
+                        dff = df.groupby([Grouper(key='date', freq='2W')]).mean()
+                    dfm = df.groupby([Grouper(key='date', freq='M')]).mean()
 
-                if DBG_ALL:
-                    print dfm[-3:]
-        except Exception as e:
-            print "Dataframe exception: ", counter
-            print e
-        finally:
-            lasttrxn = []
-            if df is not None:
-                lastTrxnDate = pdTimestamp2strdate(df.iloc[-1]['date'])
-                lastClosingPrice = float(df.iloc[-1]['close'])
-            if dfm is not None:
-                lastC, firstC = float("{:.4f}".format(dfm.iloc[-1]['close'])), float("{:.4f}".format(dfm.iloc[0]['close']))
-                lastM, firstM = float("{:.4f}".format(dfm.iloc[-1]['M'])), float("{:.4f}".format(dfm.iloc[0]['M']))
-                lastP, firstP = float("{:.4f}".format(dfm.iloc[-1]['P'])), float("{:.4f}".format(dfm.iloc[0]['P']))
-                lastV, firstV = float("{:.4f}".format(dfm.iloc[-1]['V'])), float("{:.4f}".format(dfm.iloc[0]['V']))
-                lasttrxn = [lastTrxnDate, lastClosingPrice,
-                            lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV]
-                del df
+                    if DBG_ALL:
+                        print dfm[-3:]
+            except Exception as e:
+                print "Dataframe exception: ", counter
+                print e
+            finally:
+                lasttrxn = []
+                if df is not None:
+                    lastTrxnDate = pdTimestamp2strdate(df.iloc[-1]['date'])
+                    firstTrxnDate = pdTimestamp2strdate(df.iloc[0]['date'])
+                    lastClosingPrice = float(df.iloc[-1]['close'])
+                if dfm is not None:
+                    lastC, firstC = float("{:.4f}".format(dfm.iloc[-1]['close'])), float("{:.4f}".format(dfm.iloc[0]['close']))
+                    lastM, firstM = float("{:.4f}".format(dfm.iloc[-1]['M'])), float("{:.4f}".format(dfm.iloc[0]['M']))
+                    lastP, firstP = float("{:.4f}".format(dfm.iloc[-1]['P'])), float("{:.4f}".format(dfm.iloc[0]['P']))
+                    lastV, firstV = float("{:.4f}".format(dfm.iloc[-1]['V'])), float("{:.4f}".format(dfm.iloc[0]['V']))
+                    lasttrxn = [lastTrxnDate, lastClosingPrice,
+                                lastC, lastM, lastP, lastV,
+                                firstTrxnDate, firstC, firstM, firstP, firstV]
+                    del df
+                else:
+                    return None, None, None
+
+            print " Synopsis:", counter, lastTrxnDate
+            dflist = {}
+            if weekly:
+                dflist[0] = dfw.fillna(0)
+                dflist[1] = dff.fillna(0)
+                dflist[2] = dfm.fillna(0)
             else:
-                return None, None, None
+                dflist[0] = dfm.fillna(0)
+            return dflist, lasttrxn
 
-        print " Synopsis:", counter, lastTrxnDate
-        dflist = {}
-        if weekly:
-            dflist[0] = dfw.fillna(0)
-            dflist[1] = dff.fillna(0)
-            dflist[2] = dfm.fillna(0)
+        def loadfromjson():
+            import json
+            if simulation is None:
+                end = jsonLastDate(counter, S.DATA_DIR)
+            jname = S.DATA_DIR + "json/" + counter + "_" + end + ".json"
+            with open(jname, 'r') as fp:
+                [lasttxn, pnlist, div] = json.load(fp)
+            return lasttxn, pnlist, div
+
+        dflist, pnlist, div = None, None, None
+        if dojson == "2":
+            lasttrxn, pnlist, div = loadfromjson()
         else:
-            dflist[0] = dfm.fillna(0)
+            dflist, lasttrxn = loadfromdf(df)
+        title = lasttrxn[0] + " (" + str(chartDays) + "d) [" + scode + "]"
 
-        title = lastTrxnDate + " (" + str(chartDays) + "d) [" + scode + "]"
-
-        return dflist, title, lasttrxn
+        return dflist, title, lasttrxn, pnlist, div
 
     def housekeep():
+        mpvdir = S.DATA_DIR + S.MVP_DIR
         if "simulation" in fname:
             directory = mpvdir + "simulation/signals/"
         else:
@@ -1020,13 +1088,12 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
 
     # -----------------------------------------------------------#
 
-    mpvdir = S.DATA_DIR + S.MVP_DIR
     if simulation is None or len(simulation) == 0:
-        df, skiprow, fname = getMpvDf(counter, chartDays)
-        dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, df, skiprow)
-        if dflist is None:
+        df, skiprow, fname = getMpvDf()
+        dflist, title, lasttrxn, pnlist, div = getSynopsisDFs(counter, scode, chartDays, df, skiprow)
+        if dflist is None and pnlist is None:
             return
-        return doPlotting(mpvdir, DBG_SIGNAL, dflist, showchart,
+        return doPlotting(S.DATA_DIR, DBG_SIGNAL, dflist, pnlist, div, dojson, showchart,
                           counter, title, lasttrxn, fname, [])
     else:
         nums = simulation.split(",") if "," in simulation else numsFromDate(counter, simulation, chartDays)
@@ -1034,7 +1101,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
             print "Input not found:", simulation
             return
         start, end, step = int(nums[0]), int(nums[1]), int(nums[2])
-        df, skiprow, fname = getMpvDf(counter, chartDays, start)
+        df, skiprow, fname = getMpvDf(start)
         dates = simulation.split(":")
         end = dates[0]
         jobs, cpus = [], cpu_count()
@@ -1042,13 +1109,13 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
             # start = getDayOffset(end, chartDays * -1)
             start = pdDaysOffset(end, chartDays * -1)
             dfmpv = dfGetDates(df, start, end)
-            if len(dfmpv.index) > 100:
-                dflist, title, lasttrxn = getSynopsisDFs(counter, scode, chartDays, dfmpv, skiprow)
-                if dflist is None:
+            if dojson == "2" or len(dfmpv.index) > 100:
+                dflist, title, lasttrxn, pnlist, div = getSynopsisDFs(counter, scode, chartDays, dfmpv, skiprow)
+                if dflist is None and pnlist is None:
                     continue
                 if concurrency:
                     p = Process(target=doPlotting,
-                                args=(mpvdir, DBG_SIGNAL, dflist, showchart,
+                                args=(S.DATA_DIR, DBG_SIGNAL, dflist, pnlist, div, dojson, showchart,
                                       counter, title, lasttrxn, fname, nums, concurrency))
                     p.start()
                     jobs.append(p)
@@ -1057,8 +1124,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
                             p.join()
                         jobs = []
                 else:
-                    doPlotting(mpvdir, DBG_SIGNAL,
-                               dflist, showchart, counter, title, lasttrxn, fname, nums)
+                    doPlotting(S.DATA_DIR, DBG_SIGNAL, dflist, pnlist, div, dojson, showchart,
+                               counter, title, lasttrxn, fname, nums)
             if len(dates) < 2 or end > dates[1]:
                 if concurrency:
                     if len(jobs):
@@ -1077,7 +1144,15 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, weekly=False,
         return False
 
 
-def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outname, numslen, parallel=False):
+def doPlotting(datadir, dbg, dfplot, pnlist, div, dojson, showchart,
+               counter, plttitle, lsttxn, outname, numslen, parallel=False):
+    def exportjson():
+        import json
+        jname = datadir + "json/" + counter + "_" + lsttxn[0] + ".json"
+        with open(jname, 'w') as fp:
+            json.dump([lsttxn, pnlist, div], fp)
+            print "Exported to json:", jname
+
     if parallel:
         global SYNOPSIS, DBG_ALL, OHLC
         global MVP_PLOT_PEAKS, MVP_PEAKS_DISTANCE, MVP_PEAKS_THRESHOLD
@@ -1101,25 +1176,35 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
         print dfm[-3:]
     '''
 
-    if len(dfplot) > 1:
+    ncols = 1 if dfplot is None else len(dfplot)
+    if ncols > 1:
         # columns, rows
         figsize = (12, 7) if showchart else (15, 9)
     else:
         figsize = (10, 6) if showchart else (15, 9)
-    fig, axes = plt.subplots(4, len(dfplot), figsize=figsize, sharex=False, num=plttitle)
-    fig.canvas.set_window_title(plttitle)
-    _, pnList, div = plotSynopsis(dfplot, axes)
+    if dojson == "2":
+        fig, axes = plt.subplots(4, ncols, figsize=figsize, sharex=False, num=plttitle)
+        jsonPlotSynopsis(axes, lsttxn, pnlist, div, showchart)
+    else:
+        fig, axes = plt.subplots(4, ncols, figsize=figsize, sharex=False, num=plttitle)
+        _, pnlist, div = plotSynopsis(dfplot, axes)
+    if dojson == "1":
+        plt.close()
+        exportjson()
+        return 0
 
     pid = os.getpid() if parallel else 0
     if pid:
         print "PID:", pid, lsttxn[0]
-    signals = scanSignals(datadir, dbg, counter, outname, pnList, div, lsttxn, pid)
+    mpvdir = datadir + S.MVP_DIR
+    signals = scanSignals(mpvdir, dbg, counter, outname, pnlist, div, lsttxn, pid)
     if dbg != 2:
         if len(signals):
             title = plttitle + " [" + signals + "]"
         else:
             title = plttitle + " [" + counter + "]"
         fsize = 10 if showchart else 15
+        fig.canvas.set_window_title(plttitle)
         fig.suptitle(title, fontsize=fsize)
         if dbg:
             print '\t', title
@@ -1134,6 +1219,110 @@ def doPlotting(datadir, dbg, dfplot, showchart, counter, plttitle, lsttxn, outna
                 plt.savefig(outname + "-synopsis.png")
     plt.close()
     return len(signals) > 0
+
+
+def jsonPlotSynopsis(axes, lastTrxn, pnlist, div, showchart):
+    def getcmpv():
+        def mergedata(firstval, lastval, xypn):
+            xp, xn, yp, yn = xypn[0], xypn[1], xypn[2], xypn[3]
+            merged = [[lastTrxn[-5]], [firstval]]
+            n = 0
+            for p in range(len(xp)):
+                if n < len(xp):
+                    if xn[n] < xp[p]:
+                        merged[0].append(xn[n])
+                        merged[1].append(yn[n])
+                        n += 1
+                merged[0].append(xp[p])
+                merged[1].append(yp[p])
+            if n < len(xn):
+                merged[0].append(xn[n])
+                merged[1].append(yn[n])
+            merged[0].append(lastTrxn[0])
+            merged[1].append(lastval)
+            return merged, xp, yp, xn, yn
+
+        def formListCMPV(cmpv, mthlist):
+            xp, xn, yp, yn = mthlist[0], mthlist[1], mthlist[2], mthlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+            # cmpv 0=C, 1=M, 2=P, 3=V
+            cmpvlist = []
+            cmpvlist.append(xp[cmpv])
+            cmpvlist.append(xn[cmpv])
+            cmpvlist.append(yp[cmpv])
+            cmpvlist.append(yn[cmpv])
+            return cmpvlist
+
+        lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
+            lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
+            lastTrxn[7], lastTrxn[8], lastTrxn[9], lastTrxn[10]
+
+        if len(pnlist) > 1:
+            pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
+        else:
+            pnM = pnlist[0]
+        cmpvMC = formListCMPV(0, pnM)
+        cmpvMM = formListCMPV(1, pnM)
+        cmpvMP = formListCMPV(2, pnM)
+        cmpvMV = formListCMPV(3, pnM)
+        c, cxp, cyp, cxn, cyn = mergedata(firstC, lastC, cmpvMC)
+        m, mxp, myp, mxn, myn = mergedata(firstM, lastM, cmpvMM)
+        p, pxp, pyp, pxn, pyn = mergedata(firstP, lastP, cmpvMP)
+        v, vxp, vyp, vxn, vyn = mergedata(firstV, lastV, cmpvMV)
+        return [c, m, p, v], [cxp, mxp, pxp, vxp], [cyp, myp, pyp, vyp], \
+            [cxn, mxn, pxn, vxn], [cyn, myn, pyn, vyn]
+
+    def getHL():
+        cHigh = max(c)
+        cLow = min(c)
+        mHigh = max(m)
+        mLow = min(m)
+        pHigh = max(p)
+        pLow = min(p)
+        vHigh = max(v)
+        vLow = min(v)
+        return [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow]
+
+    [c, m, p, v], [cxp, mxp, pxp, vxp], [cyp, myp, pyp, vyp], \
+        [cxn, mxn, pxn, vxn], [cyn, myn, pyn, vyn] = getcmpv()
+    '''
+    figsize = (10, 6) if showchart else (15, 9)
+    fig = plt.figure(figsize=figsize)
+    fig.set_canvas(plt.gcf().canvas)
+    ax1 = plt.subplot2grid((6, 1), (0, 0), fig=fig)
+    ax2 = plt.subplot2grid((6, 1), (1, 0), rowspan=2, sharex=ax1)
+    ax3 = plt.subplot2grid((6, 1), (3, 0), rowspan=2, sharex=ax1)
+    ax4 = plt.subplot2grid((6, 1), (5, 0), sharex=ax1)
+    ax1.plot(c[0], c[1], color='b', label='C')
+    ax2.plot(m[0], m[1], color='r', label='M')
+    ax3.plot(p[0], p[1], color='orange', label='P')
+    ax4.plot(v[0], v[1], color='g', label='V')
+    axes = []
+    axes.append(ax1)
+    axes.append(ax2)
+    axes.append(ax3)
+    axes.append(ax4)
+    '''
+    axes[0].plot(c[0], c[1], color='b', label='C')
+    axes[0].scatter(cxp, cyp, marker='.', c='r', edgecolor='b')
+    axes[0].scatter(cxn, cyn, marker='.', c='b', edgecolor='r')
+    axes[1].plot(v[0], v[1], color='r', label='V')
+    axes[1].scatter(vxp, vyp, marker='.', c='r', edgecolor='b')
+    axes[1].scatter(vxn, vyn, marker='.', c='b', edgecolor='r')
+    axes[2].plot(m[0], m[1], color='orange', label='M')
+    axes[2].scatter(mxp, myp, marker='.', c='r', edgecolor='b')
+    axes[2].scatter(mxn, myn, marker='.', c='b', edgecolor='r')
+    axes[3].plot(p[0], p[1], color='g', label='P')
+    axes[3].scatter(pxp, pyp, marker='.', c='r', edgecolor='b')
+    axes[3].scatter(pxn, pyn, marker='.', c='b', edgecolor='r')
+    for i in range(4):
+        axes[i].legend(loc="upper left")
+        axlabel = axes[i].xaxis.get_label()
+        axlabel.set_visible(False)
+        if i < 3:
+            axes[i].set_xticklabels([])
+    plt.gcf().autofmt_xdate()
+    plotlinesV2(0, axes, pnlist[0])
+    plotdividers(axes, [], getHL())
 
 
 def plotSynopsis(dflist, axes):
@@ -1163,6 +1352,7 @@ def plotSynopsis(dflist, axes):
             axlabel = axes[i].xaxis.get_label()
             axlabel.set_visible(False)
             x, y = [], []
+            # plot V values on chart
             for p in axes[1].patches:
                 x.append(p.get_x())
                 y.append(p.get_height())
@@ -1214,8 +1404,12 @@ def plotSynopsis(dflist, axes):
             '''
             if len(dflist) > 1:
                 ax[j] = axes[j, i]
+                # annotateMVP(dflist[i], axes[j, i], "M", 4.899, 5.01)
+                # annotateMVP(dflist[i], axes[j, i], "P", -0.01, 0.01)
             else:
                 ax = axes
+                # annotateMVP(dflist[i], axes[j], "M", 4.899, 5.01)
+                # annotateMVP(dflist[i], axes[j], "P", -0.01, 0.01)
 
         cHigh = dflist[i].loc[dflist[i]['close'].idxmax()]['close']
         cLow = dflist[i].loc[dflist[i]['close'].idxmin()]['close']
@@ -1238,6 +1432,13 @@ def plotSynopsis(dflist, axes):
             # just print error and continue without the required line in chart
             print 'line divergence exception:', i
             print e
+
+    plotdividers(axes, dflist, cmpvHL)
+    return hlList, pnList, div
+
+
+def plotdividers(axes, dflist, cmpvHL):
+    [cHigh, cLow, mHigh, mLow, pHigh, pLow, vHigh, vLow] = cmpvHL
     try:
         if len(dflist) > 1:
             for i in range(len(dflist)):
@@ -1264,8 +1465,6 @@ def plotSynopsis(dflist, axes):
         # just print error and continue without the required line in chart
         print 'axhline exception:'
         print e
-
-    return hlList, pnList, div
 
 
 def globals_from_args(args):
@@ -1328,7 +1527,7 @@ if __name__ == '__main__':
             continue
         try:
             if SYNOPSIS:
-                mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--weekly'],
+                mvpSynopsis(shortname, stocklist[shortname], chartDays, args['--json'], args['--weekly'],
                             args['--concurrency'], args['--displaychart'], args['--simulation'])
             else:
                 mvpChart(shortname, stocklist[shortname], chartDays, args['--weekly'],
