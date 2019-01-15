@@ -17,31 +17,32 @@ re='^[0-9]+$'
 #  P^    1    2    3
 #  Pv    4    5    6
 #  Px    X    7    8
+
 # p3u=1,2,3 p3d=,4,5,6, n3u=2,5,7, n3d=3,6,8
+# 1,2,3(narrowC), 4(m10x3), 5(3tops), 6(3bottoms), 7(narrowM), 8(highC), 9(lowC)
+# divC, divMP, n3uM, n3uP, pcnt, hlP/lhP, hlM/lhM = 0, 1, 2, 3, 4, 5, 6
+
 ss=4
 sss=5
 ns=6
 nss=7
 ps=8
 pss=9
-cmpdiv=14   # 1,2,3,7=CP+CM,CP,CM in pdiv (PEAK bearish divergence); 4,5,6,8=same in ndiv (VALLEY bullish)
-c=15		# hltb = ['0', 'h', 'l', 't', 'b']
-m=16
-p=17
-v=18
-tripleM=19	# 9=3xM>10
-tripleP=20
-tripleV=21
-narrowC=22
-narrowM=23  # 5,6,7,8=5<m<10, 9=decreasing prange
-narrowP=24	# 1,2=p<0, 3,4=prange<0.20, 9=decreasing prange
-countP=25
-tripleBottoms=26
-tripleTops=27
-cmpsync=28
-
-# 1,2,3(narrowC), 4(m10x3), 5(3tops), 6(3bottoms), 7(narrowM), 8(highC), 9(lowC)
-# divC, divMP, n3uM, n3uP, pcnt, hlP/lhP, hlM/lhM = 0, 1, 2, 3, 4, 5, 6
+c=14		# hltb = ['0', 'h', 'l', 't', 'b']
+m=15
+p=16
+v=17
+tripleM=18	# 9=3xM>10
+tripleP=19
+tripleV=20
+narrowC=21
+narrowM=22  # 5,6,7,8=5<m<10, 9=decreasing prange
+narrowP=23	# 1,2=p<0, 3,4=prange<0.20, 9=decreasing prange
+countP=24
+tripleBottoms=25
+tripleTops=26
+matrix=27
+cmpdiv=28   # 1,2,3,7=CP+CM,CP,CM in pdiv (PEAK bearish divergence); 4,5,6,8=same in ndiv (VALLEY bullish)
 
 signalfile=""
 val=0
@@ -66,7 +67,7 @@ do
    fi
    ;;
   e)
-   useEqual=$OPTARG
+   useEqual="$OPTARG"
    ;;
   s)
    name=$OPTARG
