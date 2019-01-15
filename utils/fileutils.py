@@ -26,6 +26,15 @@ def mapcount(filename):
     return lines
 
 
+def execshell(shellcmd):
+    import shlex
+    cmd = shlex.split(shellcmd)
+    # out = subprocess.Popen(cmd)
+    (out, _) = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True).communicate()
+    result = out.replace('\n', '')
+    return result
+
+
 def grepN(filename, searchstr):
     return grep(filename, '-n', searchstr)
 
@@ -271,9 +280,22 @@ def loadDashOptions():
 '''
 
 
+def jsonLastDate(counter, datadir=S.DATA_DIR):
+    jname = datadir + "json/" + counter + "*.json"
+    cmd = "ls -l %s | tail -1 | awk '{print $NF}' | awk -F'[_.]' '{print $2}'" % jname
+    lastdate = execshell(cmd)
+    return lastdate
+
+
 if __name__ == '__main__':
+    '''
     print wc_line_count("nosuchfile.test")
     print findAny('AIRASIA', '../scrapers/i3investor/klse.txt')
     print getStockCode('AIRASIA', '../scrapers/i3investor/klse.txt')
     print getStockShortNameById('41661', '../scrapers/investingcom/klse.idmap')
     print grepN('/z/data/mpv/KLSE.csv', "2018-10-30")
+    print execshell("C:/git/klseScrapers/scripts/lastdate.sh -c danco -d Z:/data")
+    cmd = "ls -l /z/data/json/*.json | tail -1 | awk '{print $NF}' | awk -F'[_.]' '{print $2}'"
+    print execshell(cmd)
+    '''
+    print jsonLastDate("DANCO", "/z/data/")
