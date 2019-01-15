@@ -179,7 +179,10 @@ def updateMPV(counter, stkcode, eod):
     aveVol = float(df.iloc[0]['total vol']) / S.MVP_DAYS
     avePrice = float(df.iloc[0]['total price']) / S.MVP_DAYS
     volDiff = (float(volume) - aveVol) / aveVol
-    priceDiff = (float(pclose) - avePrice) / avePrice
+    if avePrice == 0:
+        priceDiff = 0
+    else:
+        priceDiff = (float(pclose) - avePrice) / avePrice
     neweod = '{},{},{:.4f},{:.4f},{:.4f},{:.4f},{},{},{:.2f},{},{},{:.2f},{:.2f}'.format(
         stock, dt, popen, phigh, plow, pclose, int(volume),
         totalVol, totalPrice, dayUp, mvpDaysUp, priceDiff, volDiff)
