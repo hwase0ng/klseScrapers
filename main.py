@@ -181,26 +181,6 @@ def checkInvComLastTradingDay(lastdt):
     return None
 
 
-def backupKLse(srcdir, tgtdir, prefix):
-    if len(tgtdir) == 0 or not tgtdir.endswith('\\'):
-        print "Skipped backing up data", tgtdir
-        return
-
-    with cd(srcdir):
-        subprocess.call('pwd')
-        bkfl = tgtdir + prefix + 'klse' + getToday() + '.tgz'
-        print "Backing up", bkfl
-        with tarfile.open(bkfl, "w:gz") as tar:
-            for csvfile in glob.glob("*.csv"):
-                tar.add(csvfile)
-        '''
-        os.system('backup.sh ' + bkfl + ' ' + S.DATA_DIR)
-        cmd = 'tar czvf ' + bkfl + ' -C ' + S.DATA_DIR + ' *.csv'
-        print cmd
-        os.system(cmd)
-        '''
-
-
 def preUpdateProcessing():
     print "Pre-update Processing ... Done"
 
@@ -249,9 +229,42 @@ def getCsvFiles(eodfile):
 
 
 def postUpdateProcessing():
+    def backupKLse(srcdir, tgtdir, prefix):
+        if len(tgtdir) == 0 or not tgtdir.endswith('\\'):
+            print "Skipped backing up data", tgtdir
+            return
+
+        with cd(srcdir):
+            subprocess.call('pwd')
+            bkfl = tgtdir + prefix + 'klse' + getToday() + '.tgz'
+            print "Backing up", bkfl
+            with tarfile.open(bkfl, "w:gz") as tar:
+                for csvfile in glob.glob("*.csv"):
+                    tar.add(csvfile)
+            '''
+            os.system('backup.sh ' + bkfl + ' ' + S.DATA_DIR)
+            cmd = 'tar czvf ' + bkfl + ' -C ' + S.DATA_DIR + ' *.csv'
+            print cmd
+            os.system(cmd)
+            '''
+
+    def backupjson(datadir):
+        jsondir = os.path.join(datadir, "json", '')
+        tgtdir = os.path.join(S.DATA_DIR, "json", '')
+        jfiles = "*." + getToday() + ".json"
+        with cd(jsondir):
+            subprocess.call('pwd')
+            for jfile in glob.glob(jfiles):
+                jname = jfile.split(".")
+                bkfl = tgtdir + jname[0] + ".tgz"
+                print "backing up", bkfl
+                with tarfile.open(bkfl, "a:gz") as tar:
+                    tar.add(jfile)
+
     housekeeping(S.BKUP_DIR)
     backupKLse(S.DATA_DIR, S.BKUP_DIR, "pst")
     backupKLse(S.DATA_DIR + S.MVP_DIR, S.BKUP_DIR, "mvp")
+    backupjson("data")
 
     if len(S.MT4_DIR) == 0 or not mt4update:
         return
