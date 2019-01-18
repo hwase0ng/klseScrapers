@@ -95,6 +95,12 @@ def getDayOffset(pdate, offset):
     return result
 
 
+def mdateconvert(datestr):
+    # return date2num(datetime.strptime(datestr, '%Y-%m-%d'))
+    dt = datestr.split("-")
+    return datetime(int(dt[0]), int(dt[1]), int(dt[2]))
+
+
 def pdTimestamp2strdate(dfdate):
     strdt = str(dfdate.to_pydatetime()).split()
     return strdt[0]

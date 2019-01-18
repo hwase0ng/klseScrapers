@@ -250,10 +250,10 @@ def purgeOldFiles(fltype='*.tgz', days=7):
             print('{} removed'.format(f))
 
 
-def mergefiles(directory, fname):
+def mergefiles(directory, fname, joinstr=""):
     with cd(directory):
         files = glob.glob(fname + ".*")
-        concat = ''.join(open(f).read() for f in files)
+        concat = joinstr.join(open(f).read() for f in files)
         with open(fname, 'w') as f:
             f.write(concat)
         data = file(fname).readlines()
