@@ -3,7 +3,8 @@ OPTIND=1
 source /c/git/klseScrapers/scripts/groups.klse
 
 CHARTDAYS=600
-DATADIR=/z/data
+INDIR=/z/data
+TMPDIR=data
 GROUP=$MVP
 ENDDT=`date +%Y-%m-%d`
 OPT=1
@@ -25,10 +26,10 @@ do
    fi
    ;;
   D)
-   DATADIR=$OPTARG
-   if ! [ -d $DATADIR ]
+   INDIR=$OPTARG
+   if ! [ -d $INDIR ]
    then
-    echo $DATADIR is not a directory!
+    echo $INDIR is not a valid directory!
     exit 2
    fi
    ;;
@@ -41,6 +42,10 @@ do
    ;;
   o)
    OPT=$OPTARG
+   if [ $OPT -eq 1 ]
+   then
+    STEPS=1
+   fi
    ;;
   s)
    STEPS=$OPTARG
@@ -65,20 +70,23 @@ do
 done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
-#echo "c=$GROUP, D=$DATADIR, d=$STARTDT, e=$ENDDT, s=$STEPS, leftovers: $@"
+#echo "c=$GROUP, D=$INDIR, d=$STARTDT, e=$ENDDT, s=$STEPS, leftovers: $@"
 
 for i in $GROUP
 do
  counter=`echo ${i} | tr '[:lower:]' '[:upper:]'`
  if [ ${dateopt} -eq 0 ]
  then
-  STARTDT=`head -100 $DATADIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
+  STARTDT=`head -100 $INDIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
  fi
  if ! [ $OPT -eq 4 ]
  then
   echo Profiling $counter, $STARTDT
-  ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $DATADIR
+  ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $TMPDIR $INDIR
  fi
- echo Daily Charting $counter, $STARTDT
- ./scripts/charting.sh $counter ${STARTDT}:${ENDDT} $OPT $DATADIR
+ if ! [ $OPT -eq 1 ]
+ then
+  echo Daily Charting $counter, $STARTDT
+  ./scripts/charting.sh $counter ${STARTDT}:${ENDDT} $OPT $TMPDIR $INDIR
+ fi
 done
