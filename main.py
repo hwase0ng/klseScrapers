@@ -251,9 +251,10 @@ def postUpdateProcessing():
     def backupjson(datadir):
         jsondir = os.path.join(datadir, "json", '')
         tgtdir = os.path.join(S.DATA_DIR, "json", '')
-        jfiles = "*." + getToday() + ".json"
+        jfiles = "*." + getToday("%Y-%m-%d") + ".json"
         with cd(jsondir):
             subprocess.call('pwd')
+            print jfiles
             for jfile in glob.glob(jfiles):
                 jname = jfile.split(".")
                 bkfl = tgtdir + jname[0] + ".tgz"
@@ -262,9 +263,9 @@ def postUpdateProcessing():
                     tar.add(jfile)
 
     housekeeping(S.BKUP_DIR)
+    # backupjson("data")
     backupKLse(S.DATA_DIR, S.BKUP_DIR, "pst")
     backupKLse(S.DATA_DIR + S.MVP_DIR, S.BKUP_DIR, "mvp")
-    backupjson("data")
 
     if len(S.MT4_DIR) == 0 or not mt4update:
         return
