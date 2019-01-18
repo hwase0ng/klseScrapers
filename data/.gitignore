@@ -4,3 +4,6 @@
 /config.json.bak
 /trimcsv.sh
 /*.py
+/data
+/json/
+/gitignore.bak
