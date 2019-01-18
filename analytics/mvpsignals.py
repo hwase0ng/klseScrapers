@@ -1939,28 +1939,51 @@ def extractSignals(sdict, xpn):
             # 2014-10-07 MUDA topM
             # 2016-03-01 MUDA === PADINI 2018-11-21 === 2014-12-29 MUDA
             # 2018-05-07 KLSE
-            sig, state = -sval, st + 99
+            sig, state = 0, 0
             if topM and topP or prevtopM and prevtopP:
-                # 2018-08-29 PADINI
-                # 2018-10-03 PADINI
-                sig, state = -sval, st + 2
-            elif topM:
-                if plistP[-1] > plistP[-2] or plistP[-1] > plistP[-3]:
-                    if pvalley or mvalley:
-                        # 2010-06-30 KLSE
+                if plistM[-1] > 10:
+                    if nlistM[-1] < nlistM[-2] and nlistM[-1] < nlistM[-3] and \
+                            nlistP[-1] < nlistP[-2] and nlistP[-1] < nlistP[-3]:
+                        # 2018-09-24 PADINI
+                        # 2018-10-03 PADINI
+                        sig, state = -sval, st + 1
+                    else:
+                        # 2014-04-03 KESM
+                        # 2017-05-24 GHLSYS
+                        sig, state = sval, st + 1
+                else:
+                    if (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3]) and \
+                            nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]:
+                        # 2013-09-02 GHLSYS
+                        # 2018-11-02 DUFU
                         sig, state = sval, st + 2
                     else:
-                        # wait for oversold signal
-                        sig, state = sval, -st - 2
+                        sig, state = sval, st + 71
+            elif topM or prevtopM:
+                if prevtopP or max(plistP[-3:]) == max(plistP):
+                    # 2012-06-01 VSTECS
+                    # 2012-10-01 SCGM
+                    # 2014-10-10 MUDA
+                    sig, state = -sval, st + 3
+                elif plenP > 4 and plistP[-1] < max(plistP[-5:]):
+                    if pvalley or mvalley:
+                        # 2010-06-30 KLSE
+                        # 2014-06-03 VSTECS
+                        sig, state = sval, st + 3
+                    else:
+                        # 2015-09-18 SCGM
+                        sig, state = sval, -st - 3
                 else:
                     # 2012-09-12 KLSE
-                    sig, state = -sval, st + 3
+                    # 2013-06-04 VSTECS
+                    sig, state = -sval, st + 4
             elif lastM < nlistM[-2]:
                 # 2015-04-13 DUFU prevtopP
                 sig, state = -sval, st + 4
             return sig, state
 
-        if newlowP or newlowM or bottomP or bottomM or prevbottomP or prevbottomM:
+        if (newlowP or newlowM or bottomP or bottomM or
+                (prevbottomP or prevbottomM)) and not (topM or topP):
             sig, state = evalBottomPM()
         elif topP or topM or prevtopP or prevtopM:
             sig, state = evalTopPM()
@@ -2001,7 +2024,7 @@ def extractSignals(sdict, xpn):
                 # 2014-02-11 MUDA
                 # 2014-06-04 PADINI
                 pass
-            elif max(plistM[-3:]) > 10:
+            elif plenM > 3 and max(plistM[-3:]) > 10:
                 # 2014-06-24 MUDA
                 # 2015-02-05 ORNA
                 sig, state = -sval, -40
