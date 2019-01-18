@@ -7,7 +7,7 @@ fi
 cd /c/git/klseScrapers
 if [ $# -gt 1 ]
 then
- python analytics/mvpchart.py -ps -Du -S $@
+ python analytics/mvpchart.py -psj2 -Du -S $@
 else
- python analytics/mvpchart.py -ps -Du $@
+ python analytics/mvpchart.py -psj2 -Du $@
 fi
