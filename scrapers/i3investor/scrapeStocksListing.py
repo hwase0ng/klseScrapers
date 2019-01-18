@@ -233,7 +233,9 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
                 print "Resume mode: Skipped MPV downloaded ->", shortname
                 return
 
-        if updateMPV(shortname, stockCode, eod):
+        if 1 == 0:
+            updateMPV(shortname, stockCode, eod)
+        elif updateMPV(shortname, stockCode, eod):
             load_mvp_args(True)
             if mvpSynopsis(shortname, stockCode):
                 if 1 == 0:  # 2018-12-21 skip to speed up daily download
