@@ -131,7 +131,7 @@ done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
-if [ -z "$signal" -o "$val" -eq "0" ]
+if [ -z "$signal" -o "$val" == "0" ]
 then
    echo "Usage: awkFindSignals.sh -sSvVcegd <signal name> <value> [counter|group] [equal] [datadir]" 1>&2
    exit 1
@@ -141,7 +141,7 @@ if [ -z "$group" ]
 then
 	if ! [ -z $@ ]
 	then
-        if [ -z "${signal2}" -o "${val2}" -eq 0 ]
+        if [ -z "${signal2}" -o "${val2}" == "0" ]
         then
 			if [[  "$useEqual" == "1" ]]
 			then
@@ -164,7 +164,7 @@ do
 	signalfile=${signaldir}/${counter}-signals.csv
     if [ -f $signalfile ]
     then
-		if [ -z "${signal2}" -o "${val2}" -eq 0 ]
+		if [ -z "${signal2}" -o "${val2}" == "0" ]
 		then
 			echo "Searching $counter: e=$useEqual, s=$signal, v=$val, file=$signalfile"
 			if [[ "$useEqual" == "1" ]]

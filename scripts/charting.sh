@@ -1,11 +1,12 @@
 counter=`echo ${1} | tr '[:lower:]' '[:upper:]'`
 dates=$2
 OPT=$3
-datadir=$4
+tmpdir=$4
+indir=$5/mpv
 
-simdir=${datadir}/mpv/simulation
-prfdir=${simdir}/profiling
-patdir=${simdir}/patterns
+mpvdir=${tmpdir}/mpv
+prfdir=${indir}/profiling
+patdir=${indir}/patterns
 
 if [ $OPT -eq 3 -o $OPT -eq 4 ]
 then
@@ -18,7 +19,7 @@ python analytics/mvpchart.py $counter $opts -S $dates:190
 
 if [ $OPT -eq 3 -o $OPT -eq 4 ]
 then
- mv ${simdir}/synopsis/$counter_*.png ${patdir}/$counter/
+ mv ${mpvdir}/synopsis/$counter_*.png ${patdir}/$counter/
 else
- mv ${simdir}/synopsis/$counter_*.png ${prfdir}/$counter/
+ mv ${mpvdir}/synopsis/$counter_*.png ${prfdir}/$counter/
 fi
