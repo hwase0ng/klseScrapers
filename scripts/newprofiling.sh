@@ -60,7 +60,9 @@ python analytics/mvpchart.py $counter $params -S $dates -c $chartdays -e ${indir
 if [ $opt -eq 1 ]
 then
  #cp $tmpdir/json/$counter.json $indir/json
- tar czvf $indir/json/$counter.tgz $tmpdir/json/$counter.*.json
+ cd $tmpdir/json
+ tar czvf $indir/json/$counter.tgz $counter.*.json
+ cd -
 else
  if [ $opt -lt 3 ]
  then
