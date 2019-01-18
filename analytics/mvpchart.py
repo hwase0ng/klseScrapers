@@ -1141,20 +1141,20 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
                     dojson = "2"
                 if dflist is None and sdict is None:
                     print "Not valid date:", end
-                    break
-                if concurrency:
-                    p = Process(target=doPlotting,
-                                args=(datadir, DBG_SIGNAL, dflist, dojson, showchart,
-                                      counter, title, lasttrxn, sdict, fname, nums, concurrency))
-                    p.start()
-                    jobs.append(p)
-                    if len(jobs) > cpus - 1:
-                        for p in jobs:
-                            p.join()
-                        jobs = []
                 else:
-                    doPlotting(datadir, DBG_SIGNAL, dflist, dojson, showchart,
-                               counter, title, lasttrxn, sdict, fname, nums)
+                    if concurrency:
+                        p = Process(target=doPlotting,
+                                    args=(datadir, DBG_SIGNAL, dflist, dojson, showchart,
+                                          counter, title, lasttrxn, sdict, fname, nums, concurrency))
+                        p.start()
+                        jobs.append(p)
+                        if len(jobs) > cpus - 1:
+                            for p in jobs:
+                                p.join()
+                            jobs = []
+                    else:
+                        doPlotting(datadir, DBG_SIGNAL, dflist, dojson, showchart,
+                                   counter, title, lasttrxn, sdict, fname, nums)
             if len(dates) < 2 or end > dates[1]:
                 if concurrency:
                     if len(jobs):
