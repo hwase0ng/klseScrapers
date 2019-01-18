@@ -5,7 +5,7 @@ source /c/git/klseScrapers/scripts/groups.klse
 CHARTDAYS=600
 INDIR=/z/data
 TMPDIR=data
-GROUP=$MVP
+GROUP=
 ENDDT=`date +%Y-%m-%d`
 OPT=1
 STEPS=5
@@ -71,6 +71,11 @@ done
 shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 #echo "c=$GROUP, D=$INDIR, d=$STARTDT, e=$ENDDT, s=$STEPS, leftovers: $@"
+if [ -z "$GROUP" ]
+then
+   echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
+   exit 1
+fi
 
 for i in $GROUP
 do
