@@ -49,6 +49,8 @@ import operator
 import os
 import settings as S
 import traceback
+import glob
+import tarfile
 
 
 def dfLoadMPV(counter, chartDays, start=0, dojson=0):
@@ -1088,7 +1090,14 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
             title = ""
         return dflist, title, lasttrxn, sdict
 
-    def housekeep(datadir):
+    def housekeep(datadir, txndate):
+        def backupjson(srcdir, bkfl, fname):
+            with cd(srcdir):
+                # subprocess.call('pwd')
+                print "backing up", bkfl
+                with tarfile.open(bkfl, "a:gz") as tar:
+                    tar.add(fname)
+
         def housekeepingSignals():
             mpvdir = os.path.join(datadir, "mpv", '')
             directory = mpvdir + "signals/"
@@ -1097,17 +1106,23 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
             with cd(directory):
                 purgeOldFiles(sfiles + ".*", 0)
 
-        def housekeepingJson():
+        def housekeepingJson(tdate):
             jsondir = os.path.join(datadir, "json", '')
-            sfiles = counter + ".json"
-            mergefiles(jsondir, sfiles, '\n')
-            with cd(jsondir):
-                purgeOldFiles(sfiles + ".*", 0)
+            tgtdir = os.path.join(S.DATA_DIR, "json", '')
+            bkfl = tgtdir + counter + ".tgz"
+            jname = counter + "." + tdate + ".json"
+            backupjson(jsondir, bkfl, jname)
+            if 1 == 0:
+                # only applicable when join to a single file
+                sfiles = counter + ".json"
+                mergefiles(jsondir, sfiles, '\n')
+                with cd(jsondir):
+                    purgeOldFiles(sfiles + ".*", 0)
 
-        if dojson == "9":  # not used for json
-            housekeepingJson()
-        else:
-            housekeepingSignals()
+        if 1 == 0:
+            # daily backup is done in main.py
+            housekeepingJson(txndate)
+        housekeepingSignals()
 
     # -----------------------------------------------------------#
 
@@ -1140,7 +1155,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
                 if dojson is None and sdict is not None:
                     dojson = "2"
                 if dflist is None and sdict is None:
-                    print "Not valid date:", end
+                    print "Not a trading day:", end
                 else:
                     if concurrency:
                         p = Process(target=doPlotting,
@@ -1160,7 +1175,7 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
                     if len(jobs):
                         for p in jobs:
                             p.join()
-                    housekeep(datadir)
+                    housekeep(datadir, lasttrxn[0])
                 break
             else:
                 end = pdDaysOffset(end, step)
@@ -1504,9 +1519,9 @@ def doPlotting(datadir, dbg, dfplot, dojson, showchart,
             sdict['lsttxn'] = lsttxn
             sdict['pnlist'] = pnlist
             sdict['div'] = div
+            exportjson(datadir)
             if dojson == "1":
                 plt.close()
-                exportjson(datadir)
                 return 0
 
     mpvdir = os.path.join(datadir, "mpv", '')
