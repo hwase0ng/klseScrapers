@@ -10,40 +10,40 @@ from utils.dateutils import getBusDaysBtwnDates
 from utils.fileutils import grepN
 
 
-def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
+def scanSignals(mpvdir, dbg, counter, sdict, pid):
     def extractX():
         pnM = pnlist[2] if len(pnlist) > 1 else pnlist[0]
         xp, xn, = pnM[0], pnM[1]  # 0=XP, 1=XN, 2=YP, 3=YN
         return [xp, xn]
 
-    def printsignal(trxndate):
-        if not len(mpvdir):
+    def printsignal(workdir, trxndate):
+        if not len(workdir):
             # call from pytest
             return
         # prefix = "" if DBGMODE == 2 else '\t'
         # print prefix + signal
         postfix = "csv." + str(pid) if pid else "csv"
-        if "simulation" in fname:
-            outfile = mpvdir + "simulation/signals/" + counter + "-signals." + postfix
-        else:
-            outfile = mpvdir + "signals/" + counter + "-signals." + postfix
+        if not pid:
+            workdir = S.DATA_DIR + S.MVP_DIR
+        outfile = workdir + "signals/" + counter + "-signals." + postfix
         linenum = grepN(outfile, trxndate)  # e.g. 2012-01-01
         if linenum > 0:
             # Already registered
             return
+        if not len(label):
+            return
         with open(outfile, "ab") as fh:
             bbsline = trxndate + "," + signals
             fh.write(bbsline + '\n')
-        if "simulation" in fname:
-            sss = mpvdir + "simulation/" + label + "-" + trxndate + ".csv"
-            # skip writing for simulation
-        else:
-            sss = mpvdir + "signals/" + label + "-" + trxndate + ".csv"
+        if 1 == 0:
+            # Stop this until system is ready for production use
+            sss = workdir + "signals/" + label + "-" + trxndate + ".csv"
             with open(sss, "ab") as fh:
                 fh.write(signals + '\n')
 
     global DBGMODE
     DBGMODE = dbg
+    pnlist = sdict['pnlist']
     # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
     # lastClosingPrice is not aggregated while the rest are from the weekly aggregation!
     if pnlist is None or not len(pnlist):
@@ -53,6 +53,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
         print "Skipped len:", counter, len(pnlist)
         return ""
 
+    '''
     matchdate, cmpvlists, composelist, hstlist, strlist = \
         collectCompositions(pnlist, lastTrxnData)
     if cmpvlists is None:
@@ -60,11 +61,10 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
     composeC, composeM, composeP, composeV = \
         composelist[0], composelist[1], composelist[2], composelist[3]
     # posC, posM, posP, posV = composeC[0], composeM[0], composeP[0], composeV[0]
+    '''
     bottomrevs, bbs, bbs_stage = 0, 0, 0
     sss, sstate, psig, pstate, nsig, nstate, patterns, neglist, poslist = \
-        extractSignals(lastTrxnData, matchdate,
-                       cmpvlists, composelist, hstlist, div,
-                       extractX())
+        extractSignals(sdict, extractX())
     '''
     bottomrevs, bbs, bbs_stage = \
         bottomBuySignals(lastTrxnData, matchdate, cmpvlists, composelist, div)
@@ -73,6 +73,7 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
         if not dbg:
             return ""
 
+    strlist, lastTrxnData = sdict['strlist'], sdict['lsttxn']
     strC, strM, strP, strV = strlist[0], strlist[1], strlist[2], strlist[3]
     # [tolerance, pdays, ndays, matchlevel] = matchdate
     p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -95,12 +96,13 @@ def scanSignals(mpvdir, dbg, counter, fname, pnlist, div, lastTrxnData, pid):
 
     signals = "%s,%s,%s" % (counter, signalsss, signaldet)
     if dbg == 2:
-        print '\n("%s", %s, %s, %s, "%s"),\n' % (counter, pnlist, div, lastTrxnData, signals.replace('\t', ''))
-    printsignal(lastTrxnData[0])
+        # print '\n("%s", %s, %s, %s, "%s"),\n' % (counter, pnlist, div, lastTrxnData, signals.replace('\t', ''))
+        print '\n("%s", "%s", "%s"),\n' % (counter, lastTrxnData[0], signals.replace('\t', ''))
+    printsignal(mpvdir, lastTrxnData[0])
     return signals
 
 
-def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xpn):
+def extractSignals(sdict, xpn):
 
     def ispeak(cmpv):
         xpc, xnc = xpn[0][cmpv], xpn[1][cmpv]  # cmpv: 0=C, 1=M, 2=P, 3=V
@@ -1933,18 +1935,29 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                         sig, state = sval, -st - 18
             return sig, state
 
-        def evalTopPM(st=10):
+        def evalTopPM(st=20):
             # 2014-10-07 MUDA topM
             # 2016-03-01 MUDA === PADINI 2018-11-21 === 2014-12-29 MUDA
             # 2018-05-07 KLSE
-            sig, state = -sval, st + 1
+            sig, state = -sval, st + 99
             if topM and topP or prevtopM and prevtopP:
                 # 2018-08-29 PADINI
                 # 2018-10-03 PADINI
                 sig, state = -sval, st + 2
+            elif topM:
+                if plistP[-1] > plistP[-2] or plistP[-1] > plistP[-3]:
+                    if pvalley or mvalley:
+                        # 2010-06-30 KLSE
+                        sig, state = sval, st + 2
+                    else:
+                        # wait for oversold signal
+                        sig, state = sval, -st - 2
+                else:
+                    # 2012-09-12 KLSE
+                    sig, state = -sval, st + 3
             elif lastM < nlistM[-2]:
                 # 2015-04-13 DUFU prevtopP
-                sig, state = -sval, st + 3
+                sig, state = -sval, st + 4
             return sig, state
 
         if newlowP or newlowM or bottomP or bottomM or prevbottomP or prevbottomM:
@@ -1953,36 +1966,36 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             sig, state = evalTopPM()
         elif cmpdiv in bearpeak:
             # 2008-02-06 KLSE
-            sig, state = -sval, 21
+            sig, state = -sval, 31
         elif plistM[-1] < plistM[-2] and plistM[-1] < plistM[-3]:
             # 2012-11-07 KLSE
             # 2013-08-07 KLSE
             # 2018-01-24 PADINI
-            sig, state = -sval, 25
+            sig, state = -sval, 33
             if tripleM in n3u:
                 # 2013-08-28
-                sig, state = sval, 15
+                sig, state = sval, 35
             elif tripleP in p3u:
                 # 2014-02-06 ORNA
-                sig, state = sval, 16
+                sig, state = sval, 36
             elif tripleP in p3d or tripleM in p3d:
                 # 2013-02-20 KLSE
-                sig, state = sval, 16
+                sig, state = sval, 36
             elif nlistM[-1] > 5 and nlistM[-2] < 5 and nlistP[-1] > 0 and nlistP[-2] < 0:
                 if mpeak or ppeak:
                     # 2013-08-07 KLSE
-                    sig, state = -sval, 17
+                    sig, state = -sval, 37
                     if lastM < 5 or lastP < 0:
                         # 2013-09-04 KLSE
-                        sig, state = sval, 17
+                        sig, state = sval, 37
                 elif nlistP[-1] > 0:
                     # 2013-09-25 KLSE
-                    sig, state = sval, 18
+                    sig, state = sval, 38
                 else:
-                    sig, state = -sval, 18
+                    sig, state = -sval, 38
         elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
             # 2014-06-03 MUDA
-            sig, state = sval, 20
+            sig, state = sval, 40
             if newlowP or newhighP or topP:
                 # 2013-09-05 ORNA
                 # 2014-02-11 MUDA
@@ -1991,12 +2004,12 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             elif max(plistM[-3:]) > 10:
                 # 2014-06-24 MUDA
                 # 2015-02-05 ORNA
-                sig, state = -sval, -20
+                sig, state = -sval, -40
             elif plistP[-1] < plistP[-2] and plistP[-1] < plistP[-3]:
                 # 2016-05-09 VSTECS
-                sig, state = -sval, 21
+                sig, state = -sval, 41
         else:
-            sig, state = -sval, 22
+            sig, state = -sval, 42
         return sig, state
 
     def evalLowC(sval):
@@ -2015,6 +2028,9 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
                         sig, state = sval, 3
         return sig, state
 
+    lastTrxn, cmpvlists, composelist, hstlist, div = \
+        sdict['lsttxn'], sdict['cmpvlists'], sdict['composelist'], \
+        sdict['hstlist'], sdict['div']
     ssig, sstate, psig, pstate, nsig, nstate, neglist, poslist = 0, 0, 0, 0, 0, 0, "", ""
     # [tolerance, pdays, ndays, matchlevel] = matchdate
     [pdiv, ndiv, _, mpdates] = div
@@ -2120,6 +2136,280 @@ def extractSignals(lastTrxn, matchdate, cmpvlists, composelist, hstlist, div, xp
             '''
 
     return ssig, sstate, psig, pstate, nsig, nstate, p1, negstr, posstr
+
+
+def checkposition(pntype, pnlist, firstpos, lastpos):
+    def profilemapping(pntype, listoflists):
+        xpositive, xnegative, ypositive, ynegative = \
+            listoflists[0], listoflists[1], listoflists[2], listoflists[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+        if xpositive is None:
+            xpositive = []
+        if xnegative is None:
+            xnegative = []
+        if ypositive is None:
+            ypositive = []
+        if ynegative is None:
+            ynegative = []
+        datelist = sorted(xpositive + xnegative)
+        psorted, nsorted = sorted(ypositive, reverse=True), sorted(ynegative)
+        ylist, profiling = [], []
+        for dt in datelist:
+            try:
+                pos = xpositive.index(dt)
+                yval = ypositive[pos]
+                ylist.append(yval)
+                ppos = psorted.index(yval) + 1
+                if pntype == 'C':
+                    profiling.append('p' + str(ppos))
+                elif pntype == 'M':
+                    prefix = 'hp' if yval > 10 else 'mp' if yval > 5 else 'lp'
+                    profiling.append(prefix + str(ppos))
+                else:
+                    prefix = 'pp' if yval > 0 else 'np'
+                    profiling.append(prefix + str(ppos))
+            except ValueError:
+                pos = xnegative.index(dt)
+                yval = ynegative[pos]
+                ylist.append(yval)
+                npos = nsorted.index(yval) + 1
+                if pntype == 'C':
+                    profiling.append('v' + str(npos))
+                elif pntype == 'M':
+                    prefix = 'hv' if yval > 10 else 'mv' if yval > 5 else 'lv'
+                    profiling.append(prefix + str(npos))
+                else:
+                    prefix = 'pv' if yval > 0 else 'nv'
+                    profiling.append(prefix + str(npos))
+        return ylist, profiling
+
+    profiling, snapshot = "", ""
+    pos, newlow, newhigh, bottom, top, prevbottom, prevtop = \
+        0, 0, False, False, False, False, False
+    if len(pnlist) > 6 and pntype == 'C':
+        nlist = pnlist[7]  # 0=XP, 1=XN, 2=YP, 3=YN
+        count0 = -1 if nlist is None else nlist.count(0)
+        if count0 < 0 or count0 > 1:
+            print "\tSkipped W0", count0
+            return [-1, newlow, newhigh, top, bottom, prevtop, prevbottom], profiling, snapshot
+
+    plist, nlist = pnlist[2], pnlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+    if plist is None:
+        # free climbing (PADINI 2012-07-30)
+        minP, maxP = firstpos, firstpos
+    else:
+        minP, maxP = min(plist), max(plist)
+        if pntype == "C":
+            if minP > firstpos:
+                # PADINI 2013-04-18
+                minP = firstpos
+            if maxP < firstpos:
+                maxP = firstpos
+    if nlist is None:
+        # free falling
+        minN, maxN = firstpos, firstpos
+    else:
+        minN, maxN = min(nlist), max(nlist)
+        if pntype == "C":
+            if minN > firstpos:
+                # PADINI 2013-04-18
+                minN = firstpos
+            if maxN < firstpos:
+                maxN = firstpos
+    clist, profiling = profilemapping(pntype, pnlist)
+    if lastpos > maxP:
+        newhigh = True
+        pos = 4
+    if len(clist) and clist[-1] == maxP:
+        top = True
+    elif plist is not None and plist[-1] == maxP:
+        prevtop = True
+
+    if lastpos < minN:
+        newlow = True
+        pos = 0
+    if len(clist) and clist[-1] == minN:
+        bottom = True
+    elif nlist is not None and nlist[-1] == minN:
+        prevbottom = True
+
+    if pntype == 'C':
+        if not newhigh and not newlow:
+            range4 = (maxP - minN) / 4
+            if lastpos < minN + range4:
+                pos = 1
+            elif lastpos >= maxP - range4:
+                pos = 3
+            else:
+                pos = 2
+    elif pos != 4:
+        if plist is not None and nlist is not None:
+            if len(plist) > 1:
+                plistsorted = sorted(plist)
+                ppoint = plistsorted[-2]
+            else:
+                ppoint = plist[0]
+            if len(nlist) > 1:
+                nlistsorted = sorted(nlist)
+                npoint = nlistsorted[1]
+            else:
+                npoint = nlist[0]
+            pos = 3 if lastpos > ppoint else 2 if lastpos > npoint else 0 if newlow else 1
+
+        # retrace = True if (top or prevtop) and pos > 1 else False
+
+    snapshot = ".".join(profiling)
+    profiling = snapshot
+    snapshot = ""
+    snapshot = [snapshot + str(i * 1) for i in [pos, newhigh, newlow,
+                                                top, bottom, prevtop, prevbottom]]
+    snapshot = "".join(snapshot)
+    return [pos, newhigh, newlow, top, bottom, prevtop, prevbottom], profiling, snapshot
+
+
+def collectCompositions(pnlist, lastTrxn):
+    def formListCMPV(cmpv, mthlist):
+        xp, xn, yp, yn = mthlist[0], mthlist[1], mthlist[2], mthlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
+        # cmpv 0=C, 1=M, 2=P, 3=V
+        cmpvlist = []
+        cmpvlist.append(xp[cmpv])
+        cmpvlist.append(xn[cmpv])
+        cmpvlist.append(yp[cmpv])
+        cmpvlist.append(yn[cmpv])
+        return cmpvlist
+
+    def datesmatching(mm, mp):
+        tolerance, matchlevel = 0, 0
+        mxpdates, mxndates = mm[0], mm[1]
+        pxpdates, pxndates = mp[0], mp[1]
+        if mxpdates is not None and pxpdates is not None:
+            pdays = abs(getBusDaysBtwnDates(mxpdates[-1], pxpdates[-1]))
+        else:
+            pdays = -1
+        if mxndates is not None and pxndates is not None:
+            ndays = abs(getBusDaysBtwnDates(mxndates[-1], pxndates[-1]))
+        else:
+            ndays = -1
+        if pdays == 0 or ndays == 0:
+            matchlevel = 5 if pdays == 0 and ndays == 0 else 4
+        else:
+            if DBGMODE:
+                print "pdays, ndays =", pdays, ndays
+            pdays1, ndays1 = pdays, ndays
+            if pdays > 0:
+                if len(mxpdates) > len(pxpdates):
+                    pdays = getBusDaysBtwnDates(mxpdates[-2], pxpdates[-1])
+                elif len(mxpdates) < len(pxpdates):
+                    pdays = getBusDaysBtwnDates(mxpdates[-1], pxpdates[-2])
+                elif len(mxpdates) > 1 and len(pxpdates) > 1:
+                    pdays = getBusDaysBtwnDates(mxpdates[-2], pxpdates[-2])
+                pdays = abs(pdays)
+            if ndays > 0:
+                if len(mxndates) > len(pxndates):
+                    ndays = getBusDaysBtwnDates(mxndates[-2], pxndates[-1])
+                elif len(mxndates) < len(pxndates):
+                    ndays = getBusDaysBtwnDates(mxndates[-1], pxndates[-2])
+                elif len(mxndates) > 1 and len(pxndates) > 1:
+                    ndays = getBusDaysBtwnDates(mxndates[-2], pxndates[-2])
+                ndays = abs(ndays)
+            matchlevel = 3 if pdays == 0 and ndays == 0 else 2 if pdays == 0 or ndays == 0 else 0
+
+            if not matchlevel and pdays != -1 and ndays != -1:
+                # match tops and bottoms
+                npdays1 = getBusDaysBtwnDates(mxndates[-1], pxpdates[-1])
+                pndays1 = getBusDaysBtwnDates(mxpdates[-1], pxndates[-1])
+                npdays2, pndays2 = -1, -1
+                if len(mxpdates) > 1 and len(mxndates) > 1 and len(pxpdates) > 1 and len(pxndates) > 1:
+                    npdays2 = getBusDaysBtwnDates(mxndates[-2], pxpdates[-2])
+                    pndays2 = getBusDaysBtwnDates(mxpdates[-2], pxndates[-2])
+                matchlevel = 7 if npdays1 == 0 and npdays2 == 0 or pndays1 == 0 and npdays2 == 0 else \
+                    6 if (npdays1 == 0 or npdays2 == 0) and (pndays1 == 0 or pndays2 == 0) else 0
+                if DBGMODE:
+                    print "npdays1,2, pndays1,2 =", npdays1, npdays2, pndays1, pndays2
+                if matchlevel:
+                    pdays, ndays = 0, 0
+
+            if matchlevel:
+                if matchlevel < 6:
+                    tolerance = 1
+            else:
+                if pdays1 != -1 and abs(pdays) < abs(pdays1) and abs(ndays) < abs(ndays1):
+                    if pdays < 30 or ndays < 30:
+                        tolerance = 2
+                        matchlevel = 1
+                else:
+                    if ndays1 != -1 and pdays1 < 30 or ndays1 < 30:
+                        pdays, ndays = pdays1, ndays1
+                        tolerance = 0
+                        matchlevel = 1
+        if DBGMODE:
+            print "mdates =", mxpdates, mxndates
+            print "pdates =", pxpdates, pxndates
+        return [tolerance, pdays, ndays, matchlevel]
+
+    # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
+    lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
+        lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
+        lastTrxn[7], lastTrxn[8], lastTrxn[9], lastTrxn[10]
+    if DBGMODE:
+        print "first:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, firstC, firstM, firstP, firstV)
+        print "last:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, lastC, lastM, lastP, lastV)
+
+    if len(pnlist) > 1:
+        pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
+        cmpvWC = formListCMPV(0, pnW)
+    else:
+        pnM = pnlist[0]
+        cmpvWC = []
+    cmpvMC = formListCMPV(0, pnM)
+    cmpvMM = formListCMPV(1, pnM)
+    cmpvMP = formListCMPV(2, pnM)
+    cmpvMV = formListCMPV(3, pnM)
+    composeC, historyC, strC = checkposition('C', cmpvMC + cmpvWC, firstC, lastC)
+    if DBGMODE:
+        [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
+        print "C=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC, historyC)
+    posC = composeC[0]
+    if posC < 0:
+        return None, None, None, None, None
+    composeM, historyM, strM = checkposition('M', cmpvMM, firstM, lastM)
+    composeP, historyP, strP = checkposition('P', cmpvMP, firstP, lastP)
+    composeV, historyV, strV = checkposition('V', cmpvMV, firstV, lastV)
+    matchdate = datesmatching(cmpvMM, cmpvMP)
+    if DBGMODE:
+        [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
+        print "M=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM, historyM)
+        [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
+        print "P=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP, historyP)
+        [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
+        print "V=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
+            (posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV, historyV)
+        [tolerance, pdays, ndays, matchlevel] = matchdate
+        print "tol, pdays, ndays, matchlevel =", tolerance, pdays, ndays, matchlevel
+
+    cmpvlists = []
+    cmpvlists.append(cmpvMC)
+    cmpvlists.append(cmpvMM)
+    cmpvlists.append(cmpvMP)
+    cmpvlists.append(cmpvMV)
+    composelist = []
+    composelist.append(composeC)
+    composelist.append(composeM)
+    composelist.append(composeP)
+    composelist.append(composeV)
+    hstlist = []
+    hstlist.append(historyC)
+    hstlist.append(historyM)
+    hstlist.append(historyP)
+    hstlist.append(historyV)
+    strlist = []
+    strlist.append(strC)
+    strlist.append(strM)
+    strlist.append(strP)
+    strlist.append(strV)
+    return matchdate, cmpvlists, composelist, hstlist, strlist
 
 
 def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, odiv):
@@ -2318,283 +2608,6 @@ def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, od
                 print "min(nlist)=%.2f,%.2f,%.2f,%.2f" % (min(nlistM), min(nlistP), maxPV, lastV)
 
     return bottomrevs, bottomBuySignal, bbs_stage
-
-
-def checkposition(pntype, pnlist, firstpos, lastpos):
-    profiling, snapshot = "", ""
-    pos, newlow, newhigh, bottom, top, prevbottom, prevtop = \
-        0, 0, False, False, False, False, False
-    if len(pnlist) > 6 and pntype == 'C':
-        nlist = pnlist[7]  # 0=XP, 1=XN, 2=YP, 3=YN
-        count0 = -1 if nlist is None else nlist.count(0)
-        if count0 < 0 or count0 > 1:
-            print "\tSkipped W0", count0
-            return [-1, newlow, newhigh, top, bottom, prevtop, prevbottom], profiling, snapshot
-
-    plist, nlist = pnlist[2], pnlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
-    if plist is None:
-        # free climbing (PADINI 2012-07-30)
-        minP, maxP = firstpos, firstpos
-    else:
-        minP, maxP = min(plist), max(plist)
-        if pntype == "C":
-            if minP > firstpos:
-                # PADINI 2013-04-18
-                minP = firstpos
-            if maxP < firstpos:
-                maxP = firstpos
-    if nlist is None:
-        # free falling
-        minN, maxN = firstpos, firstpos
-    else:
-        minN, maxN = min(nlist), max(nlist)
-        if pntype == "C":
-            if minN > firstpos:
-                # PADINI 2013-04-18
-                minN = firstpos
-            if maxN < firstpos:
-                maxN = firstpos
-    clist, profiling = profilemapping(pntype, pnlist)
-    if lastpos > maxP:
-        newhigh = True
-        pos = 4
-    if len(clist) and clist[-1] == maxP:
-        top = True
-    elif plist is not None and plist[-1] == maxP:
-        prevtop = True
-
-    if lastpos < minN:
-        newlow = True
-        pos = 0
-    if len(clist) and clist[-1] == minN:
-        bottom = True
-    elif nlist is not None and nlist[-1] == minN:
-        prevbottom = True
-
-    if pntype == 'C':
-        if not newhigh and not newlow:
-            range4 = (maxP - minN) / 4
-            if lastpos < minN + range4:
-                pos = 1
-            elif lastpos >= maxP - range4:
-                pos = 3
-            else:
-                pos = 2
-    elif pos != 4:
-        if plist is not None and nlist is not None:
-            if len(plist) > 1:
-                plistsorted = sorted(plist)
-                ppoint = plistsorted[-2]
-            else:
-                ppoint = plist[0]
-            if len(nlist) > 1:
-                nlistsorted = sorted(nlist)
-                npoint = nlistsorted[1]
-            else:
-                npoint = nlist[0]
-            pos = 3 if lastpos > ppoint else 2 if lastpos > npoint else 0 if newlow else 1
-
-        # retrace = True if (top or prevtop) and pos > 1 else False
-
-    snapshot = ".".join(profiling)
-    profiling = snapshot
-    snapshot = ""
-    snapshot = [snapshot + str(i * 1) for i in [pos, newhigh, newlow,
-                                                top, bottom, prevtop, prevbottom]]
-    snapshot = "".join(snapshot)
-    return [pos, newhigh, newlow, top, bottom, prevtop, prevbottom], profiling, snapshot
-
-
-def profilemapping(pntype, listoflists):
-    xpositive, xnegative, ypositive, ynegative = \
-        listoflists[0], listoflists[1], listoflists[2], listoflists[3]  # 0=XP, 1=XN, 2=YP, 3=YN
-    if xpositive is None:
-        xpositive = []
-    if xnegative is None:
-        xnegative = []
-    if ypositive is None:
-        ypositive = []
-    if ynegative is None:
-        ynegative = []
-    datelist = sorted(xpositive + xnegative)
-    psorted, nsorted = sorted(ypositive, reverse=True), sorted(ynegative)
-    ylist, profiling = [], []
-    for dt in datelist:
-        try:
-            pos = xpositive.index(dt)
-            yval = ypositive[pos]
-            ylist.append(yval)
-            ppos = psorted.index(yval) + 1
-            if pntype == 'C':
-                profiling.append('p' + str(ppos))
-            elif pntype == 'M':
-                prefix = 'hp' if yval > 10 else 'mp' if yval > 5 else 'lp'
-                profiling.append(prefix + str(ppos))
-            else:
-                prefix = 'pp' if yval > 0 else 'np'
-                profiling.append(prefix + str(ppos))
-        except ValueError:
-            pos = xnegative.index(dt)
-            yval = ynegative[pos]
-            ylist.append(yval)
-            npos = nsorted.index(yval) + 1
-            if pntype == 'C':
-                profiling.append('v' + str(npos))
-            elif pntype == 'M':
-                prefix = 'hv' if yval > 10 else 'mv' if yval > 5 else 'lv'
-                profiling.append(prefix + str(npos))
-            else:
-                prefix = 'pv' if yval > 0 else 'nv'
-                profiling.append(prefix + str(npos))
-    return ylist, profiling
-
-
-def formListCMPV(cmpv, mthlist):
-    xp, xn, yp, yn = mthlist[0], mthlist[1], mthlist[2], mthlist[3]  # 0=XP, 1=XN, 2=YP, 3=YN
-    # cmpv 0=C, 1=M, 2=P, 3=V
-    cmpvlist = []
-    cmpvlist.append(xp[cmpv])
-    cmpvlist.append(xn[cmpv])
-    cmpvlist.append(yp[cmpv])
-    cmpvlist.append(yn[cmpv])
-    return cmpvlist
-
-
-def datesmatching(mm, mp):
-    tolerance, matchlevel = 0, 0
-    mxpdates, mxndates = mm[0], mm[1]
-    pxpdates, pxndates = mp[0], mp[1]
-    if mxpdates is not None and pxpdates is not None:
-        pdays = abs(getBusDaysBtwnDates(mxpdates[-1], pxpdates[-1]))
-    else:
-        pdays = -1
-    if mxndates is not None and pxndates is not None:
-        ndays = abs(getBusDaysBtwnDates(mxndates[-1], pxndates[-1]))
-    else:
-        ndays = -1
-    if pdays == 0 or ndays == 0:
-        matchlevel = 5 if pdays == 0 and ndays == 0 else 4
-    else:
-        if DBGMODE:
-            print "pdays, ndays =", pdays, ndays
-        pdays1, ndays1 = pdays, ndays
-        if pdays > 0:
-            if len(mxpdates) > len(pxpdates):
-                pdays = getBusDaysBtwnDates(mxpdates[-2], pxpdates[-1])
-            elif len(mxpdates) < len(pxpdates):
-                pdays = getBusDaysBtwnDates(mxpdates[-1], pxpdates[-2])
-            elif len(mxpdates) > 1 and len(pxpdates) > 1:
-                pdays = getBusDaysBtwnDates(mxpdates[-2], pxpdates[-2])
-            pdays = abs(pdays)
-        if ndays > 0:
-            if len(mxndates) > len(pxndates):
-                ndays = getBusDaysBtwnDates(mxndates[-2], pxndates[-1])
-            elif len(mxndates) < len(pxndates):
-                ndays = getBusDaysBtwnDates(mxndates[-1], pxndates[-2])
-            elif len(mxndates) > 1 and len(pxndates) > 1:
-                ndays = getBusDaysBtwnDates(mxndates[-2], pxndates[-2])
-            ndays = abs(ndays)
-        matchlevel = 3 if pdays == 0 and ndays == 0 else 2 if pdays == 0 or ndays == 0 else 0
-
-        if not matchlevel and pdays != -1 and ndays != -1:
-            # match tops and bottoms
-            npdays1 = getBusDaysBtwnDates(mxndates[-1], pxpdates[-1])
-            pndays1 = getBusDaysBtwnDates(mxpdates[-1], pxndates[-1])
-            npdays2, pndays2 = -1, -1
-            if len(mxpdates) > 1 and len(mxndates) > 1 and len(pxpdates) > 1 and len(pxndates) > 1:
-                npdays2 = getBusDaysBtwnDates(mxndates[-2], pxpdates[-2])
-                pndays2 = getBusDaysBtwnDates(mxpdates[-2], pxndates[-2])
-            matchlevel = 7 if npdays1 == 0 and npdays2 == 0 or pndays1 == 0 and npdays2 == 0 else \
-                6 if (npdays1 == 0 or npdays2 == 0) and (pndays1 == 0 or pndays2 == 0) else 0
-            if DBGMODE:
-                print "npdays1,2, pndays1,2 =", npdays1, npdays2, pndays1, pndays2
-            if matchlevel:
-                pdays, ndays = 0, 0
-
-        if matchlevel:
-            if matchlevel < 6:
-                tolerance = 1
-        else:
-            if pdays1 != -1 and abs(pdays) < abs(pdays1) and abs(ndays) < abs(ndays1):
-                if pdays < 30 or ndays < 30:
-                    tolerance = 2
-                    matchlevel = 1
-            else:
-                if ndays1 != -1 and pdays1 < 30 or ndays1 < 30:
-                    pdays, ndays = pdays1, ndays1
-                    tolerance = 0
-                    matchlevel = 1
-    if DBGMODE:
-        print "mdates =", mxpdates, mxndates
-        print "pdates =", pxpdates, pxndates
-    return [tolerance, pdays, ndays, matchlevel]
-
-
-def collectCompositions(pnlist, lastTrxn):
-    # lastTrxnData = [lastTrxnDate, lastClosingPrice, lastTrxnC, lastTrxnM, lastTrxnP, lastTrxnV]
-    lastprice, lastC, lastM, lastP, lastV, firstC, firstM, firstP, firstV = \
-        lastTrxn[1], lastTrxn[2], lastTrxn[3], lastTrxn[4], lastTrxn[5], \
-        lastTrxn[7], lastTrxn[8], lastTrxn[9], lastTrxn[10]
-    if DBGMODE:
-        print "first:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, firstC, firstM, firstP, firstV)
-        print "last:%.2fC,%.2fc,%.2fm,%.2fp,%.2fv" % (lastprice, lastC, lastM, lastP, lastV)
-
-    if len(pnlist) > 1:
-        pnW, pnF, pnM = pnlist[0], pnlist[1], pnlist[2]
-        cmpvWC = formListCMPV(0, pnW)
-    else:
-        pnM = pnlist[0]
-        cmpvWC = []
-    cmpvMC = formListCMPV(0, pnM)
-    cmpvMM = formListCMPV(1, pnM)
-    cmpvMP = formListCMPV(2, pnM)
-    cmpvMV = formListCMPV(3, pnM)
-    composeC, historyC, strC = checkposition('C', cmpvMC + cmpvWC, firstC, lastC)
-    if DBGMODE:
-        [posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC] = composeC
-        print "C=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
-            (posC, newhighC, newlowC, topC, bottomC, prevtopC, prevbottomC, historyC)
-    posC = composeC[0]
-    if posC < 0:
-        return None, None, None, None, None
-    composeM, historyM, strM = checkposition('M', cmpvMM, firstM, lastM)
-    composeP, historyP, strP = checkposition('P', cmpvMP, firstP, lastP)
-    composeV, historyV, strV = checkposition('V', cmpvMV, firstV, lastV)
-    matchdate = datesmatching(cmpvMM, cmpvMP)
-    if DBGMODE:
-        [posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM] = composeM
-        print "M=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
-            (posM, newhighM, newlowM, topM, bottomM, prevtopM, prevbottomM, historyM)
-        [posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP] = composeP
-        print "P=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
-            (posP, newhighP, newlowP, topP, bottomP, prevtopP, prevbottomP, historyP)
-        [posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV] = composeV
-        print "V=%d,h=%d,l=%d,t=%d,b=%d,pT=%d,pB=%d, %s" % \
-            (posV, newhighV, newlowV, topV, bottomV, prevtopV, prevbottomV, historyV)
-        [tolerance, pdays, ndays, matchlevel] = matchdate
-        print "tol, pdays, ndays, matchlevel =", tolerance, pdays, ndays, matchlevel
-
-    cmpvlists = []
-    cmpvlists.append(cmpvMC)
-    cmpvlists.append(cmpvMM)
-    cmpvlists.append(cmpvMP)
-    cmpvlists.append(cmpvMV)
-    composelist = []
-    composelist.append(composeC)
-    composelist.append(composeM)
-    composelist.append(composeP)
-    composelist.append(composeV)
-    hstlist = []
-    hstlist.append(historyC)
-    hstlist.append(historyM)
-    hstlist.append(historyP)
-    hstlist.append(historyV)
-    strlist = []
-    strlist.append(strC)
-    strlist.append(strM)
-    strlist.append(strP)
-    strlist.append(strV)
-    return matchdate, cmpvlists, composelist, hstlist, strlist
 
 
 if __name__ == '__main__':
