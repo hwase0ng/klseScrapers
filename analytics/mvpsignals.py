@@ -35,7 +35,7 @@ def scanSignals(mpvdir, dbg, counter, sdict, pid):
         with open(outfile, "ab") as fh:
             bbsline = trxndate + "," + signals
             fh.write(bbsline + '\n')
-        if 1 == 0:
+        if 1 == 1:
             # Stop this until system is ready for production use
             sss = workdir + "signals/" + label + "-" + trxndate + ".csv"
             with open(sss, "ab") as fh:
@@ -439,6 +439,7 @@ def extractSignals(sdict, xpn):
             if newlowC:
                 return 0
             ncount, alt = volatilityCheck()
+            narrowc = 0
             if ncount < 4:
                 ncount = 0
             elif ncount > 3:
@@ -446,8 +447,13 @@ def extractSignals(sdict, xpn):
                 if alt:
                     # KLSE 2017-01-09
                     ncount = 1
-            if ncount:
-                pass
+                if max(nlistC[-3:]) < lowbar:
+                    # 2017-01-11 KLSE
+                    narrowc = 1
+                elif max(nlistC[-3:]) > lowbar and min(nlistC[-3:]) > lowbar:
+                    # 2017-01-03 GHLSYS
+                    narrowc = 2
+            '''
             elif (newhighC or topC) and (prevbottomC or firstC == minC):
                 # PADINI 2012-09-28 beginning of tops reversal
                 ncount = 2
@@ -456,10 +462,13 @@ def extractSignals(sdict, xpn):
                     if plistC[i] > lowbar:
                         ncount = 0
                         break
+            '''
+            if ncount:
+                pass
             elif (firstC == maxC or plistC[0] == maxC) and plistC[-1] < lowbar:
-                # KAWAN 2013-05-14
                 # DUFU 2014-05-12
                 ncount = 4
+                narrowc = 1
             elif plistC[0] == maxC or plistC[1] == maxC or firstC == maxC or \
                     (plenC > 5 and plistC[2] == maxC):
                 ncount = 3
@@ -473,39 +482,60 @@ def extractSignals(sdict, xpn):
                         break
                 if ncount and ncount < 2:
                     ncount = 0
-            return ncount
+                else:
+                    narrowc = 1
+            return narrowc  # ncount
 
         def bottomscount():
             tripleBottoms = 0
             if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
                 if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
                     ''' --- lower peaks and higher valleys --- '''
-                    # KESM 2013-09-09
-                    # N2N 2014-01-30
-                    tripleBottoms = 1
+                    if plistC[-3] < midbar and plistC[-1] < lowbar:
+                        # 2013-09-09 KESM bottom buy
+                        tripleBottoms = 1
+                    elif nlistC[-3] > midbar and max(nlistC[-2:]) > highbar:
+                        # 2014-01-30 N2N top buy
+                        tripleBottoms = 3
                 elif nlistC[-1] < nlistC[-2] and nlistC[-2] < nlistC[-3]:
                     ''' --- lower peaks and lower valleys --- '''
-                    tripleBottoms = 2
-                    # PADINI 2014-02-05 newlowC, 2015-10-02
-                    # N2N 2017-08-28
-                    # DUFU 2011-10-12, 2012-04-10
+                    if plistC[-3] < midbar and plistC[-1] < lowbar:
+                        # 2011-10-12 DUFU
+                        tripleBottoms = 1
+                    elif plistC[-3] < highbar and plistC[-1] < midbar:
+                        # 2017-08-28 N2N
+                        tripleBottoms = 2
+                    elif nlistC[-1] > midbar and max(nlistC[-3:]) > highbar:
+                        # 2014-02-05 PADINI newlowC, 2015-10-02
+                        tripleBottoms = 3
+
                     if nlenC > 3 and nlistC[-3] < nlistC[-4]:
                         ''' --- lower peaks and lower valleys extension --- '''
-                        # DUFU 2018-06-13 retrace with valley follow by peak divergence
-                        # DANCO 2018-07-23
-                        # PETRONM 2014-04-25
-                        tripleBottoms = 3
+                        if plistC[-4] > highbar and plistC[-3] > midbar and plistC[-1] < lowbar:
+                            # 2018-07-23 DANCO
+                            tripleBottoms = 1
+                        elif nlistC[-1] > midbar and max(nlistC[-3:]) > highbar:
+                            # 2018-06-13 DUFU retrace with valley follow by peak divergence
+                            tripleBottoms = 3
+                        elif nlistC[-4] > midbar and nlistC[-1] < lowbar:
+                            # 2014-04-25 PETRONM
+                            tripleBottoms = 2
                 elif nlenC > 3 and bottomC and \
                         nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
                     ''' --- lower peaks and lower valleys variant --- '''
-                    # DUFU 2011-10-12, 2012-04-10
-                    tripleBottoms = 4
+                    if plistC[-1] < lowbar and nlistC[0] > highbar:
+                        # 2011-10-12 DUFU
+                        tripleBottoms = 1
+                    elif plistC[-2] < lowbar and nlistC[0] > highbar:
+                        # 2012-04-10 DUFU
+                        tripleBottoms = 1
                 elif nlenC > 3 and \
-                        nlistC[-1] < nlistC[-3] and nlistC[-1] < nlistC[-4] and \
-                        nlistC[-2] < nlistC[-4] and nlistC[-3] < nlistC[-4]:
+                        nlistC[-1] < nlistC[-3] and nlistC[-1] < nlistC[-2] and \
+                        nlistC[0] == min(nlistC) and plistC[0] == max(plistC):
                     ''' --- lower peaks and lower valleys variant 2 --- '''
-                    # N2N 2017-08-30
-                    tripleBottoms = 5
+                    if nlistC[0] < lowbar and plistC[0] > highbar and plistC[-1] < midbar:
+                        # 2017-08-30 N2N (already handled above)
+                        tripleBottoms = 2
             return tripleBottoms
 
         def topscount():
@@ -1325,7 +1355,66 @@ def extractSignals(sdict, xpn):
 
     # ------------------------- START ------------------------- #
 
-    def eval3Bottoms(sval):
+    '''
+    def evalNarrowM(sval):
+        sig, state = 0, 0
+        if posC == 2 and narrowM:
+            sig, state = sval, 1
+            if newlowP or newhighV:
+                state = 2
+            elif bottomP or newlowV:
+                state = 3
+        elif not topC and posC == 3 and narrowM:
+            # 2012-02-21 MUDA
+            sig = -sval
+            if tripleM in p3d or tripleP in n3u:
+                # 2015-04-30 KLSE
+                state = 1
+        return sig, state
+
+    def evalM10x3(sval):
+        sig, state = 0, 0
+        # 3 consecutive M above 10 - powerful break out / bottom reversal signal
+        if nlistM[-1] < 0:
+            # 2017-10-17 AXREIT
+            sig, state = -sval, 1
+        elif plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
+            # 2013-03-01 MAGNI top retrace with CM and CP valley divergence follow by break out
+            sig, state = sval, 2
+        # elif posC < 2:
+            # --- bottom reversal --- #
+            # 2014-05-05, DUFU 2014-06-04 (plistP[-1] < 0) bottom break out
+            # 2014-09-10 DUFU (5 plistM vs 4 plistP)
+        else:
+            if topC or topM:
+                if mpeak:
+                    # 2014-09-03 DUFU retracing
+                    sig, state = sval, 0
+                else:
+                    # 2014-11-21 DUFU retrace completed
+                    # 2017-08-02 UCREST topM valley divergence
+                    sig, state = sval, 3
+            elif not newlowC:
+                if nlistP[-1] > 0 and lastP > plistP[-1]:
+                    # 2013-04-29 YSPSAH
+                    sig, state = sval, 4
+                else:
+                    if pvalley and lastP > plistP[-1]:
+                        # 2015-02-17 MUDA
+                        sig, state = sval, 5
+                    else:
+                        # 2015-04-14 MUDA
+                        sig, state = -sval, 6
+            elif mpeak or lastM < 0:
+                # 2018-12-21 ABLEGRP
+                sig, state = -sval, 5
+            else:
+                sig, state = sval, 0
+            # sstate = 2 if "CM" in ndiv or "CP" in ndiv else 1
+        return sig, state
+    '''
+
+    def evalRetrace(sval):
         def evalC0():
             if (newlowM and newlowP) or (bottomM or bottomP):
                 # 2014-02-05 PADINI newlowC
@@ -1429,48 +1518,7 @@ def extractSignals(sdict, xpn):
             sig, state = evalLowerTops(20)
         return sig, state
 
-    def evalM10x3(sval):
-        sig, state = 0, 0
-        # 3 consecutive M above 10 - powerful break out / bottom reversal signal
-        if nlistM[-1] < 0:
-            # 2017-10-17 AXREIT
-            sig, state = -sval, 1
-        elif plistP[-1] > 0 and plistP[-2] > 0 and plistP[-3] > 0:
-            # 2013-03-01 MAGNI top retrace with CM and CP valley divergence follow by break out
-            sig, state = sval, 2
-        # elif posC < 2:
-            # --- bottom reversal --- #
-            # 2014-05-05, DUFU 2014-06-04 (plistP[-1] < 0) bottom break out
-            # 2014-09-10 DUFU (5 plistM vs 4 plistP)
-        else:
-            if topC or topM:
-                if mpeak:
-                    # 2014-09-03 DUFU retracing
-                    sig, state = sval, 0
-                else:
-                    # 2014-11-21 DUFU retrace completed
-                    # 2017-08-02 UCREST topM valley divergence
-                    sig, state = sval, 3
-            elif not newlowC:
-                if nlistP[-1] > 0 and lastP > plistP[-1]:
-                    # 2013-04-29 YSPSAH
-                    sig, state = sval, 4
-                else:
-                    if pvalley and lastP > plistP[-1]:
-                        # 2015-02-17 MUDA
-                        sig, state = sval, 5
-                    else:
-                        # 2015-04-14 MUDA
-                        sig, state = -sval, 6
-            elif mpeak or lastM < 0:
-                # 2018-12-21 ABLEGRP
-                sig, state = -sval, 5
-            else:
-                sig, state = sval, 0
-            # sstate = 2 if "CM" in ndiv or "CP" in ndiv else 1
-        return sig, state
-
-    def evalNarrowC(sval):
+    def evalBottomsC(sval):
         def common_narrows():
             def evalP(sval5):
                 sigP, stateP = 0, 0
@@ -1545,9 +1593,10 @@ def extractSignals(sdict, xpn):
                     # 2011-11-08 N2N
                     # 2014-02-20 PETRONM
                     sigM, stateM = sval6, 1
-                elif newhighM and tripleM in p3d:
-                    # 2012-04-02 DUFU with narrowM
-                    sigM, stateM = -sval6, 0
+                elif newhighM:
+                    if not (newhighP or topP) and max(plistP[-3:]) == max(plistP):
+                        # 2012-04-02 DUFU with narrowM
+                        sigM, stateM = -sval6, 1
                 elif bottomM or prevbottomM:
                     # 2014-03-05 PADINI short rebound
                     # 2015-09-17 ORNA
@@ -1675,22 +1724,6 @@ def extractSignals(sdict, xpn):
                 ssig, sstate = common_narrows()
 
         return ssig, sstate
-
-    def evalNarrowM(sval):
-        sig, state = 0, 0
-        if posC == 2 and narrowM:
-            sig, state = sval, 1
-            if newlowP or newhighV:
-                state = 2
-            elif bottomP or newlowV:
-                state = 3
-        elif not topC and posC == 3 and narrowM:
-            # 2012-02-21 MUDA
-            sig = -sval
-            if tripleM in p3d or tripleP in n3u:
-                # 2015-04-30 KLSE
-                state = 1
-        return sig, state
 
     def evalHighC(sval):
         sig, state = sval, 99
@@ -2096,6 +2129,12 @@ def extractSignals(sdict, xpn):
                         # 2009-03-25 KLSE
                         # 2011-10-12 N2N topM
                         sig, state = sval, 3
+        elif newlowM and newlowP:
+            if plistP[-1] < 0:
+                # 2018-03-03 AXREIT
+                sig, state = sval, 1
+            else:
+                sig, state = sval, 0
         return sig, state
 
     lastTrxn, cmpvlists, composelist, hstlist, div = \
@@ -2182,24 +2221,24 @@ def extractSignals(sdict, xpn):
             ssig, sstate = evalLowC(1)
         else:
             if not ssig or sstate > 900:
-                if newhighC:
+                if newhighC and max(plistC) < highbar:
                     ssig, sstate = evalHighC(2)
             if not ssig or sstate > 900:
                 if topC or prevtopC:
                     ssig, sstate = evalTopC(3)
             if not ssig or sstate > 900:
-                if narrowC:
-                    ssig, sstate = evalNarrowC(4)
+                if narrowC == 1 or tripleBottoms == 1:
+                    ssig, sstate = evalBottomsC(4)
             if not ssig or sstate > 900:
-                if tripleBottoms:
-                    ssig, sstate = eval3Bottoms(7)
+                if narrowC > 1 or tripleBottoms < 3 or tripleTops > 5:
+                    ssig, sstate = evalRetrace(7)
             if not ssig or sstate > 900:
-                if tripleTops:
+                if tripleBottoms > 2 or tripleTops < 5:
                     ssig, sstate = eval3Tops(8)
             if not ssig or sstate > 900:
                 if posC < 3 and newlowM and newlowP:
                     # --- Oversold signal after retrace from break out --- #
-                    if newlowC or ((plistM[-1] > 10 or plistM[-2] > 10) and not topP) or \
+                    if ((plistM[-1] > 10 or plistM[-2] > 10) and not topP) or \
                             (nlistM[-1] < nlistM[-2] and nlistM[-1] < nlistM[-3]):
                         # 2013-05-03 DUFU
                         # 2017-12-05 MAGNI
