@@ -19,7 +19,7 @@ python analytics/mvpchart.py $counter $opts -S $dates:190
 
 if [ $OPT -eq 3 -o $OPT -eq 4 ]
 then
- mv ${mpvdir}/synopsis/$counter_*.png ${patdir}/$counter/
+ mv ${mpvdir}/synopsis/${counter}_2*.png ${patdir}/$counter/
 else
- mv ${mpvdir}/synopsis/$counter_*.png ${prfdir}/$counter/
+ mv ${mpvdir}/synopsis/${counter}_2*.png ${prfdir}/$counter/
 fi

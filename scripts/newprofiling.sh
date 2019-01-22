@@ -66,10 +66,11 @@ then
 else
  if [ $opt -lt 3 ]
  then
-  mv ${tmpdir}/mpv/synopsis/$counter-*.png ${prfdir}/$counter/
+  mv ${tmpdir}/mpv/synopsis/${counter}-2*.png ${prfdir}/$counter/
  else
-  mv ${tmpdir}/mpv/synopsis/$counter-*.png ${patdir}/$counter/
+  mv ${tmpdir}/mpv/synopsis/${counter}-2*.png ${patdir}/$counter/
  fi
  #cp ${tmpdir}/mpv/signals/$counter-signals.csv ${sigdir}/
- uniq ${tmpdir}/mpv/signals/$counter-signals.csv > ${sigdir}/${counter}-signals.csv
+ cat ${tmpdir}/mpv/signals/${counter}-signals.csv.2* > ${sigdir}/${counter}-signals.csv
+ rm ${tmpdir}/mpv/signals/${counter}-signals.csv.2*
 fi
