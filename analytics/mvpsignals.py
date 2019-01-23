@@ -1,16 +1,29 @@
 '''
+Usage: main [options] [COUNTER] ...
+
+Arguments:
+    COUNTER           Counter to scan signal
+Options:
+    -d,--datadir=<dd>       Use data directory provided
+    -D,--debug=(dbgopt)     Enable debug mode (A)ll, (p)attern charting, (s)ignal, (u)nit test input generation
+    -l,--list=<clist>       List of counters (dhkmwM) to retrieve from config.json
+    -S,--simulation=<sim>   Accepts dates in the form of "DATE1:DATE2:STEP"; e.g. 2018-10-01 or 2018-01-02:2018-07-20:5
+
 Created on Nov 2, 2018
 
 @author: hwase0ng
 '''
 
 import settings as S
-from common import loadCfg
-from utils.dateutils import getBusDaysBtwnDates
-from utils.fileutils import grepN
+from common import loadCfg, retrieveCounters, formStocklist, loadKlseCounters
+from utils.dateutils import getBusDaysBtwnDates, pdDaysOffset
+from utils.fileutils import grepN, loadfromjson, jsonLastDate, wc_line_count
+from docopt import docopt
+import traceback
+import os
 
 
-def scanSignals(mpvdir, dbg, counter, sdict, pid):
+def scanSignals(mpvdir, dbg, counter, sdict, pid=0):
     def extractX():
         pnM = pnlist[2] if len(pnlist) > 1 else pnlist[0]
         xp, xn, = pnM[0], pnM[1]  # 0=XP, 1=XN, 2=YP, 3=YN
@@ -97,7 +110,7 @@ def scanSignals(mpvdir, dbg, counter, sdict, pid):
     signals = "%s,%s,%s" % (counter, signalsss, signaldet)
     if dbg == 2:
         # print '\n("%s", %s, %s, %s, "%s"),\n' % (counter, pnlist, div, lastTrxnData, signals.replace('\t', ''))
-        print '\n("%s", "%s", "%s"),\n' % (counter, lastTrxnData[0], signals.replace('\t', ''))
+        print '("%s", "%s", "%s"),' % (counter, lastTrxnData[0], signals.replace('\t', ''))
     printsignal(mpvdir, lastTrxnData[0])
     return signals
 
@@ -307,9 +320,9 @@ def extractSignals(sdict, xpn):
                                 if m10skip > 1:
                                     break
                     if countM10 > 2:
-                        # DUFU 2014-11-21 retrace completed
-                        # UCREST 2017-08-02 topM valley divergence
-                        # YSPSAH 2013-04-29
+                        # 2014-11-21 DUFU retrace completed
+                        # 2017-08-02 UCREST topM valley divergence
+                        # 2013-04-29 YSPSAH
                         tripleM = 9
                         # if countM10 > 3:
                         #     tripleM = 9
@@ -346,11 +359,11 @@ def extractSignals(sdict, xpn):
                     nrange1, nrange2 = 0.20, 0.05
                     for i in range(len(pnrange)):
                         if pnrange[i] <= nrange1:
-                            # MUDA 2013-04-30
-                            # PADINI 2015-08-04
+                            # 2013-04-30 MUDA
+                            # 2015-08-04 PADINI
                             ncount += 1
                             if pnrange[i] <= nrange2:
-                                # KLSE 2016-11-14
+                                # 2016-11-14 KLSE
                                 p5 = True
                         else:
                             break
@@ -407,12 +420,12 @@ def extractSignals(sdict, xpn):
             def volatilityCheck():
                 minmax = maxC - minC
                 if maxC == lastC and lastC - nlistC[-1] > minmax / 2.2:
-                    # VSTECS 2014-08-29 minmax=0.5653
+                    # 2014-08-29 VSTECS minmax=0.5653
                     return 0, 0
                 if plenC > 1 and plistC[-1] > highbar and plistC[-2] < lowbar:
                     # 2014-06-24 MUDA
                     return 0, 0
-                # YSPSAH 2017-02-21: [0.179, 0.035, 0.356, 0.125, 0.0302, 0.031]
+                # 2017-02-21 YSPSAH [0.179, 0.035, 0.356, 0.125, 0.0302, 0.031]
                 lowvolatility1, lowvolatility2 = 0.25, 0.36
                 pstart = -2 if cpeak else -1
                 pnrange = []
@@ -423,7 +436,7 @@ def extractSignals(sdict, xpn):
                 if len(plistC) > abs(pstart - 1):
                     pnrange.append((plistC[pstart - 2] - nlistC[-3]) / minmax)
                     if len(nlistC) > 3:
-                        # KESM 2017-01-09
+                        # 2017-01-09 KESM
                         pnrange.append((plistC[pstart - 2] - nlistC[-4]) / minmax)
                 averange = (pnrange[0] + pnrange[1]) / 2
                 tolerange = averange * 2
@@ -437,23 +450,25 @@ def extractSignals(sdict, xpn):
                         # KLSE 2017-01-09 pnrange: [0.198, 0.186, 0.333, 0.321, 0.225, 0.315]
                         vcount2 += 0.3
                     else:
-                        # KLSE 2013-01-28 <pnrange>: [0.125, 0.125, 0.0586, 0.309, 0.101, 0.684]
+                        # 2013-01-28 KLSE <pnrange>: [0.125, 0.125, 0.0586, 0.309, 0.101, 0.684]
                         break
                 if vcount2 > 0.5:
                     vcount += 1
                     alt = 1
                 return vcount, alt
 
-            if newlowC or topC:
+            if newlowC or topC or plistC[-1] > highbar:
+                # 2014-11-07 DUFU
+                # 2016-01-04 PADINI
                 return 0
             ncount, alt = volatilityCheck()
             narrowc = 0
             if ncount < 4:
                 ncount = 0
             elif ncount > 3:
-                # GHLSYS 2017-01-06
+                # 2017-01-06 GHLSYS
                 if alt:
-                    # KLSE 2017-01-09
+                    # 2017-01-09 KLSE
                     ncount = 1
                 if max(nlistC[-3:]) < lowbar:
                     # 2017-01-11 KLSE
@@ -474,7 +489,7 @@ def extractSignals(sdict, xpn):
             if ncount:
                 pass
             elif (firstC == maxC or plistC[0] == maxC) and plistC[-1] < lowbar:
-                # DUFU 2014-05-12
+                # 2014-05-12 DUFU
                 ncount = 4
                 narrowc = 1
             elif plistC[0] == maxC or plistC[1] == maxC or firstC == maxC or \
@@ -488,15 +503,19 @@ def extractSignals(sdict, xpn):
                     else:
                         ncount = 0
                         break
-                if ncount and ncount < 2:
-                    ncount = 0
-                else:
-                    narrowc = 1
+                if ncount:
+                    if ncount < 2:
+                        ncount = 0
+                        narrowc = 0
+                    else:
+                        narrowc = 1 if posC < 2 else 2
             return narrowc  # ncount
 
         def bottomscount():
             tripleBottoms = 0
-            if plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
+            if plenC < 3 or nlenC < 3:
+                pass
+            elif plistC[-1] < plistC[-2] and plistC[-2] < plistC[-3]:
                 if nlistC[-1] > nlistC[-3] and nlistC[-2] > nlistC[-3]:
                     ''' --- lower peaks and higher valleys --- '''
                     if plistC[-3] < midbar and plistC[-1] < lowbar:
@@ -516,16 +535,19 @@ def extractSignals(sdict, xpn):
                     elif nlistC[-1] > midbar and max(nlistC[-3:]) > highbar:
                         # 2014-02-05 PADINI newlowC, 2015-10-02
                         tripleBottoms = 3
+                    elif nlistC[-3] > highbar and max(nlistC[-2:]) < lowbar:
+                        # 2015-10-07 PADINI
+                        tripleBottoms = 1
 
                     if nlenC > 3 and nlistC[-3] < nlistC[-4]:
                         ''' --- lower peaks and lower valleys extension --- '''
-                        if plistC[-4] > highbar and plistC[-3] > midbar and plistC[-1] < lowbar:
+                        if plenC > 3 and plistC[-4] > highbar and plistC[-3] > midbar and plistC[-1] < lowbar:
                             # 2018-07-23 DANCO
                             tripleBottoms = 1
                         elif nlistC[-1] > midbar and max(nlistC[-3:]) > highbar:
                             # 2018-06-13 DUFU retrace with valley follow by peak divergence
                             tripleBottoms = 3
-                        elif nlistC[-4] > midbar and nlistC[-1] < lowbar:
+                        elif nlenC > 3 and nlistC[-4] > midbar and nlistC[-1] < lowbar:
                             # 2014-04-25 PETRONM
                             tripleBottoms = 2
                 elif nlenC > 3 and \
@@ -1433,34 +1455,6 @@ def extractSignals(sdict, xpn):
     '''
 
     def evalRetrace(sval):
-        def evalC0():
-            if (newlowM and newlowP) or (bottomM or bottomP):
-                # 2014-02-05 PADINI newlowC
-                # 2012-01-20 YSPSAH bottomP
-                sig, state = sval, 1
-            elif newhighM or newhighP or topM or topP:
-                # 2015-10-02 PADINI
-                sig, state = sval, 2
-            elif newhighV:
-                # 2017-08-28 N2N
-                sig, state = sval, 3
-            elif cmpdiv in bearpeak:
-                sig, state = -sval, 4
-                if newlowP:
-                    # 2014-12-10 KLSE newlowP
-                    # 2018-04-03 GHLSYS newlowP, newlowM
-                    sig, state = sval, 4
-            elif cmpdiv in bullvalley:
-                if nlistP[-1] > 0:
-                    # 2009-04-01 KLSE
-                    sig, state = sval, 5
-                else:
-                    sig, state = -sval, -6
-            else:
-                # 2011-10-12 DUFU
-                sig, state = -sval, 7
-            return sig, state
-
         def evalC1(sts=20):
             sig, state = 0, 0
             if cpeak and cmpdiv in bearpeak:
@@ -1493,18 +1487,38 @@ def extractSignals(sdict, xpn):
         if posC < 3 and newhighV:
             # 2018-07-17 DUFU
             sig, state = sval, 1
+        elif isN3UP() or topV or prevtopV:
+            # 2012-10-09 ORNA
+            # 2016-04-19 PADINI
+            sig, state = sval, 3
+        elif newlowM and newlowP:
+            if nlistM[-1] > nlistM[-2] and nlistP[-1] > nlistP[-2]:
+                if nlistM[-1] > 5 and nlistP[-1] < 0:
+                    # 2014-02-05 PADINI intercepted by evalBottomC
+                    sig, state = sval, 4
+                else:
+                    sig, state = sval, 0
+            else:
+                sig, state = -sval, 0
+        elif narrowP and plenP > 4 and lastP > max(plistP[-4:-1]):
+            # 2016-01-04 PADINI
+            sig, state = sval, 5
+        elif min(nlistM[-2:]) > 8 and min(nlistP[-2:]) > 0:
+            # 2016-04-25 PADINI
+            sig, state = sval, 7
         elif cmpdiv in bearpeak:
             # 2018-02-06 GHLSYS
-            sig, state = -sval, 2
+            sig, state = -sval, 9
             if newlowP:
                 # 2014-12-10 KLSE newlowP
                 # 2018-04-03 GHLSYS newlowP, newlowM
-                sig, state = sval, 2
-        elif isN3UP() or topV or prevtopV:
-            # 2012-10-09 ORNA
-            sig, state = sval, 3
-        elif posC < 1:
-            sig, state = evalC0()
+                sig, state = sval, 9
+        elif cvalley and nlistC[-1] > highbar:
+            if nlistP[-1] < 0:
+                # 2016-11-07 PADINI
+                sig, state = -sval, 10
+            else:
+                sig, state = -sval, 0
         else:
             sig, state = evalC1()
         return sig, state
@@ -1696,6 +1710,7 @@ def extractSignals(sdict, xpn):
                 sig, state = evalM(sval2 + 2)
                 if not sig or sig > 900:
                     if (newhighM or topM) and posC < 2:
+                        # 2015-09-18 PADINI
                         # 2018-11-11 SUPERLN
                         sig, state = sval2, 3
                     elif bottomP or prevbottomP:
@@ -1715,7 +1730,7 @@ def extractSignals(sdict, xpn):
                         sig, state = sval2, 5
             return sig, state
 
-        def evalBottom(st=20):
+        def evalBottom(st=10):
             bsig, bstate = 0, 0
             if max(plistM[-3:]) >= 10:
                 # 2012-11-29 DUFU
@@ -1726,13 +1741,20 @@ def extractSignals(sdict, xpn):
                     if pvalley or topP:
                         # 2014-05-07 DUFU
                         bsig, bstate = sval2, st + 2
+            elif narrowP and lastP > max(plistP[-3:]):
+                # 2015-09-04 PADINI
+                bsig, bstate = sval2, st + 4
             return bsig, bstate
 
-        def evalC1(st=40):
+        def evalC1(st=20):
             csig, cstate = 0, 0
             if isN3UP():
                 # 2016-12-29 ORNA
                 csig, cstate = sval2, st
+            elif newhighM:
+                if max(nlistP[-3:]) < 0:
+                    # 2018-11-11 SUPERLN
+                    csig, cstate = -sval2, -st
             return csig, cstate
 
         ssig, sstate = 0, 0
@@ -1814,132 +1836,140 @@ def extractSignals(sdict, xpn):
             if min(nlistM[-4:]) == min(nlistM) and min(nlistM) < 5:
                 # 2011-07-13 KLSE
                 sig, state = -sval, 7
+            elif newhighP or lastP > plistP[-1]:
+                # 2016-08-11 PADINI
+                sig, state = -sval, 8
             elif not (newhighP or prevtopP):
-                # 2010-09-01 KLSE
-                sig, state = sval, 7
+                if plistP[-1] < plistP[-2]:
+                    # 2016-03-04 PADINI
+                    sig, state = sval, 7
+                else:
+                    # 2016-08-11 PADINI
+                    sig, state = -sval, 8
             else:
                 # 2014-07-17 ORNA
-                sig, state = -sval, 7
+                sig, state = -sval, 9
         elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
             if nlistP[-1] < 0:
+                # 2016-01-28 PADINI
                 # 2017-01-26 MAGNI
-                sig, state = sval, 8
+                sig, state = sval, 12
                 if newhighP or topP:
                     # 2014-02-11 MUDA
                     # 2014-06-04 PADINI
                     pass
                 elif max(plistM[-3:]) > 10:
                     # 2015-02-05 ORNA
-                    sig, state = -sval, 8
+                    sig, state = -sval, 12
             else:
                 if lastM < 5 or lastP < 0:
                     # 2010-10-06 KLSE
-                    sig, state = sval, 9
+                    sig, state = sval, 14
                 else:
                     # tripleP in p3d
                     # 2013-08-01 ORNA
                     # 2014-05-05 KLSE
-                    sig, state = sval, -9
+                    sig, state = sval, -14
                 if plistP[-1] < plistP[-2] and plistP[-1] < plistP[-3]:
                     # 2016-04-04 VSTECS
-                    sig, state = -sval, 9
+                    sig, state = -sval, 15
         else:
             # 2013-07-29 KLSE
-            sig, state = -sval, 10
+            sig, state = -sval, 17
             if tripleP in n3d or nlistM[-1] > nlistM[-2]:
                 # 2013-04-03 KLSE
-                sig, state = sval, 10
+                sig, state = sval, 17
             elif tripleP in p3d:
                 # 2012-09-05 KLSE
-                sig, state = -sval, 11
+                sig, state = -sval, 18
                 if newhighV or topV or cmpdiv in bearpeak:
                     # 2014-06-02 KLSE
                     # 2011-12-01 ORNA
-                    sig, state = -sval, 12
+                    sig, state = -sval, 19
                 elif newlowM and newlowP:
                     # 2011-09-28 KLSE
-                    sig, state = sval, -13
+                    sig, state = sval, -21
                 elif bottomM and bottomP:
                     # 2011-10-05 KLSE
-                    sig, state = sval, 13
+                    sig, state = sval, 21
                 elif bottomM:
                     # 2011-10-05 KLSE
-                    sig, state = sval, 14
+                    sig, state = sval, 23
             elif tripleM in p3d:
                 if bottomM:
                     # 2013-01-03 ORNA
-                    sig, state = -sval, 15
+                    sig, state = -sval, 25
                 elif newlowM:
                     # 2011-08-18 ORNA
-                    sig, state = -sval, 15
+                    sig, state = -sval, 27
                 else:
                     sig, state = -sval, 0
             elif tripleP in p3u:
                 if topV and newlowV:
                     # 2018-11-05 YSPSAH
-                    sig, state = -sval, 16
+                    sig, state = -sval, 29
                 elif nlistP[-1] < 0:
                     # 2013-12-19 ORNA
-                    sig, state = sval, -16
+                    sig, state = sval, -31
                 elif nlistP[-2] < 0:
                     # 2014-01-09 ORNA
                     # 2014-03-13 ORNA
-                    sig, state = sval, -17
+                    sig, state = sval, -33
                 else:
                     # 2014-08-29 VSTECS
-                    sig, state = sval, -17
+                    sig, state = sval, -35
             elif cmpdiv in bearpeak:
                 if nlistP[-1] < 0:
                     # 2011-11-17 ORNA
-                    sig, state = -sval, 18
+                    sig, state = -sval, 37
                 else:
                     # 2014-06-24 MUDA
                     # 2019-01-06 DUFU
-                    sig, state = sval, 18
+                    sig, state = sval, 37
             elif plistP[-1] > 0:
                 if lastM < 5 and lastP < 0:
                     # 2013-09-02 KLSE
-                    sig, state = -sval, -19
+                    sig, state = -sval, -39
                 elif nlistM[-1] > 5:
                     # 2010-08-11 KLSE
-                    sig, state = sval, 19
+                    sig, state = sval, 39
                 else:
                     # 2014-08-21 ORNA
-                    sig, state = -sval, 20
+                    sig, state = -sval, 40
             else:
                 # from pEvaluation
                 if cvalley and cmpdiv in bullvalley:
                     if nlistP[-1] < 0:
                         if prevtopP:
                             # 2013-01-31 ORNA
-                            sig, state = -sval, 21
+                            sig, state = -sval, 41
                         else:
                             # 2013-12-19 ORNA
-                            sig, state = sval, 21
+                            sig, state = sval, 41
                     elif highlowM:
                         # 2011-05-12 ORNA
                         sig = -sval if newhighC or newhighP or topP else sval
-                        sig, state = -sval, 22
+                        sig, state = -sval, 42
                     elif newhighC and newhighM:
-                        sig, state = -sval, 23
+                        sig, state = -sval, 43
                     else:
                         # 2014-02-20 ORNA
                         sig = -sval if newhighP or topP else sval
-                        sig, state = -sval, 24
+                        sig, state = -sval, 44
                 elif nlistP[-1] < 0 or cpeak:
                     sig, state = -sval, 0
                     if (newlowM or bottomM) and (newlowP or bottomP):
                         # 2014-12-16 MUDA
-                        sig, state = sval, 25
+                        sig, state = sval, 45
                     elif newlowP and bottomV:
                         # 2014-12-23 MUDA
-                        sig, state = sval, 26
+                        sig, state = sval, 46
                 elif plistM[-1] < plistM[-2] and plistM[-1] < plistM[-3] or \
                         tripleM in n3u and lastM < nlistM[-1]:
                     sig, state = sval, 0
                     if lastM < nlistM[-1]:
                         # 2017-12-06 PADINI
-                        sig, state = -sval, 27
+                        sig, state = -sval, 47
         return sig, state
 
     def evalTopC(sval):
@@ -2123,19 +2153,31 @@ def extractSignals(sdict, xpn):
                 if newlowM or bottomM:
                     # 2012-12-04 ORNA
                     sig, state = sval, st + 14
+            elif newhighM:
+                if min(nlistM[-4:]) == min(nlistM) and min(nlistM) < 5:
+                    # 2011-07-13 KLSE
+                    sig, state = -sval, 16
+                elif not (newhighP or prevtopP):
+                    # 2010-09-01 KLSE
+                    # 2016-03-04 PADINI
+                    # 2016-08-05 PADINI
+                    sig, state = sval, 16
+                else:
+                    # 2014-07-17 ORNA
+                    sig, state = -sval, 16
             elif lastM < nlistM[-2]:
                 # 2015-04-13 DUFU prevtopP
-                sig, state = -sval, st + 16
+                sig, state = -sval, st + 18
             return sig, state
 
         if (newlowP or newlowM or bottomP or bottomM or
                 (prevbottomP or prevbottomM)) and not (topM or topP):
             sig, state = evalBottomPM()
-        elif topP or topM or prevtopP or prevtopM:
+        elif newhighP or newhighM or topP or topM or prevtopP or prevtopM:
             sig, state = evalTopPM()
-        elif cmpdiv in bearpeak:
-            # 2008-02-06 KLSE
-            sig, state = -sval, 31
+        elif min(nlistM[-2:]) > 8 and min(nlistP[-2:]) > 0:
+            # 2016-05-03 PADINI
+            sig, state = sval, 31
         elif plistM[-1] < plistM[-2] and plistM[-1] < plistM[-3]:
             # 2012-11-07 KLSE
             # 2013-08-07 KLSE
@@ -2162,6 +2204,9 @@ def extractSignals(sdict, xpn):
                     sig, state = sval, 38
                 else:
                     sig, state = -sval, 38
+            elif nlistM[-1] > 5 and nlistP[-1] > nlistP[-2] and nlistP[-2] > 0:
+                # 2016-07-12 padini
+                sig, state = sval, 39
         elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
             # 2014-06-03 MUDA
             sig, state = sval, 40
@@ -2177,8 +2222,11 @@ def extractSignals(sdict, xpn):
             elif plistP[-1] < plistP[-2] and plistP[-1] < plistP[-3]:
                 # 2016-05-09 VSTECS
                 sig, state = -sval, 41
+        elif cmpdiv in bearpeak:
+            # 2008-02-06 KLSE
+            sig, state = -sval, 43
         else:
-            sig, state = -sval, 42
+            sig, state = -sval, 45
         return sig, state
 
     def evalLowC(sval):
@@ -2211,6 +2259,30 @@ def extractSignals(sdict, xpn):
                         # 2009-03-25 KLSE
                         # 2011-10-12 N2N topM
                         sig, state = sval, 2
+        else:
+            if newhighM or newhighP or topM or topP:
+                # 2015-10-02 PADINI
+                sig, state = sval, 2
+            elif newhighV:
+                # 2017-08-28 N2N
+                sig, state = sval, 3
+            elif cmpdiv in bearpeak:
+                sig, state = -sval, 4
+                if newlowP:
+                    # 2014-12-10 KLSE newlowP
+                    # 2018-04-03 GHLSYS newlowP, newlowM
+                    sig, state = sval, 4
+            elif cmpdiv in bullvalley:
+                if nlistP[-1] > 0:
+                    # 2009-04-01 KLSE
+                    sig, state = sval, 5
+                else:
+                    sig, state = -sval, -6
+            else:
+                # 2011-10-12 DUFU
+                sig, state = -sval, 7
+            return sig, state
+
         return sig, state
 
     lastTrxn, cmpvlists, composelist, hstlist, div = \
@@ -2287,7 +2359,7 @@ def extractSignals(sdict, xpn):
         [firstmp, firstmn, firstpp, firstpn] = p2
         [plenM, nlenM, plenP, nlenP, plenV, nlenV, plenC, nlenC] = cmpvlen
 
-    if nosignal:   # or DBGMODE == 3:
+    if nosignal or plistC is None or nlistC is None:   # or DBGMODE == 3:
         pass
     else:
         psig, pstate, nsig, nstate, neglist, poslist = evalPNsignals()
@@ -2297,19 +2369,24 @@ def extractSignals(sdict, xpn):
             ssig, sstate = evalLowC(1)
         else:
             if not ssig or sstate > 900:
-                if newhighC or (firstC == maxC and lastC > max(plistC)):
+                if newhighC or (firstC == maxC and lastC > max(plistC)) or lastC > highbar:
                     # 2014-07-30 DUFU
+                    # 2016-01-28 PADINI
                     pass
                 elif narrowC == 1 or (tripleBottoms and tripleBottoms < 3):
                     ssig, sstate = evalBottomC(2)
             if not ssig or sstate > 900:
-                if newhighC:
+                if newhighC or (firstC == maxC and lastC > max(plistC)):
                     pass
-                elif narrowC > 1 or tripleBottoms > 1 or tripleTops > 5:
+                elif narrowC > 1 or tripleBottoms > 1 or tripleTops > 5 or \
+                        plistC[-1] > highbar:
+                    # 2014-11-07 DUFU
+                    # 2016-01-04 PADINI
                     ssig, sstate = evalRetrace(5)
             if not ssig or sstate > 900:
-                if newhighC or (firstC == maxC and lastC > max(plistC)):
+                if newhighC or (firstC == maxC and lastC > max(plistC)) or lastC > highbar:
                     if prevtopC and plistC[-1] > highbar:
+                        # 2016-05-03 PADINI
                         pass
                     else:
                         ssig, sstate = evalHighC(6)
@@ -2811,17 +2888,104 @@ def bottomBuySignals(lastTrxn, matchdate, cmpvlists, composelist, pdiv, ndiv, od
 
 
 if __name__ == '__main__':
+    def numsFromDate(counter, datestr, cdays=S.MVP_CHART_DAYS):
+        prefix = S.DATA_DIR + S.MVP_DIR
+        incsv = prefix + counter + ".csv"
+        row_count = wc_line_count(incsv)
+        dates = datestr.split(":") if ":" in datestr else [datestr]
+        linenum = grepN(incsv, dates[0])  # e.g. 2012-01-01
+        if linenum < 0:
+            linenum = grepN(incsv, dates[0][:9])  # e.g. 2012-01-0
+            if linenum < 0:
+                linenum = grepN(incsv, dates[0][:7])  # e.g. 2012-01
+                if linenum < 0:
+                    linenum = grepN(incsv, dates[0][:6])  # e.g. 2012-0
+                    if linenum < 0:
+                        linenum = grepN(incsv, dates[0][:5])  # e.g. 2012-
+        if DBG_ALL:
+            print incsv, row_count, dates, linenum
+        if linenum < 0:
+            return []
+        start = row_count - linenum + cdays
+        stop = start + 1
+        if len(dates) > 1:
+            linenum = grepN(incsv, dates[1])  # e.g. 2018-10-30
+            if linenum < 0:
+                linenum = grepN(incsv, dates[1][:9])  # e.g. 2018-10-3
+            if linenum > 0:
+                stop = row_count - linenum + cdays
+        step = int(dates[2]) if len(dates) > 2 else 1
+        nums = str(start) + "," + str(stop) + "," + str(step)
+        if S.DBG_ALL:
+            print "Start,Stop,Step =", nums
+        return nums.split(',')
+
+    def loadargs():
+        global DBG_ALL, DBG_SIGNAL
+        klse = "scrapers/i3investor/klse.txt"
+        tmpdir = "data"
+        if args['--datadir']:
+            S.DATA_DIR = args['--datadir']
+            if not S.DATA_DIR.endswith("/"):
+                S.DATA_DIR += "/"
+        dbgmode = "" if args['--debug'] is None else args['--debug']
+        DBG_ALL = True if "a" in dbgmode else False
+        DBG_SIGNAL = 1 if "s" in dbgmode else 2 if "u" in dbgmode else 3 if "p" in dbgmode else 0
+        if args['COUNTER']:
+            stocks = args['COUNTER'][0].upper()
+        else:
+            stocks = retrieveCounters(args['--list'])
+        if len(stocks):
+            stocklist = formStocklist(stocks, klse)
+            if not len(stocklist):
+                # Hack to bypass restriction on KLSE counters
+                if len(stocks) == 1:
+                    stocklist[stocks] = 0
+                else:
+                    stocks = stocks.split(',')
+                    for stock in stocks:
+                        stocklist[stock] = 0
+        else:
+            stocklist = loadKlseCounters(klse)
+        return stocklist, tmpdir, S.MVP_CHART_DAYS, args['--simulation']
+
+    args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
-    counter = ""
-    if len(counter):
-        pnlist = [[[['2015-12-27', '2016-03-06', '2016-05-29', '2016-09-11', '2016-10-30', '2016-12-18', '2017-01-29'], ['2015-12-27', '2016-03-06', '2016-05-15', '2016-06-26', '2016-08-14', '2016-10-23', '2017-01-01'], ['2015-12-27', '2016-02-07', '2016-03-27', '2016-05-15', '2016-08-14', '2016-10-30', '2017-01-08'], ['2015-12-06', '2016-01-24', '2016-03-13', '2016-05-08', '2016-07-17', '2016-08-28', '2016-10-23', '2016-12-04', '2017-01-22']], [['2015-11-22', '2016-01-10', '2016-04-17', '2016-06-26', '2016-08-28', '2016-10-16', '2016-12-11', '2017-01-22'], ['2016-01-03', '2016-03-20', '2016-05-22', '2016-07-10', '2016-09-04', '2016-11-20', '2017-01-22'], ['2015-11-29', '2016-01-24', '2016-03-20', '2016-06-26', '2016-08-28', '2016-10-16', '2016-12-04', '2017-01-22'], ['2016-01-03', '2016-02-21', '2016-04-03', '2016-05-29', '2016-07-10', '2016-10-02', '2016-11-20', '2017-01-01']], [[1.97, 2.16, 2.3840000000000003, 3.008, 2.922, 2.605, 2.4520000000000004], [8.666666666666666, 10.4, 8.0, 5.5, 11.0, 9.0, 7.25], [0.20666666666666667, 0.1025, -0.0275, 0.156, 0.186, 0.02, -0.037500000000000006], [1.008, 1.0379999999999998, -0.22799999999999998, 2.0775, 0.48, 0.738, 0.9339999999999999, 2.962, 2.302]], [[1.598, 1.8559999999999999, 1.964, 2.2675, 2.7340000000000004, 2.7640000000000002, 2.58, 2.396], [7.75, 6.8, 6.6, 3.6666666666666665, 5.5, 6.4, 5.0], [0.062, 0.017999999999999995, -0.052000000000000005, -0.035, 0.044, -0.06000000000000001, -0.096, -0.074], [-0.5825, -0.33399999999999996, -0.7939999999999999, -0.29, -0.8700000000000001, -0.636, -0.404, -0.865]]], [[['2015-12-27', '2016-03-06', '2016-05-29', '2016-09-18'], ['2016-03-06', '2016-05-15', '2016-08-07', '2016-10-30', '2017-01-08'], ['2015-12-27', '2016-05-15', '2016-08-21', '2016-11-13'], ['2016-02-07', '2016-05-01', '2016-09-04', '2016-12-11']], [['2015-11-29', '2016-04-17', '2016-06-26', '2016-10-16'], ['2016-01-10', '2016-04-03', '2016-07-10', '2016-10-16', '2017-01-22'], ['2016-01-24', '2016-04-17', '2016-06-26', '2016-09-04', '2016-12-11'], ['2016-01-10', '2016-04-03', '2016-07-10', '2016-10-02', '2017-01-08']], [[1.91875, 2.15, 2.3419999999999996, 2.9825000000000004], [10.0, 7.888888888888889, 10.4, 8.9, 7.0], [0.18, 0.12666666666666662, 0.14900000000000002, 0.016], [0.7325, 1.4360000000000002, 0.5855555555555555, 2.402]], [[1.6, 1.9989999999999999, 2.281111111111111, 2.7655555555555558], [8.0, 7.111111111111111, 3.8333333333333335, 7.0, 5.7], [0.036000000000000004, -0.03599999999999999, -0.023333333333333334, 0.06444444444444444, -0.096], [-0.12444444444444443, -0.7311111111111112, -0.5933333333333333, -0.583, -0.73625]]], [[['2016-05-31', '2016-09-30'], ['2016-01-31', '2016-08-31'], ['2015-12-31', '2016-05-31', '2016-11-30'], ['2016-01-31', '2016-05-31']], [['2016-03-31'], ['2015-12-31', '2016-06-30', '2017-01-31'], ['2016-03-31', '2016-12-31'], ['2016-03-31', '2016-09-30']], [[2.3199999999999994, 2.9225000000000008], [8.947368421052632, 8.909090909090908], [0.15857142857142859, 0.1219047619047619, -0.013636363636363636], [0.58, 0.6052380952380952]], [[2.0572727272727276], [8.19047619047619, 5.7368421052631575, 6.3], [-0.01090909090909091, -0.08000000000000002], [-0.5322727272727272, -0.4334999999999999]]]]
-        lasttxn = ['2017-02-06', 2.42, 2.393333333333333, 8.0, -0.06333333333333334, 2.9266666666666663]
-        expected = "PADINI,Dbg,0,(0c,3m,1p,3v)"
-        mpvdir = S.DATA_DIR + S.MVP_DIR
-        prefix = S.DATA_DIR + S.MVP_DIR + "simulation/"
-        signals = scanSignals(mpvdir, True, counter, prefix + counter, pnlist, lasttxn)
-    else:
-        signals = ""
-        signals = [signals + str(i * 1) for i in [1, True, False]]
-        signals = "".join(signals)
-    print "signal=", signals
+    stocklist, tmpdir, chartDays, simulation = loadargs()
+    jsondir = os.path.join(tmpdir, "json", '')
+    mpvdir = os.path.join(S.DATA_DIR, "mpv", '')
+    for shortname in sorted(stocklist.iterkeys()):
+        if shortname in S.EXCLUDE_LIST:
+            print "INF:Skip: ", shortname
+            continue
+        try:
+            if simulation is None:
+                dates = jsonLastDate(shortname, tmpdir)
+                dates = [dates]
+            else:
+                nums = simulation.split(",") if "," in simulation else numsFromDate(shortname, simulation, chartDays)
+                if len(nums) <= 0:
+                    print "Input not found:", simulation
+                    continue
+                dates = simulation.split(":")
+            end = dates[0]
+            if len(dates) > 2:
+                step = int(dates[2])
+            else:
+                step = 1
+            while True:
+                start = pdDaysOffset(end, chartDays * -1)
+                sdict = loadfromjson(tmpdir, shortname, end)
+                if sdict is None:
+                    print "Not a trading day:", end
+                else:
+                    scanSignals(mpvdir, DBG_SIGNAL, shortname, sdict)
+                if len(dates) < 2 or end >= dates[1]:
+                    break
+                else:
+                    # end = getDayOffset(end, step)
+                    end = pdDaysOffset(end, step)
+                    if end > dates[1]:
+                        end = dates[1]
+        except Exception:
+            traceback.print_exc()
