@@ -43,13 +43,12 @@ from peakutils import peak
 from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset,\
     weekFormatter, getDayOffset, mdateconvert, getBusDaysBtwnDates
 from utils.fileutils import cd, tail2, wc_line_count, grepN, mergefiles,\
-    purgeOldFiles, jsonLastDate
+    purgeOldFiles, loadfromjson
 import numpy as np
 import operator
 import os
 import settings as S
 import traceback
-import glob
 import tarfile
 
 
@@ -1058,27 +1057,11 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
                 dflist[0] = dfm.fillna(0)
             return dflist, lasttrxn
 
-        def loadfromjson(datadir, sdate):
-            import json
-            if sdate == 0:
-                sdate = jsonLastDate(counter, datadir + "/")
-            jsondir = os.path.join(datadir, "json", '')
-            jname = jsondir + counter + "." + sdate + ".json"
-            sdict = None
-            try:
-                with open(jname, 'r') as fp:
-                    [_, _, sdict] = json.load(fp)
-            except Exception:
-                pass
-            finally:
-                return sdict
-            return None
-
         sdict, dflist, lasttrxn = None, None, None
         if dojson == "1":
             dflist, lasttrxn = loadfromdf(dfs)
         elif dojson == "2":
-            sdict = loadfromjson(datadir, sdate)
+            sdict = loadfromjson(datadir, counter, sdate)
             if sdict is not None:
                 lasttrxn = sdict['lsttxn']
         else:
