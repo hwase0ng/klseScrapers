@@ -1723,10 +1723,7 @@ def extractSignals(sdict, xpn):
                 if max(nlistM[-3:]) >= 10:
                     # 2014-03-14 DUFU
                     bsig, bstate = sval2, 0
-                    if prevtopP and newhighP:
-                        # 2014-07-30 DUFU
-                        bsig, bstate = -sval2, st + 2
-                    elif pvalley or topP:
+                    if pvalley or topP:
                         # 2014-05-07 DUFU
                         bsig, bstate = sval2, st + 2
             return bsig, bstate
@@ -1753,19 +1750,19 @@ def extractSignals(sdict, xpn):
             else:
                 if topP or prevtopP:
                     # 2011-12-01 DUFU m>5, p>0
-                    ssig, sstate = -sval2, 10
+                    ssig, sstate = -sval2, 60
                 elif nlistM[-1] > 5 and nlistP[-1] > 0:
                     if nlenM > 2 and (nlistM[-2] < 5 or nlistM[-3] < 5) and \
                             nlenP > 2 and (nlistP[-2] < 0 or nlistP[-3] < 0):
                         # 2017-01-09 KLSE
-                        ssig, sstate = sval2, 10
+                        ssig, sstate = sval2, 60
                     elif posC < 2 and tripleP in n3u:
                         if nlenP > 2 and nlistP[-3] < 0:
                             # 2011-10-04 DUFU
-                            ssig, sstate = sval2, 11
+                            ssig, sstate = sval2, 61
                         else:
                             # 2013-02-18 DUFU
-                            ssig, sstate = -sval2, 11
+                            ssig, sstate = -sval2, 61
                 else:
                     ssig, sstate = common_narrows()
 
@@ -1788,6 +1785,7 @@ def extractSignals(sdict, xpn):
             else:
                 # 2014-02-20 ORNA
                 # 2014-07-25 VSTECS
+                # 2014-08-01 DUFU
                 # 2015-02-09 DUFU
                 sig, state = -sval, 3
         elif topP or topM:
@@ -2299,7 +2297,8 @@ def extractSignals(sdict, xpn):
             ssig, sstate = evalLowC(1)
         else:
             if not ssig or sstate > 900:
-                if newhighC:
+                if newhighC or (firstC == maxC and lastC > max(plistC)):
+                    # 2014-07-30 DUFU
                     pass
                 elif narrowC == 1 or (tripleBottoms and tripleBottoms < 3):
                     ssig, sstate = evalBottomC(2)
@@ -2309,7 +2308,7 @@ def extractSignals(sdict, xpn):
                 elif narrowC > 1 or tripleBottoms > 1 or tripleTops > 5:
                     ssig, sstate = evalRetrace(5)
             if not ssig or sstate > 900:
-                if newhighC:
+                if newhighC or (firstC == maxC and lastC > max(plistC)):
                     if prevtopC and plistC[-1] > highbar:
                         pass
                     else:
