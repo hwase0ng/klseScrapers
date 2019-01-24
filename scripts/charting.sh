@@ -3,23 +3,18 @@ dates=$2
 OPT=$3
 tmpdir=$4
 indir=$5/mpv
+chartdays=150
+steps=`expr $chartdays - 10`
 
 mpvdir=${tmpdir}/mpv
 prfdir=${indir}/profiling
-patdir=${indir}/patterns
 
-if [ $OPT -eq 3 -o $OPT -eq 4 ]
+if [ $OPT -gt 2 ]
 then
- opts="-om -c 200"
+ opts="-om -c $chartdays"
 else
- opts="-o -c 200"
+ opts="-o -c $chartdays"
 fi
 
-python analytics/mvpchart.py $counter $opts -S $dates:190
-
-if [ $OPT -eq 3 -o $OPT -eq 4 ]
-then
- mv ${mpvdir}/synopsis/${counter}_2*.png ${patdir}/$counter/
-else
- mv ${mpvdir}/synopsis/${counter}_2*.png ${prfdir}/$counter/
-fi
+python analytics/mvpchart.py $counter $opts -S $dates:$steps
+mv ${mpvdir}/synopsis/${counter}_2*.png ${prfdir}/$counter/

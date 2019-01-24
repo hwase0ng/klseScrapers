@@ -8,7 +8,7 @@ TMPDIR=data
 GROUP=
 ENDDT=`date +%Y-%m-%d`
 OPT=1
-STEPS=5
+STEPS=2
 re='^[0-9]+$'
 dateopt=0
 
@@ -63,7 +63,7 @@ do
   *)
    #usage
    echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
-   echo "  opt: 1 - Normal scanning, 2 - Signal scanning, 3 - Pattern scanning, 4 - Daily Charting only" 1>&2
+   echo "  opt: 1 - gen JSON, 2 - Signal scanning, 3 - Daily Charting only, 4-signals without plot" 1>&2
    exit 1
    ;;
  esac
@@ -74,6 +74,7 @@ shift $((OPTIND-1))
 if [ -z "$GROUP" ]
 then
    echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
+   echo "  opt: 1-gen json, 2-scan signals, 3-daily charting only, 4-signals without plot"
    exit 1
 fi
 
@@ -84,9 +85,9 @@ do
  then
   STARTDT=`head -100 $INDIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
  fi
- if ! [ $OPT -eq 4 ]
+ if ! [ $OPT -eq 3 ]
  then
-  echo Profiling $counter, $STARTDT
+  echo Profiling $counter, $STARTDT, $STEPS
   ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $TMPDIR $INDIR
  fi
  if ! [ $OPT -eq 1 ]

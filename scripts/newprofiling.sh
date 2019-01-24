@@ -13,64 +13,57 @@ then
 fi
 indir=$6
 mpvdir=$indir/mpv
-
+tmpmpv=$tmpdir/mpv
 sigdir=${mpvdir}/signals
 syndir=${mpvdir}/synopsis
 prfdir=${mpvdir}/profiling
-patdir=${mpvdir}/patterns
 
-if [ $opt -lt 3 ]
+if [ $opt -eq 1 ]
 then
- if [ $opt -eq 1 ]
- then
-  params="-psj 1 -C"
- else
-  params="-ps -D s -C"
- fi
- if ! test -d ${prfdir}/$counter
- then
-  mkdir -p ${prfdir}/$counter
- fi
- logfile=${prfdir}/$counter/$counter.log
- > $logfile
- if ! [ $opt -eq 1 ]
- then
-  rm ${prfdir}/$counter/*.png | tee -a $logfile
- fi
+ params="-psj 1 -C"
+elif [ $opt -eq 2 ]
+then
+ params="-p -Dp -S"
 else
- params="-psj2 -Dp -C"
- if ! test -d ${patdir}/$counter
- then
-  mkdir -p ${patdir}/$counter
- fi
- logfile=${patdir}/$counter/$counter.log
- > $logfile
- rm ${patdir}/$counter/*.png | tee -a $logfile
+ params="-Dp -S"
 fi
-if ! [ $opt -eq 1 ]
+if ! test -d ${prfdir}/$counter
+then
+ mkdir -p ${prfdir}/$counter
+fi
+logfile=${prfdir}/$counter/$counter.log
+> $logfile
+rm ${prfdir}/$counter/*.png | tee -a $logfile
+if [ $opt -eq 2 ]
 then
  > ${sigdir}/$counter-signals.csv
  rm ${syndir}/${counter}-*.png | tee -a $logfile
- rm ${tmpdir}/mpv/signals/${counter}-signals.csv.* | tee -a $logfile
- rm ${tmpdir}/mpv/signals/${counter}-signals.csv | tee -a $logfile
+ rm ${tmpmpv}/signals/${counter}-signals.csv.* | tee -a $logfile
+ rm ${tmpmpv}/signals/${counter}-signals.csv | tee -a $logfile
+elif [ $opt -eq 4 ]
+then
+ > ${sigdir}/$counter-signals.csv
 fi
 
-python analytics/mvpchart.py $counter $params -S $dates -c $chartdays -e ${indir} | tee -a $logfile
+if [ $opt -eq 1 ]
+then
+	python analytics/mvpchart.py $counter $params -S $dates -c $chartdays -e ${indir} | tee -a $logfile
+else
+	python analytics/mvpsignals.py $counter $params $dates -d ${indir} | tee -a $logfile
+fi
 
 if [ $opt -eq 1 ]
 then
  #cp $tmpdir/json/$counter.json $indir/json
  cd $tmpdir/json
- tar czvf $indir/json/$counter.tgz $counter.*.json
+ tar czvf $indir/json/${counter}.tgz ${counter}.2*.json
  cd -
 else
- if [ $opt -lt 3 ]
+ if [ $opt -eq 2 ]
  then
-  mv ${tmpdir}/mpv/synopsis/${counter}-2*.png ${prfdir}/$counter/
- else
-  mv ${tmpdir}/mpv/synopsis/${counter}-2*.png ${patdir}/$counter/
+  mv ${tmpmpv}/synopsis/${counter}-2*.png ${prfdir}/$counter/
  fi
- #cp ${tmpdir}/mpv/signals/$counter-signals.csv ${sigdir}/
- cat ${tmpdir}/mpv/signals/${counter}-signals.csv.2* > ${sigdir}/${counter}-signals.csv
- rm ${tmpdir}/mpv/signals/${counter}-signals.csv.2*
+ #cp ${tmpmpv}/signals/$counter-signals.csv ${sigdir}/
+ #cat ${tmpmpv}/signals/${counter}-signals.csv.2* > ${sigdir}/${counter}-signals.csv
+ #rm ${tmpmpv}/signals/${counter}-signals.csv.2*
 fi
