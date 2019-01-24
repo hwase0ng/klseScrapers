@@ -1,4 +1,5 @@
 #!/bin/bash
+MVP="KLSE DUFU N2N PADINI PETRONM KESM YSPSAH SCGM VSTECS GHLSYS MAGNI"
 if [ $# -lt 1 ]
 then
 	echo "Usage: j1.sh <a2z>"
@@ -7,6 +8,11 @@ fi
 for i in /z/data/mpv/${1}*.csv
 do
 	counter=`echo $i | awk -F[/.] '{print $5}'`
-	echo $counter
-	group.sh -o 1 -c $counter
+	# if [ -n "`echo $LIST | sed 's|:|\\n|g' | grep -e \"^$VALUE`$\"`" ]; then
+	if [ -n "`echo $MVP | xargs -n1 echo | grep -e \"^$counter$\"`" ]
+	then
+		echo "Skipped: $counter"
+	else
+		group.sh -o 1 -c $counter
+	fi
 done
