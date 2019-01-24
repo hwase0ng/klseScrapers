@@ -37,13 +37,12 @@ from docopt import docopt
 from matplotlib import pyplot as plt, dates as mdates
 from mpl_finance import candlestick_ohlc
 from multiprocessing import Process, cpu_count
-from mvpsignals import scanSignals
 from pandas import read_csv, Grouper, concat
 from peakutils import peak
 from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset,\
     weekFormatter, getDayOffset, mdateconvert, getBusDaysBtwnDates
 from utils.fileutils import cd, tail2, wc_line_count, grepN, mergefiles,\
-    purgeOldFiles, loadfromjson
+    purgeOldFiles, loadfromjson, execshell
 import numpy as np
 import operator
 import os
@@ -61,6 +60,7 @@ def dfLoadMPV(counter, chartDays, start=0, dojson=0):
         if start > 0:
             row_count = wc_line_count(incsv)
             if row_count < S.MVP_CHART_DAYS:
+                print "Not enough lines:", counter, row_count
                 skiprow = -1
             else:
                 lines = tail2(incsv, start)
@@ -1133,7 +1133,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
             # start = getDayOffset(end, chartDays * -1)
             start = pdDaysOffset(end, chartDays * -1)
             dfmpv = dfGetDates(df, start, end)
-            if dojson == "2" or len(dfmpv.index) > 100:
+            lasttrxn = ""
+            if dojson == "2" or (dfmpv is not None and len(dfmpv.index) > 100):
                 dflist, title, lasttrxn, sdict = getSynopsisDFs(dfmpv, end)
                 if dojson is None and sdict is not None:
                     dojson = "2"
@@ -1158,7 +1159,8 @@ def mvpSynopsis(counter, scode, chartDays=S.MVP_CHART_DAYS, dojson=0, weekly=Fal
                     if len(jobs):
                         for p in jobs:
                             p.join()
-                    housekeep(datadir, lasttrxn[0])
+                    if len(lasttrxn):
+                        housekeep(datadir, lasttrxn[0])
                 break
             else:
                 end = pdDaysOffset(end, step)
@@ -1507,8 +1509,10 @@ def doPlotting(datadir, dbg, dfplot, dojson, showchart,
                 plt.close()
                 return 0
 
-    mpvdir = os.path.join(datadir, "mpv", '')
-    signals = scanSignals(mpvdir, dbg, counter, sdict, pid)
+    # mpvdir = os.path.join(datadir, "mpv", '')
+    # signals = scanSignals(mpvdir, dbg, counter, sdict, pid)
+    pycmd = "python analytics/mvpsignals.py %s -S %s" % (counter, lsttxn[0])
+    signals = execshell(pycmd)
     if dbg != 2:
         if len(signals):
             title = plttitle + " [" + signals + "]"
