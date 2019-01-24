@@ -33,10 +33,10 @@ then
 fi
 logfile=${prfdir}/$counter/$counter.log
 > $logfile
-rm ${prfdir}/$counter/*.png | tee -a $logfile
 if [ $opt -eq 2 ]
 then
  > ${sigdir}/$counter-signals.csv
+ rm ${prfdir}/$counter/*.png | tee -a $logfile
  rm ${syndir}/${counter}-*.png | tee -a $logfile
  rm ${tmpmpv}/signals/${counter}-signals.csv.* | tee -a $logfile
  rm ${tmpmpv}/signals/${counter}-signals.csv | tee -a $logfile
