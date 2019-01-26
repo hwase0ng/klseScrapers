@@ -160,6 +160,26 @@ def extractSignals(sdict, xpn):
             return True, xp, xn
         return False, xp, xn
 
+    def isprevtopM():
+        if max(plistM[-3:]) == max(plistM):
+            return True
+        return False
+
+    def isprevtopP():
+        if max(plistP[-3:]) == max(plistP):
+            return True
+        return False
+
+    def isprevbottomM():
+        if min(nlistM[-3:]) == min(nlistM):
+            return True
+        return False
+
+    def isprevbottomP():
+        if min(nlistP[-3:]) == min(nlistP):
+            return True
+        return False
+
     def isDivergentSync():
         def countdate():
             xpm, xpp = xpn[0][1], xpn[0][2]  # cmpv: 0=C, 1=M, 2=P, 3=V
@@ -206,15 +226,17 @@ def extractSignals(sdict, xpn):
         retrace = 0
         if plenM < 2:
             return retrace
-        if nlistM[-1] >= 5 and nlistM[-1] < 7.5:
+        if max(plistM[-3:]) > 10 and nlistM[-1] > 5 and isprevbottomP():
+            retrace = 1
+        elif nlistM[-1] >= 5 and nlistM[-1] < 7.5:
             if mvalley and plistM[-1] >= 10:
-                retrace = 1
-            elif mpeak and plistM[-1] < plistM[-2] and plistM[-2] >= 10:
                 retrace = 2
+            elif mpeak and plistM[-1] < plistM[-2] and plistM[-2] >= 10:
+                retrace = 3
         elif prevbottomM and bottomP:
             if mpeak and plistM[-1] < 10 and tripleM in p3d:
                 # 2013-03-13 ORNA
-                retrace = 3
+                retrace = 4
         return retrace
 
     def minmaxC():
@@ -1477,7 +1499,7 @@ def extractSignals(sdict, xpn):
     '''
 
     def evalRetrace(sval):
-        def evalC1(sts=20):
+        def evalC1(sts=50):
             sig, state = 0, 0
             if cpeak and cmpdiv in bearpeak:
                 # 2016-02-03 ORNA
@@ -1505,91 +1527,164 @@ def extractSignals(sdict, xpn):
                 sig, state = -sval, 13
             return sig, state
 
-        sig, state = 0, 0
-        if posC < 3 and newhighV:
-            # 2014-12-10 KLSE newlowP
-            # 2018-07-17 DUFU
-            sig, state = sval, 1
-        elif isN3UP() or topV or prevtopV:
-            # 2012-10-09 ORNA
-            # 2016-04-19 PADINI
-            sig, state = sval, 3
-        elif newlowM and newlowP:
-            if nlistM[-1] > nlistM[-2] and nlistP[-1] > nlistP[-2]:
-                if nlistM[-1] > 5 and nlistP[-1] < 0:
-                    # 2014-02-05 PADINI intercepted by evalBottomC
-                    sig, state = sval, 4
+        def evalM(st=10):
+            sig, state = 0, 0
+            if newlowM:
+                if newlowP:
+                    # 2014-02-05 PADINI
+                    # 2018-04-13 GHLSYS
+                    sig, state = sval, st + 1
+                elif isretrace():
+                    sig, state = sval, st + 2
+                elif nlistM[-1] == max(nlistM[-3:]) and nlistP[-1] == max(nlistP[-3:]):
+                    # 2017-01-09 MAGNI
+                    sig, state = sval, st + 3
                 else:
                     sig, state = sval, 0
-            else:
-                sig, state = -sval, 0
-        elif narrowP:
-            if nlistP[-1] > 0:
-                # 2016-12-27 GHLSYS
-                sig, state = sval, 5
-            elif plenP > 4 and lastP > max(plistP[-4:-1]):
-                # 2016-01-04 PADINI
-                sig, state = sval, 6
-            else:
-                # 2014-12-31 KLSE
-                # 2017-10-24 MUDA
-                sig, state = -sval, 6
-        elif min(nlistM[-2:]) > 8 and min(nlistP[-2:]) > 0:
-            # 2016-04-25 PADINI
-            sig, state = sval, 7
-        elif cmpdiv in bearpeak:
-            # 2018-02-06 GHLSYS
-            sig, state = -sval, 9
-            if newlowP or bottomP or prevbottomP:
+            elif topM:
+                if bottomM and prevtopP:
+                    # 2014-02-04 KESM
+                    sig, state = sval, st + 4
+            elif bottomM or prevbottomM:
+                if newhighP or topP:
+                    # 2014-03-17 PADINI
+                    sig, state = -sval, st + 6
+                elif newhighM or plistM[-1] > 10 or lastM > 10:
+                    # 2013-05-23 PADINI
+                    # 2014-07-25 MUDA
+                    # 2014-09-29 MUDA
+                    sig, state = -sval, st + 8
+                elif bottomP:
+                    # 2018-06-07 KESM
+                    sig, state = -sval, st + 9
+                elif newlowM or lastM < 5 or lastP < 0:
+                    # 2013-05-03 PADINI oversold short rebound before result
+                    sig, state = sval, st + 9
+                elif prevbottomM and lastP < max(plistP[-3:]):
+                    sig, state = -sval, st + 10
+                else:
+                    # 2014-03-05 PADINI short rebound
+                    # 2015-09-17 ORNA
+                    # 2017-02-08 SCGM
+                    sig, state = sval, st + 10
+            return sig, state
+
+        def evalP(st=30):
+            sig, state = 0, 0
+            if topP:
+                if isprevbottomM():
+                    # 2014-05-02 PADINI
+                    sig, state = -sval, st + 1
+                elif newhighM or (mpeak and newlowM) or (mvalley and nlistM[-1] > 5):
+                    # 2013-12-04 KESM
+                    sig, state = sval, st + 1
+                else:
+                    sig, state = sval, st + 0
+            elif newlowP or bottomP or prevbottomP:
+                if not isprevbottomM():
+                    # 2014-12-10 KLSE newlowP
+                    # 2016-07-01 MAGNI newlowP
+                    sig, state = sval, st + 3
+                elif isprevbottomP():
+                    if min(plistP[-3:]) < 0:
+                        # 2015-04-02 KESM prevbottomP, prevbottomM
+                        sig, state = sval, st + 4
+                    else:
+                        # 2018-07-03 KESM
+                        sig, state = -sval, st + 4
+                else:
+                    # 2016-01-14 ORNA
+                    sig, state = -sval, st + 5
+            elif narrowP:
+                if nlistP[-1] > 0:
+                    # 2012-10-09 ORNA
+                    # 2016-12-27 GHLSYS
+                    sig, state = sval, st + 7
+                elif plenP > 4 and lastP > max(plistP[-4:-1]):
+                    # 2016-01-04 PADINI
+                    sig, state = sval, st + 8
+                else:
+                    # 2014-12-31 KLSE
+                    # 2017-10-24 MUDA
+                    sig, state = -sval, st + 8
+            return sig, state
+
+        sig, state = evalM()
+        if not sig:
+            sig, state = evalP()
+        if not sig:
+            if posC < 3 and newhighV:
                 # 2014-12-10 KLSE newlowP
-                # 2018-04-03 GHLSYS newlowP, newlowM
-                sig, state = sval, 9
-        elif cvalley and nlistC[-1] > highbar:
-            if nlistP[-1] < 0:
-                # 2016-11-07 PADINI
-                sig, state = -sval, 10
+                # 2018-07-17 DUFU
+                sig, state = sval, 1
+            elif isN3UP():
+                # 2012-08-02 ORNA
+                # 2016-04-19 PADINI
+                sig, state = sval, 2
+            elif min(nlistM[-2:]) > 8 and min(nlistP[-2:]) > 0:
+                # 2016-04-25 PADINI
+                sig, state = sval, 3
+            elif cmpdiv in bearpeak:
+                if max(plistM[-3:]) > 10:
+                    # 2016-07-27 MAGNI
+                    sig, state = sval, 5
+                elif max(plistP[-3:]) == max(plistP):
+                    if tripleP in n3d:
+                        # 2018-02-06 GHLSYS
+                        sig, state = -sval, 5
+                elif plistP[-1] == max(plistP[-3:]) or \
+                        (nlistP[-1] == max(nlistP[-3:]) and nlistM[-1] == max(nlistM[-3:])):
+                    # 2016-12-16 MAGNI
+                    sig, state = sval, 6
+            elif cvalley and nlistC[-1] > highbar:
+                if max(plistM[-3:]) > 10:
+                    # 2016-07-27 MAGNI
+                    sig, state = sval, 7
+                else:
+                    # 2016-11-07 PADINI
+                    sig, state = -sval, 7
+            elif prevtopC and isPN3DOWN():
+                # 2014-11-05 KLSE
+                sig, state = -sval, 9
             else:
-                sig, state = -sval, 0
-        elif prevtopC and isPN3DOWN():
-            # 2014-11-05 KLSE
-            sig, state = -sval, 12
-        else:
-            sig, state = evalC1()
+                sig, state = evalC1()
         return sig, state
 
     def eval3Tops(sval):
         def evalHigherTops():
             sig, state = 0, 0
-            if tripleM in p3d and tripleP in p3d and tripleV in p3d and \
-                    nlenV > 1 and nlistV[-1] > nlistV[-2] and \
-                    plistM[-1] > 5 and plistP[-1] > 0:
-                # 2013-03-20 KLSE
-                sig, state = sval, 1
-            elif newlowM:
-                # 2017-01-09 MAGNI
-                sig, state = sval, 2
-            elif bottomM:
-                if cpeak:
+            if newlowM:
+                if newlowP:
+                    # 2018-04-04 KESM
+                    sig, state = -sval, -1
+                elif min(nlistM[-3:]) > 5 or plistM[-1] < 10:
+                    if lastP < min(nlistP[-3:]):
+                        # 2017-08-01 KESM
+                        sig, state = sval, 2
+                    else:
+                        sig, state = sval, 0
+                else:
+                    if plistM[-1] > 10:
+                        # 2013-05-03 PADINI short rebound
+                        sig, state = sval, 3
+                    else:
+                        sig, state = -sval, 3
+            elif bottomM or prevbottomM:
+                if newhighM or plistM[-1] > 10:
+                    # 2013-05-23 PADINI
                     # 2014-07-25 MUDA
+                    # 2014-09-29 MUDA
                     sig, state = -sval, 4
                 else:
-                    # 2014-09-29 MUDA
-                    sig, state = sval, 4
-            elif prevtopC and isPN3DOWN():
-                # 2014-11-05 KLSE
-                sig, state = -sval, 6
-            elif tripleP in n3u:
-                if tripleM in n3d:
-                    # 2015-10-27 MUDA
-                    sig, state = sval, 6
+                    # 2011-11-16 KLSE
+                    sig, state = sval, -4
+            elif bottomP or isprevbottomP():
+                if newhighM or newhighP:
+                    # 2016-07-11 KESM
+                    sig, state = sval, 5
                 else:
-                    sig, state = sval, 0
-            elif tripleP in p3d:
-                sig, state = sval, -8
-                if newlowP or newlowM:
-                    # 2014-12-10 KLSE
-                    # 2018-04-03 GHLSYS
-                    sig, state = sval, 8
+                    # 2018-09-05 KESM
+                    sig, state = -sval, 5
             return sig, state
 
         sig, state = 0, 0
@@ -1597,6 +1692,31 @@ def extractSignals(sdict, xpn):
             pass
         else:
             sig, state = evalHigherTops()
+            if not sig:
+                if tripleM in p3d and tripleP in p3d and tripleV in p3d and \
+                        nlenV > 1 and nlistV[-1] > nlistV[-2] and \
+                        plistM[-1] > 5 and plistP[-1] > 0:
+                    # 2013-03-20 KLSE
+                    sig, state = sval, 1
+                elif prevtopC and isPN3DOWN():
+                    if bottomP:
+                        # 2016-06-07 KESM
+                        sig, state = sval, 6
+                    else:
+                        # 2014-11-05 KLSE
+                        sig, state = -sval, 6
+                elif tripleP in n3u:
+                    if tripleM in n3d:
+                        # 2015-10-27 MUDA
+                        sig, state = sval, 7
+                    else:
+                        sig, state = sval, 0
+                elif tripleP in p3d:
+                    # sig, state = sval, -8
+                    if newlowP or newlowM:
+                        # 2014-12-10 KLSE
+                        # 2018-04-03 GHLSYS
+                        sig, state = sval, 8
         return sig, state
 
     def evalBottomC(sval2):
@@ -1656,36 +1776,12 @@ def extractSignals(sdict, xpn):
                 sigM, stateM = 0, 0
                 if not tripleM:
                     pass
-                elif topM and nlistP[-1] > 0:
-                    # 2011-11-08 N2N
-                    # 2014-02-20 PETRONM
-                    sigM, stateM = sval4, 1
-                elif newhighM:
-                    if not (newhighP or topP) and max(plistP[-3:]) == max(plistP):
-                        # 2012-04-02 DUFU with narrowM
-                        sigM, stateM = -sval4, 1
-                elif bottomM or prevbottomM:
-                    # 2014-03-05 PADINI short rebound
-                    # 2015-09-17 ORNA
-                    if bottomM:
-                        sigM, stateM = sval4, 2
-                    else:
-                        sigM, stateM = -sval4, 2
-                elif nlistM[-1] > 10 and nlistP[-1] > 0:
-                    # 2013-05-29 PADINI 20% short push before top reversal
-                    sigM, stateM = -sval4, -3
                 elif tripleM in p3u and nlistP[-1] >= 0:
                     if newhighM and posC < 2:
                         # 2013-03-21 PETRONM
                         sigM, stateM = sval4, 4
-                    elif posC > 2:
-                        # 2017-02-08 SCGM
-                        sigM, stateM = sval4, 5
                     else:
                         sigM, stateM = sval4, 6
-                        if topV and plistP[-1] < plistP[-2]:
-                            # 2012-08-02 ORNA
-                            sigM, stateM = sval4, 7
                 elif tripleM in [2, 4, 5, 6, 7]:
                     if nlistM[-1] >= 5:
                         if nlistP[-1] > 0:
@@ -1755,9 +1851,10 @@ def extractSignals(sdict, xpn):
         def evalBottom(st=0):
             bsig, bstate = 0, 0
             if max(plistM[-3:]) >= 10:
+                # 2011-11-08 N2N
                 # 2012-11-29 DUFU
                 # 2018-09-04 DANCO newhighP
-                bsig, bstate = -sval2, st + 2
+                bsig, bstate = -sval2, -st - 2
                 if max(nlistM[-3:]) >= 10:
                     # 2014-03-14 DUFU
                     bsig, bstate = sval2, 0
@@ -1767,6 +1864,7 @@ def extractSignals(sdict, xpn):
             elif plenM > 2 and plistM[-1] > plistM[-2] and plistM[-1] > plistM[-3]:
                 bsig, bstate = sval2, st + 3
                 if plenP > 2 and plistP[-1] > plistP[-2] and plistP[-1] > plistP[-3]:
+                    # 2011-09-30 N2N
                     # 2018-07-11 DANCO
                     bsig, bstate = sval2, st + 4
                     if plistM[-1] >= 10:
@@ -1782,6 +1880,10 @@ def extractSignals(sdict, xpn):
                 elif topV and topP and lastP < 0:
                     # 2018-04-02 MUDA
                     bsig, bstate = sval2, st + 6
+                elif newhighM or (plistP[-1] > plistP[-2] and
+                                  plistP[-1] > plistP[-3]):
+                    # 2013-11-08 KESM
+                    bsig, bstate = sval2, -st - 6
                 else:
                     if mpeak or ppeak:
                         # 2011-11-17 DUFU
@@ -1790,18 +1892,42 @@ def extractSignals(sdict, xpn):
                     else:
                         # 2011-11-01 DUFU
                         # 2011-12-27 DUFU
+                        # 2012-04-02 DUFU
                         bsig, bstate = -sval2, st + 7
             elif bottomP:
                 # 2013-05-29 PADINI oversold
                 bsig, bstate = sval2, 0
             elif newhighM:
-                if not newhighP:
+                if not (newhighP or topP) and max(plistP[-3:]) == max(plistP):
+                    # 2012-04-02 DUFU with narrowM
                     # 2015-10-02 PADINI
                     # 2018-08-23 DANCO
                     bsig, bstate = sval2, st + 8
+                elif max(nlistP[-3:]) < 0:
+                    # 2018-11-11 SUPERLN
+                    bsig, bstate = -sval2, -st - 8
+                elif max(plistP[-3:]) == max(plistP) and nlistP[-1] > 0:
+                    bsig, bstate = sval2, st + 9
+                else:
+                    bsig, bstate = -sval2, st + 9
+            elif isN3UP():
+                # 2016-12-29 ORNA
+                bsig, bstate = sval2, st + 10
+            elif topP or prevtopP or max(plistP[-3:]) == max(plistP):
+                # 2011-12-27 DUF
+                # 2013-12-02 DUFU
+                # 2014-02-20 PETRONM
+                bsig, bstate = -sval2, st + 10
             elif narrowP and lastP > max(plistP[-3:]):
                 # 2015-09-04 PADINI
-                bsig, bstate = sval2, st + 10
+                bsig, bstate = sval2, st + 11
+            elif newlowM:
+                if min(nlistM[-3:]) > 5:
+                    # 2018-01-15 DANCO
+                    bsig, bstate = -sval2, st + 11
+                elif max(plistP[-3:]) == max(plistP):
+                    # 2018-01-15 DANCO
+                    bsig, bstate = -sval2, st + 11
             elif cmpdiv in bullvalley:
                 if tripleP in n3u or tripleP in p3d:
                     if nlistM[-1] < 5 and (nlistP[-2] < 0 or nlistM[-1] > nlistM[-2]):
@@ -1810,6 +1936,11 @@ def extractSignals(sdict, xpn):
                         if nlistM[-1] > 10:
                             # 2018-09-03 DANCO
                             bsig, bstate = sval2, 0
+                    elif narrowM and nlistP[-1] > 0 and \
+                            plistP[-1] > plistP[-2] and plistP[-1] > plistP[-3] and \
+                            nlistP[-1] > nlistP[-2] and nlistP[-1] > nlistP[-3]:
+                        # 2013-09-06 KESM
+                        bsig, bstate = sval2, st + 15
                     else:
                         # 2012-01-16 DUFU
                         bsig, bstate = -sval2, st + 16
@@ -1824,28 +1955,9 @@ def extractSignals(sdict, xpn):
 
             return bsig, bstate
 
-        def evalC1(st=30):
-            csig, cstate = 0, 0
-            if isN3UP():
-                # 2016-12-29 ORNA
-                csig, cstate = sval2, st
-            elif newhighM:
-                if max(nlistP[-3:]) < 0:
-                    # 2018-11-11 SUPERLN
-                    csig, cstate = -sval2, -st
-            elif topP or prevtopP or max(plistP[-3:]) == max(plistP):
-                # 2011-12-27 DUF
-                # 2013-12-02 DUFU
-                csig, cstate = -sval2, st + 2
-            return csig, cstate
-
-        ssig, sstate = 0, 0
-        if bottomC or prevbottomC:
-            ssig, sstate = evalBottom()
-        else:
-            ssig, sstate = evalC1()
+        ssig, sstate = evalBottom()
         if ssig == 0 or sstate == 0:
-            if bottomP or narrowP or \
+            if narrowP or \
                     (cmpdiv in [4, 5] and
                      ((nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]) or
                       (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3])) or
@@ -1873,194 +1985,241 @@ def extractSignals(sdict, xpn):
         return ssig, sstate
 
     def evalHighC(sval):
-        sig, state = sval, 99
-        if newhighP:
-            if newhighM:
-                # 2007-02-07 KLSE
-                sig, state = -sval, 1
-                if newhighV:
-                    # 2007-02-28 KLSE
-                    sig, state = sval, 1
-            elif newhighV:
-                # 2018-03-06 MUDA
-                sig, state = -sval, 2
-            elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
-                # 2014-02-04, 2014-02-25 MUDA
-                # 2017-03-01 PADINI
-                # 2017-05-03 PADINI newlowV
-                sig, state = sval, 2
-            else:
-                # 2014-02-20 ORNA
-                # 2014-07-25 VSTECS
-                # 2014-08-01 DUFU
-                # 2015-02-09 DUFU
-                sig, state = -sval, 3
-        elif topP or topM:
-            # 2012-09-05 KLSE
-            sig, state = -sval, 4
-            if topP and topM:
-                if topV or plistM[-1] < 10:
-                    # 2018-09-03 DUFU
-                    sig, state = sval, 4
+        def evalMP(st=0):
+            sig, state = 0, 0
+            if newhighP:
+                if newhighM:
+                    # 2007-02-07 KLSE
+                    sig, state = -sval, st + 1
+                    if newhighV:
+                        # 2007-02-28 KLSE
+                        sig, state = sval, st + 1
+                elif newhighV:
+                    # 2018-03-06 MUDA
+                    sig, state = -sval, st + 2
+                elif plistM[-1] < 10 and (plistM[-1] > plistM[-2] or
+                                          plistM[-1] > plistM[-3]):
+                    # 2014-02-04, 2014-02-25 MUDA
+                    # 2015-06-11 KESM
+                    # 2017-03-01 PADINI
+                    sig, state = sval, st + 2
                 else:
-                    # 2018-08-29 PADINI
-                    sig, state = -sval, 4
-            elif newlowM:
-                # 2012-11-20 ORNA
-                sig, state = sval, 0
-        elif bottomP or min(nlistM) == nlistM[-1]:
-            if newhighM or lastM > 10 or plistM[-1] > 10:
-                # 2014-08-05 MUDA
-                sig, state = -sval, 5
-            elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
-                # 2017-03-29 PADINI
-                sig, state = sval, 5
-            else:
-                sig, state = -sval, 6
-        elif newhighM:
-            if min(nlistM[-4:]) == min(nlistM) and min(nlistM) < 5:
-                # 2011-07-13 KLSE
-                sig, state = -sval, 7
-            elif newhighP or lastP > plistP[-1]:
-                # 2016-08-11 PADINI
-                sig, state = -sval, 8
-            elif not (newhighP or prevtopP):
-                if plistP[-1] < plistP[-2]:
-                    # 2016-03-04 PADINI
-                    sig, state = sval, 7
-                else:
-                    # 2016-08-11 PADINI
-                    sig, state = -sval, 8
-            else:
-                # 2014-07-17 ORNA
-                sig, state = -sval, 9
-        elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
-            if nlistP[-1] < 0:
-                # 2016-01-28 PADINI
-                # 2017-01-26 MAGNI
-                sig, state = sval, 12
-                if newhighP or topP:
-                    # 2014-02-11 MUDA
-                    # 2014-06-04 PADINI
-                    pass
-                elif max(plistM[-3:]) > 10:
-                    # 2015-02-05 ORNA
-                    sig, state = -sval, 12
-            else:
-                if lastM < 5 or lastP < 0:
-                    # 2010-10-06 KLSE
-                    sig, state = sval, 14
-                else:
-                    # tripleP in p3d
-                    # 2013-08-01 ORNA
-                    # 2014-05-05 KLSE
-                    sig, state = sval, -14
-                if plistP[-1] < plistP[-2] and plistP[-1] < plistP[-3]:
-                    # 2016-04-04 VSTECS
-                    sig, state = -sval, 15
-        else:
-            # 2013-07-29 KLSE
-            sig, state = -sval, 17
-            if tripleP in n3d or nlistM[-1] > nlistM[-2]:
-                # 2013-04-03 KLSE
-                sig, state = sval, 17
-            elif tripleP in p3d:
+                    # 2014-02-20 ORNA
+                    # 2014-07-25 VSTECS
+                    # 2014-08-01 DUFU
+                    # 2014-08-01 KESM
+                    # 2015-02-09 DUFU
+                    sig, state = -sval, st + 3
+            elif topP or topM or prevtopM:
                 # 2012-09-05 KLSE
-                sig, state = -sval, 18
-                if newhighV or topV or cmpdiv in bearpeak:
-                    # 2014-06-02 KLSE
-                    # 2011-12-01 ORNA
-                    sig, state = -sval, 19
-                elif newlowM and newlowP:
-                    # 2011-09-28 KLSE
-                    sig, state = sval, -21
-                elif bottomM and bottomP:
-                    # 2011-10-05 KLSE
-                    sig, state = sval, 21
-                elif bottomM:
-                    # 2011-10-05 KLSE
-                    sig, state = sval, 23
-            elif tripleM in p3d:
-                if bottomM:
-                    # 2013-01-03 ORNA
-                    sig, state = -sval, 25
-                elif newlowM:
-                    # 2011-08-18 ORNA
-                    sig, state = -sval, 27
-                else:
-                    sig, state = -sval, 0
-            elif tripleP in p3u:
-                if topV and newlowV:
-                    # 2018-11-05 YSPSAH
-                    sig, state = -sval, 29
-                elif nlistP[-1] < 0:
-                    # 2013-12-19 ORNA
-                    sig, state = sval, -31
-                elif nlistP[-2] < 0:
-                    # 2014-01-09 ORNA
-                    # 2014-03-13 ORNA
-                    sig, state = sval, -33
-                else:
-                    # 2014-08-29 VSTECS
-                    sig, state = sval, -35
-            elif cmpdiv in bearpeak:
-                if nlistP[-1] < 0:
-                    # 2011-11-17 ORNA
-                    sig, state = -sval, 37
-                else:
-                    # 2014-06-24 MUDA
-                    # 2019-01-06 DUFU
-                    sig, state = sval, 37
-            elif plistP[-1] > 0:
-                if lastM < 5 and lastP < 0:
-                    # 2013-09-02 KLSE
-                    sig, state = -sval, -39
-                elif nlistM[-1] > 5:
-                    # 2010-08-11 KLSE
-                    sig, state = sval, 39
-                else:
-                    # 2014-08-21 ORNA
-                    sig, state = -sval, 40
-            else:
-                # from pEvaluation
-                if cvalley and cmpdiv in bullvalley:
-                    if nlistP[-1] < 0:
-                        if prevtopP:
-                            # 2013-01-31 ORNA
-                            sig, state = -sval, 41
-                        else:
-                            # 2013-12-19 ORNA
-                            sig, state = sval, 41
-                    elif highlowM:
-                        # 2011-05-12 ORNA
-                        sig = -sval if newhighC or newhighP or topP else sval
-                        sig, state = -sval, 42
-                    elif newhighC and newhighM:
-                        sig, state = -sval, 43
+                # 2015-07-23 KESM
+                sig, state = -sval, st + 4
+                if topP and (topM or prevtopM):
+                    if topV or plistM[-1] < 10:
+                        # 2018-09-03 DUFU
+                        sig, state = sval, st + 4
                     else:
-                        # 2014-02-20 ORNA
-                        sig = -sval if newhighP or topP else sval
-                        sig, state = -sval, 44
-                elif nlistP[-1] < 0 or cpeak:
-                    sig, state = -sval, 0
-                    if (newlowM or bottomM) and (newlowP or bottomP):
-                        # 2014-12-16 MUDA
-                        sig, state = sval, 45
-                    elif newlowP and bottomV:
-                        # 2014-12-23 MUDA
-                        sig, state = sval, 46
-                elif plistM[-1] < plistM[-2] and plistM[-1] < plistM[-3] or \
-                        tripleM in n3u and lastM < nlistM[-1]:
+                        # 2018-08-29 PADINI
+                        sig, state = -sval, st + 4
+                elif (topM or prevtopM) and (plistP[-1] == max(plistP[-3:]) or
+                                             isprevtopP()):
+                    # 2016-08-12 KESM
+                    sig, state = sval, st + 5
+                elif newlowM:
+                    # 2012-11-20 ORNA
                     sig, state = sval, 0
-                    if lastM < nlistM[-1]:
-                        # 2017-12-06 PADINI
+            elif bottomP or min(nlistP) == nlistP[-1]:
+                if newhighM or lastM > 10 or plistM[-1] > 10:
+                    # 2014-08-05 MUDA
+                    sig, state = -sval, st + 5
+                elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
+                    # 2017-03-29 PADINI
+                    sig, state = sval, st + 6
+                else:
+                    sig, state = -sval, st + 6
+            elif isprevbottomM() or isprevbottomP():
+                if isprevbottomM() and isprevbottomP():
+                    if plistM[-1] == min(plistM[-3:]) and plistP[-1] == min(plistP[-3:]):
+                        # 2011-07-13 KLSE
+                        sig, state = -sval, st + 7
+                    elif topP or prevtopP:
+                        sig, state = sval, st + 7
+                    else:
+                        sig, state = -sval, 0
+                elif isprevtopP() and isprevtopM():
+                    # 2017-05-31 KESM
+                    sig, state = sval, st + 8
+                elif bottomM:
+                    if nlistM[-1] > 5:
+                        # 2014-02-14 KESM
+                        sig, state = sval, st + 9
+                    else:
+                        sig, state = sval, st + 0
+                elif isprevbottomM():
+                    # 2018-01-08 KESM
+                    sig, state = -sval, st + 9
+            elif newhighM:
+                if min(nlistM[-4:]) == min(nlistM) and min(nlistM) < 5:
+                    # 2011-07-06 KLSE
+                    # 2015-08-04 KESM
+                    sig, state = -sval, st + 11
+                elif newhighP or lastP > plistP[-1]:
+                    # 2016-08-11 PADINI
+                    sig, state = -sval, st + 12
+                elif not (newhighP or prevtopP):
+                    if plistP[-1] < plistP[-2]:
+                        # 2016-03-04 PADINI
+                        sig, state = sval, st + 13
+                    else:
+                        # 2016-08-11 PADINI
+                        sig, state = -sval, st + 13
+                elif bottomM or prevtopP:
+                    # 2014-02-14 KESM
+                    sig, state = sval, st + 15
+                else:
+                    # 2014-07-17 ORNA
+                    sig, state = -sval, st + 15
+            return sig, state
+
+        sig, state = evalMP()
+        if not sig:
+            if plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
+                if nlistP[-1] < 0:
+                    # 2016-01-28 PADINI
+                    # 2017-01-26 MAGNI
+                    sig, state = sval, 22
+                    if newhighP or topP:
+                        # 2014-02-11 MUDA
+                        # 2014-06-04 PADINI
+                        pass
+                    elif max(plistM[-3:]) > 10:
+                        # 2015-02-05 ORNA
+                        sig, state = -sval, 22
+                elif nlistP[-1] > nlistP[-2]:
+                    # 2017-06-02 KESM
+                    sig, state = sval, 23
+                    if plistP[-1] < plistP[-2]:
+                        # 2017-07-10 KESM
+                        sig, state = sval, -23
+                else:
+                    if lastM < 5 or lastP < 0:
+                        # 2010-10-06 KLSE
+                        sig, state = sval, 24
+                    else:
+                        # tripleP in p3d
+                        # 2013-08-01 ORNA
+                        # 2014-05-05 KLSE
+                        sig, state = sval, -24
+                    if plistP[-1] < plistP[-2] and plistP[-1] < plistP[-3]:
+                        if min(nlistM[-3:]) > 5:
+                            # 2016-04-04 VSTECS
+                            sig, state = -sval, 25
+                        else:
+                            # 2013-08-19 ORNA
+                            sig, state = sval, -25
+            else:
+                # 2013-07-29 KLSE
+                sig, state = -sval, 27
+                if tripleP in n3d or nlistM[-1] > nlistM[-2]:
+                    # 2013-04-03 KLSE
+                    sig, state = sval, 27
+                elif tripleP in p3d:
+                    # 2012-09-05 KLSE
+                    sig, state = -sval, 28
+                    if newhighV or topV or cmpdiv in bearpeak:
+                        # 2014-06-02 KLSE
+                        # 2011-12-01 ORNA
+                        sig, state = -sval, 29
+                    elif newlowM and newlowP:
+                        # 2011-09-28 KLSE
+                        sig, state = sval, -31
+                    elif bottomM and bottomP:
+                        # 2011-10-05 KLSE
+                        sig, state = sval, 31
+                    elif bottomM:
+                        # 2011-10-05 KLSE
+                        sig, state = sval, 33
+                elif tripleM in p3d:
+                    if bottomM:
+                        # 2013-01-03 ORNA
+                        sig, state = -sval, 35
+                    elif newlowM:
+                        # 2011-08-18 ORNA
+                        sig, state = -sval, 37
+                    else:
+                        sig, state = -sval, 0
+                elif tripleP in p3u:
+                    if topV and newlowV:
+                        # 2018-11-05 YSPSAH
+                        sig, state = -sval, 39
+                    elif nlistP[-1] < 0:
+                        # 2013-12-19 ORNA
+                        sig, state = sval, -41
+                    elif nlistP[-2] < 0:
+                        # 2014-01-09 ORNA
+                        # 2014-03-13 ORNA
+                        sig, state = sval, -43
+                    else:
+                        # 2014-08-29 VSTECS
+                        sig, state = sval, -45
+                elif cmpdiv in bearpeak:
+                    if nlistP[-1] < 0:
+                        # 2011-11-17 ORNA
                         sig, state = -sval, 47
+                    else:
+                        # 2014-06-24 MUDA
+                        # 2019-01-06 DUFU
+                        sig, state = sval, 47
+                elif plistP[-1] > 0:
+                    if lastM < 5 and lastP < 0:
+                        # 2013-09-02 KLSE
+                        sig, state = -sval, -49
+                    elif nlistM[-1] > 5:
+                        # 2010-08-11 KLSE
+                        sig, state = sval, 49
+                    else:
+                        # 2014-08-21 ORNA
+                        sig, state = -sval, 50
+                else:
+                    # from pEvaluation
+                    if cvalley and cmpdiv in bullvalley:
+                        if nlistP[-1] < 0:
+                            if prevtopP:
+                                # 2013-01-31 ORNA
+                                sig, state = -sval, 51
+                            else:
+                                # 2013-12-19 ORNA
+                                sig, state = sval, 51
+                        elif highlowM:
+                            # 2011-05-12 ORNA
+                            sig = -sval if newhighC or newhighP or topP else sval
+                            sig, state = -sval, 52
+                        elif newhighC and newhighM:
+                            sig, state = -sval, 53
+                        else:
+                            # 2014-02-20 ORNA
+                            sig = -sval if newhighP or topP else sval
+                            sig, state = -sval, 54
+                    elif nlistP[-1] < 0 or cpeak:
+                        sig, state = -sval, 0
+                        if (newlowM or bottomM) and (newlowP or bottomP):
+                            # 2014-12-16 MUDA
+                            sig, state = sval, 55
+                        elif newlowP and bottomV:
+                            # 2014-12-23 MUDA
+                            sig, state = sval, 56
+                    elif plistM[-1] < plistM[-2] and plistM[-1] < plistM[-3] or \
+                            tripleM in n3u and lastM < nlistM[-1]:
+                        sig, state = sval, 0
+                        if lastM < nlistM[-1]:
+                            # 2017-12-06 PADINI
+                            sig, state = -sval, 57
         return sig, state
 
     def evalTopC(sval):
         def evalBottomPM(st=0):
             sig, state = 0, 0
-            if (prevbottomM or prevbottomP) and not (topM or topP):
+            if (isprevbottomM() or isprevbottomP()) and not (topM or topP):
                 if newlowM or newlowP:
                     if newlowM and newlowP and nlistM[-1] > 5:
                         # 2018-04-04 PADINI
@@ -2080,31 +2239,37 @@ def extractSignals(sdict, xpn):
                     else:
                         # 2011-08-03 KLSE
                         sig, state = -sval, st + 1
-                elif prevbottomM or prevbottomP:
-                    # 2011-11-16 KLSE
-                    # 2011-12-07 KLSE
-                    sig, state = sval, st + 2
-                    if plistM[-1] > 10:
-                        # 2015-02-24 MUDA final push before collapse
+                elif isprevbottomM() or isprevbottomP():
+                    if min(plistP[-3:]) < 0:
+                        # 2015-02-10 MUDA final push before collapse
                         sig, state = -sval, -st - 2
-                        if bottomM or bottomP:
-                            # 2015-02-10 MUDA
-                            sig, state = sval, st + 3
                     elif nlistM[-1] > 5:
+                        # 2013-03-04 ORNA
+                        # 2017-05-03 PADINI newlowV
                         # 2018-05-16 PADINI
-                        sig, state = sval, st + 3
+                        sig, state = sval, st + 2
                     elif plistM[-1] > plistM[-2] and plistM[-1] > plistM[-3]:
-                        # 2011-11-16 KLSE
-                        # 2011-12-07 KLSE
-                        sig, state = sval, -st - 4
-                    else:
+                        if plistM[-1] < 10:
+                            # 2011-11-16 KLSE
+                            # 2011-12-07 KLSE
+                            sig, state = sval, -st - 3
+                        else:
+                            sig, state = sval, st + 3
+                    elif isprevbottomM() and isprevbottomP():
                         # 2008-05-07 KLSE
                         sig, state = -sval, st + 4
+                    elif not isprevbottomP():
+                        # 2017-10-12 KESM
+                        sig, state = sval, 4
+                        if plistP[-1] == min(plistP[-3:]):
+                            sig, state = -sval, st + 5
+                    else:
+                        sig, state = sval, 0
                 else:
                     if cmpdiv in bullvalley:
                         sig, state = sval, st + 5
                     else:
-                        sig, state = -sval, st + 5
+                        sig, state = -sval, st + 6
             elif (newlowM and newlowP) or (bottomM and bottomP) or \
                     (newlowM and bottomP) or (bottomM and newlowP):
                 if topM or topP or prevtopM or prevtopP:
@@ -2121,6 +2286,9 @@ def extractSignals(sdict, xpn):
                         # 2008-03-12 KLSE === 2011-09-28 KLSE
                         if nlistM[-1] < 5:
                             # 2011-09-28 KLSE
+                            sig, state = sval, st + 8
+                        elif plistP[-1] < 0:
+                            # 2014-12-15 KESM
                             sig, state = sval, st + 9
                         else:
                             # 2008-03-12 KLSE
@@ -2138,6 +2306,7 @@ def extractSignals(sdict, xpn):
                     elif bottomM and bottomP:
                         # 2008-04-02 KLSE
                         # 2011-10-12 KLSE bottomM, bottomP
+                        # 2015-01-16 KESM
                         sig, state = sval, st + 12
             elif newlowP and not newlowM:
                 sig, state = -sval, st + 14
@@ -2152,6 +2321,14 @@ def extractSignals(sdict, xpn):
                     # 2018-04-04 PADINI
                     # 2018-11-07 PADINI
                     sig, state = -sval, st + 16
+                elif bottomM or prevbottomM:
+                    if newhighM or plistM[-1] > 10 or lastM > 10:
+                        # 2013-05-23 PADINI
+                        # 2014-07-25 MUDA
+                        # 2014-09-29 MUDA
+                        sig, state = -sval, st + 17
+                    else:
+                        sig, state = sval, st + 17
                 else:
                     if nlistM[-1] > 5:
                         if cmpdiv in bullvalley:
@@ -2171,7 +2348,7 @@ def extractSignals(sdict, xpn):
             # 2016-03-01 MUDA === PADINI 2018-11-21 === 2014-12-29 MUDA
             # 2018-05-07 KLSE
             sig, state = 0, 0
-            if topM and topP or prevtopM and prevtopP:
+            if topM and topP or isprevtopM() and isprevtopP():
                 if plistM[-1] > 10:
                     if nlistM[-1] < nlistM[-2] and nlistM[-1] < nlistM[-3] and \
                             nlistP[-1] < nlistP[-2] and nlistP[-1] < nlistP[-3]:
@@ -2182,12 +2359,19 @@ def extractSignals(sdict, xpn):
                         # 2014-04-03 KESM
                         # 2017-05-24 GHLSYS
                         sig, state = sval, st + 1
+                elif isprevtopP():
+                    if isprevtopM():
+                        # 2016-07-12 PADINI
+                        sig, state = sval, st + 2
+                    else:
+                        # 2016-02-02 KESM
+                        sig, state = -sval, st + 2
                 else:
                     if (nlistM[-1] > nlistM[-2] or nlistM[-1] > nlistM[-3]) and \
                             nlistP[-1] > nlistP[-2] or nlistP[-1] > nlistP[-3]:
                         # 2013-09-02 GHLSYS
                         # 2018-11-02 DUFU
-                        sig, state = sval, st + 2
+                        sig, state = sval, st + 4
                     else:
                         sig, state = sval, st + 71
             elif topM or prevtopM:
@@ -2195,106 +2379,117 @@ def extractSignals(sdict, xpn):
                     # 2012-06-01 VSTECS
                     # 2012-10-01 SCGM
                     # 2014-10-10 MUDA
-                    sig, state = -sval, st + 3
+                    sig, state = -sval, st + 6
                 elif plenP > 4 and plistP[-1] < max(plistP[-5:]):
                     if pvalley or mvalley:
                         # 2010-06-30 KLSE
                         # 2014-06-03 VSTECS
-                        sig, state = sval, st + 3
+                        sig, state = sval, st + 6
                     else:
                         # 2015-09-18 SCGM
-                        sig, state = sval, -st - 3
+                        sig, state = sval, -st - 6
                 else:
                     # 2012-09-12 KLSE
                     # 2013-06-04 VSTECS
-                    sig, state = -sval, st + 4
+                    sig, state = -sval, st + 8
             elif topP or prevtopP:
                 if not bottomM and min(nlistM[-3:]) == min(nlistM):
-                    # 2013-06-26 KLSE
-                    # 2018-04-04 KLSE
-                    sig, state = -sval, st + 7
+                    if min(nlistM[-3:]) > 5 or max(plistM[-3:]) > 10 or nlistP[-1] > 0:
+                        if isprevtopM():
+                            # 2014-06-16 KESM final push before tumbling down
+                            sig, state = -sval, -st - 10
+                        else:
+                            # 2015-07-01 KESM
+                            sig, state = sval, st + 10
+                        if newhighV:
+                            # 2014-07-17 KESM
+                            sig, state = -sval, st + 10
+                    else:
+                        # 2013-06-26 KLSE
+                        # 2018-04-04 KLSE
+                        sig, state = -sval, st + 12
                 elif plistM[-1] > 10:
                     # 2012-05-03 N2N
                     # 2015-03-19 DUFU
-                    sig, state = sval, st + 7
+                    sig, state = sval, st + 12
                 elif topV or prevtopV:
                     # 2017-11-03 N2N
-                    sig, state = -sval, st + 8
+                    sig, state = -sval, st + 14
                 elif newlowM or bottomM:
                     # 2012-11-26 ORNA
-                    sig, state = sval, st + 10
+                    sig, state = sval, st + 14
                 elif newhighC and cmpdiv in bullvalley:
                     if lastM > 10:
                         sig, state = -sval, 0
                         if newhighM:
                             # 2014-07-17 ORNA
-                            sig, state = -sval, st + 12
+                            sig, state = -sval, st + 15
                     else:
                         # 2017-01-26 MAGNI
-                        sig, state = sval, st + 12
+                        sig, state = sval, st + 15
                 else:
                     sig, state = -sval, 0
             elif newlowP:
                 if newlowM or bottomM:
                     # 2012-12-04 ORNA
-                    sig, state = sval, st + 14
+                    sig, state = sval, st + 17
             elif newhighM:
                 if min(nlistM[-4:]) == min(nlistM) and min(nlistM) < 5:
                     # 2011-07-13 KLSE
-                    sig, state = -sval, 16
+                    sig, state = -sval, 17
                 elif not (newhighP or prevtopP):
                     # 2010-09-01 KLSE
                     # 2016-03-04 PADINI
                     # 2016-08-05 PADINI
-                    sig, state = sval, 16
+                    sig, state = sval, 18
                 else:
                     # 2014-07-17 ORNA
-                    sig, state = -sval, 16
+                    sig, state = -sval, 18
             elif lastM < nlistM[-2]:
                 # 2015-04-13 DUFU prevtopP
-                sig, state = -sval, st + 18
+                sig, state = -sval, st + 20
             return sig, state
 
         if (newlowP or newlowM or bottomP or bottomM or
-                (prevbottomP or prevbottomM)) and not (topM or topP):
+                (isprevbottomP() or isprevbottomM())) and not (topM or topP):
             sig, state = evalBottomPM()
-        elif newhighP or newhighM or topP or topM or prevtopP or prevtopM:
+        elif newhighP or newhighM or topP or topM or isprevtopP() or isprevtopM():
             sig, state = evalTopPM()
         elif min(nlistM[-2:]) > 8 and min(nlistP[-2:]) > 0:
             # 2016-05-03 PADINI
-            sig, state = sval, 31
+            sig, state = sval, 41
         elif plistM[-1] < plistM[-2] and plistM[-1] < plistM[-3]:
             # 2012-11-07 KLSE
             # 2013-08-07 KLSE
             # 2018-01-24 PADINI
-            sig, state = -sval, 33
+            sig, state = -sval, 43
             if prevbottomM:
                 # 2013-02-20 KLSE
-                sig, state = sval, 34
+                sig, state = sval, 44
             elif tripleM in n3u:
                 # 2013-08-28
-                sig, state = sval, 35
+                sig, state = sval, 45
             elif tripleP in p3u:
                 # 2014-02-06 ORNA
-                sig, state = sval, 36
+                sig, state = sval, 46
             elif nlistM[-1] > 5 and nlistM[-2] < 5 and nlistP[-1] > 0 and nlistP[-2] < 0:
                 if mpeak or ppeak:
                     # 2013-08-07 KLSE
-                    sig, state = -sval, 37
+                    sig, state = -sval, 47
                     if lastM < 5 or lastP < 0:
                         # 2013-09-04 KLSE
-                        sig, state = sval, 37
+                        sig, state = sval, 47
                 elif nlistP[-1] > 0:
                     # 2013-09-25 KLSE
-                    sig, state = sval, 38
+                    sig, state = sval, 48
                 else:
-                    sig, state = -sval, 38
+                    sig, state = -sval, 48
             elif nlistM[-1] > 5 and nlistP[-1] > nlistP[-2] and nlistP[-2] > 0:
                 # 2016-07-12 padini
-                sig, state = sval, 39
+                sig, state = sval, 49
         elif plistM[-1] > plistM[-2] or plistM[-1] > plistM[-3]:
             # 2014-06-03 MUDA
-            sig, state = sval, 40
+            sig, state = sval, 50
             if newlowP or newhighP or topP:
                 # 2013-09-05 ORNA
                 # 2014-02-11 MUDA
@@ -2303,15 +2498,15 @@ def extractSignals(sdict, xpn):
             elif plenM > 3 and max(plistM[-3:]) > 10:
                 # 2014-06-24 MUDA
                 # 2015-02-05 ORNA
-                sig, state = -sval, -40
+                sig, state = -sval, -50
             elif plistP[-1] < plistP[-2] and plistP[-1] < plistP[-3]:
                 # 2016-05-09 VSTECS
-                sig, state = -sval, 41
+                sig, state = -sval, 51
         elif cmpdiv in bearpeak:
             # 2008-02-06 KLSE
-            sig, state = -sval, 43
+            sig, state = -sval, 53
         else:
-            sig, state = -sval, 45
+            sig, state = -sval, 55
         return sig, state
 
     def evalLowC(sval):
@@ -2325,6 +2520,9 @@ def extractSignals(sdict, xpn):
             if nlistM[-1] >= 10:
                 # 2014-03-03 DUFU
                 sig, state = sval, 4
+            elif nlistP[-1] > 0 and lastM > nlistM[-1]:
+                # 2011-10-24 N2N
+                sig, state = sval, 5
         elif newlowM and newlowP:
             if plistP[-1] < 0:
                 # 2018-03-03 AXREIT
@@ -2411,6 +2609,9 @@ def extractSignals(sdict, xpn):
     cmpInSync, mpInSync = isDivergentSync()
     if plistM is None or plistP is None or nlistM is None or nlistP is None:
         nosignal = True
+    elif len(nlistM) < 5 or len(plistP) < 5:
+        print lastTrxn[0], counter, "insufficient data:", len(nlistM), len(plistP)
+        nosignal = True
     else:
         nosignal = False
         cmpdiv, mpdiv, mpnow, highlowM, highlowP, lowhighM, lowhighP = divergenceDiscovery()
@@ -2439,25 +2640,26 @@ def extractSignals(sdict, xpn):
                 elif narrowC == 1 or (tripleBottoms and tripleBottoms < 3):
                     ssig, sstate = evalBottomC(2)
             if not ssig or sstate > 900:
-                if tripleBottoms > 2 or (tripleTops and tripleTops < 6):
+                if (tripleBottoms > 2 or (tripleTops and tripleTops < 6)) and lastC > highbar:
                     ssig, sstate = eval3Tops(5)
             if not ssig or sstate > 900:
                 if newhighC or (firstC == maxC and lastC > max(plistC)):
                     pass
                 elif narrowC > 1 or tripleBottoms > 1 or tripleTops > 5 or \
-                        plistC[-1] > highbar:
+                        (not (topC or prevtopC) and plistC[-1] > highbar):
                     # 2014-11-07 DUFU tripleTops instead
                     # 2016-01-04 PADINI
                     ssig, sstate = evalRetrace(6)
             if not ssig or sstate > 900:
-                if newhighC or (firstC == maxC and lastC > max(plistC)) or lastC > highbar:
-                    if prevtopC and plistC[-1] > highbar:
+                if newhighC or (firstC == maxC and (lastC > max(plistC) or lastC > highbar)):
+                    if prevtopC and nlistC[-1] > highbar:
                         # 2016-05-03 PADINI
                         pass
                     else:
                         ssig, sstate = evalHighC(7)
             if not ssig or sstate > 900:
-                if topC or prevtopC or (newhighC and plistC[-1] == max(plistC)):
+                if topC or prevtopC or (newhighC and plistC[-1] == max(plistC)) or \
+                        (plistC[-1] > highbar and plistC[-2] < lowbar):
                     ssig, sstate = evalTopC(8)
             if not ssig or sstate > 900:
                 sval = 9
