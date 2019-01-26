@@ -9,7 +9,7 @@ steps=`expr $chartdays - 10`
 mpvdir=${tmpdir}/mpv
 prfdir=${indir}/profiling
 
-if [ $OPT -gt 2 ]
+if [ $OPT -gt 1 ]
 then
  opts="-om -c $chartdays"
 else

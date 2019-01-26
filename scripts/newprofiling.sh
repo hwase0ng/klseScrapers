@@ -20,7 +20,7 @@ prfdir=${mpvdir}/profiling
 
 if [ $opt -eq 1 ]
 then
- params="-psj 1 -C"
+ params="-psj 1"
 elif [ $opt -eq 2 ]
 then
  params="-p -Dp -S"
