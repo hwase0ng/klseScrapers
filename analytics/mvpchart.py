@@ -791,9 +791,10 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         ax0.plot(dt, spos[1], symbolclr, markersize=7)
                         ax0.text(dt, spos[1], str(psig), color=fontclr, fontsize=9)
                     if int(sval) != 0:
+                        strV = str(sval)
                         symbolclr, fontclr = getSymbolColor(sval, sstate)
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
-                        ax0.text(dt, ymin, str(sval), color=fontclr, fontsize=9)
+                        ax0.text(dt, ymin, strV[0], color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         fontclr = "black" if i in [7, 8, 9] else \
                             "brown" if i in [4, 5, 6] else "magenta" if i > 13 else \
