@@ -1618,7 +1618,7 @@ def extractSignals(sdict, xpn):
                         sig, state = sval5, 0
                     else:
                         # 2015-08-06 DUFU bottomM
-                        # 2016-04-22 KESM kesm-3-start
+                        # 2016-04-25 KESM kesm-3-start
                         sig, state = sval5, 1
         elif bottomM:
             sval6 = sval + 6
@@ -1727,9 +1727,9 @@ def extractSignals(sdict, xpn):
                         # 2011-10-10 F&N bottomP
                         # 2017-09-06 KESM
                         sig = sval1
-                        state = 1 if bottomM else -1
+                        state = 1
                 elif isprevbottomM() and isprevbottomP():
-                    # 2016-03-01 DUFU
+                    # 2016-02-22 DUFU
                     sig = sval1
                     state = 2 if bottomM else -2
         elif newlowP:
