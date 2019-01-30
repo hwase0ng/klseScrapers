@@ -2,7 +2,7 @@
 OPTIND=1
 source /c/git/klseScrapers/scripts/groups.klse
 
-CHARTDAYS=600
+CHARTDAYS=500  # 2013-09-10 KESM newlowM gets blocked if 600
 INDIR=/z/data
 TMPDIR=data
 GROUP=
@@ -88,6 +88,10 @@ do
  if ! [ $OPT -eq 3 ]
  then
   echo Profiling $counter, $STARTDT, $STEPS
+  #if [ $OPT -eq 1 ]
+  #then
+  # genmpv $counter
+  #fi
   ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $TMPDIR $INDIR
  fi
  if ! [ $OPT -eq 1 ]

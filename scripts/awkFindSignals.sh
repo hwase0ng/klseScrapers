@@ -41,8 +41,14 @@ narrowP=23	# 1,2=p<0, 3,4=prange<0.20, 9=decreasing prange
 countP=24
 tripleBottoms=25
 tripleTops=26
-matrix=27
-cmpdiv=28   # 1,2,3,7=CP+CM,CP,CM in pdiv (PEAK bearish divergence); 4,5,6,8=same in ndiv (VALLEY bullish)
+mvalp=27   # 1 plistM[-1]<=5, 3 nlistM[-1]>=10
+pvalp=28   # 1 plistP[-1]<=0, 3 nlistP[-1]> 0
+vvalp=29
+mvaln=30   # 1 plistM[-1]<=5, 3 nlistM[-1]>=10
+pvaln=31   # 1 plistP[-1]<=0, 3 nlistP[-1]> 0
+vvaln=32
+#matrix=27
+#cmpdiv=28   # 1,2,3,7=CP+CM,CP,CM in pdiv (PEAK bearish divergence); 4,5,6,8=same in ndiv (VALLEY bullish)
 
 signalfile=""
 val=0
@@ -94,11 +100,11 @@ do
     echo "$val is not an integer number!"
     exit 2
    else
-    if [ "$signal" -eq "14" ]
+    if [ "$signal" -eq 14 -o "$signal" -eq 27 ]
     then
      val=`echo "("$val`
     else
-     if [ "$signal" -eq "27" ]
+     if [ "$signal" -eq 26 -o "$signal" -eq 29 ]
      then
       val=`echo ${val}")"`
      fi
