@@ -754,7 +754,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
         return
 
     df.set_index(df['trxdt'], inplace=True)
-    ymin, ymax, spos, cpos = getChartPOS(15 + 3)
+    ymin, ymax, spos, cpos = getChartPOS(13 + 3)
     hltb = ['0', 'h', 't', 'l', 'b']
     for dt in datevector:
         try:
