@@ -1702,7 +1702,7 @@ def extractSignals(sdict, xpn):
                 if not isprev3bottomM() and max(plistM) < 10:
                     if nlistM[-1] < 5 and nlistP[-1] < 0:
                         # 2016-07-05 CARLSBG
-                        sig, state = sval2, 2
+                        sig, state = -sval2, -2
             elif not isprev3bottomP():
                 if max(plistM[1:]) < 10 and tripleM in n3u:
                     if nlistM[-1] > 5 and nlistP[-1] < 0:
