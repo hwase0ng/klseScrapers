@@ -6,7 +6,7 @@ Arguments:
 Options:
     -c,--check            Check processing mode
     -f,--force            Force update when investing.com data is delayed (obsoleted as now using i3)
-    -i,--i3               Use i3 on Saturday to download Friday's EOD
+    -i,--i3=<date>        Use i3 on Saturday to download Friday's EOD, enhanced to accept any dates
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -k,--klse             Update KLSE stock listing
     -K,--KLSE             Update KLSE related stocks
@@ -28,7 +28,7 @@ from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, \
     scrapeRecentEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice, scrapeLatestPrice, connectStocksListing
-from utils.dateutils import getLastDate, getDayBefore, getToday, getYesterday
+from utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap,\
@@ -139,7 +139,7 @@ def scrapeI3(stocklist):
     return eodlist
 
 
-def checkI3LastTradingDay(lastdt, i3onSat=False):
+def checkI3LastTradingDay(lastdt, i3onSat=""):
     dt, popen, pclose, vol = scrapeRecentEOD(connectRecentPrices("1295"), lastdt, True)
     popen2, pclose2, vol2 = scrapeLatestPrice(connectStocksListing("P"), "1295")
     if S.DBG_ALL:
@@ -150,7 +150,8 @@ def checkI3LastTradingDay(lastdt, i3onSat=False):
             # Post processing mode on the following day
             if i3onSat:
                 dates = [lastdt]
-                dates.append(getYesterday('%Y-%m-%d'))
+                # dates.append(getYesterday('%Y-%m-%d'))
+                dates.append(i3onSat)
         else:
             now = datetime.now()
             # Use i3 latest price
