@@ -1488,9 +1488,9 @@ def doPlotting(datadir, dbg, dfplot, dojson, showchart,
     ncols = 1 if dfplot is None else len(dfplot)
     if ncols > 1:
         # columns, rows
-        figsize = (12, 7) if showchart else (15, 9)
+        figsize = (12, 7) if showchart else (10, 6)
     else:
-        figsize = (10, 6) if showchart else (15, 9)
+        figsize = (10, 6) if showchart else (9, 5)
     if dojson == "2":
         fig, axes = plt.subplots(4, ncols, figsize=figsize, sharex=False, num=plttitle)
         jsonPlotSynopsis(axes, lsttxn, sdict['pnlist'])
@@ -1505,8 +1505,8 @@ def doPlotting(datadir, dbg, dfplot, dojson, showchart,
             sdict['lsttxn'] = lsttxn
             sdict['pnlist'] = pnlist
             sdict['div'] = div
-            exportjson(datadir)
             if dojson == "1":
+                exportjson(datadir)
                 plt.close()
                 return 0
 
