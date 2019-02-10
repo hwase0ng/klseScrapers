@@ -2248,6 +2248,13 @@ def extractSignals(sdict, xpn):
                         if min(nlistP[-3:]) > 0:
                             # 2015-04-02 DUFU
                             sig, state = -sval1, -3
+            elif topM:
+                if prevbottomM:
+                    if isprev3topP():
+                        if isprev3bottomP():
+                            if plistM[-1] > 10 and min(nlistM[-3:]) > 5:
+                                # 2018-11-02 PADINI
+                                sig, state = -sval1, 3
             elif prevbottomM:
                 if bottomV:
                     if prevtopV:
@@ -2331,6 +2338,12 @@ def extractSignals(sdict, xpn):
                 elif newlowV:
                     # 2015-09-02 KESM newlowV [kesm-2-add]
                     sig, state = sval3, 2
+            elif topM:
+                if prevbottomM:
+                    if plistM[-1] > 10:
+                        if min(nlistM[-3:]) > 5:
+                            # 2018-09-07 PADINI
+                            sig, state = -sval3, 2
             elif isprev3topM():
                 if not newlowP:
                     if isprev3bottomP():
@@ -2451,8 +2464,9 @@ def extractSignals(sdict, xpn):
                 if min(nlistM[-3:]) > 5:
                     if min(nlistP[-3:]) > 0:
                         if plistP[-1] == min(plistP[-3:]):
+                            # 2009-12-02 CARLSBG
                             # 2010-02-02 CARLSBG plistV[-2] < 0
-                            sig, state = sval8, -5
+                            sig, state = sval8, 4
                         elif nlistM[-1] > 5 and nlistM[-1] == min(nlistM[-3:]):
                             # 2016-07-11 PADINI
                             sig, state = sval8, 5
