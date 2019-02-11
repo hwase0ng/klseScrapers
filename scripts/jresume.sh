@@ -10,6 +10,12 @@ lnum=`grep -n ${sdate} ${sfile} | awk -F: '{print $1}'`
 lcount=`wc -l ${sfile} | awk '{print $1}'`
 tnum=`expr $lnum - $lcount`
 echo $counter, $sdate, $lcount, $lnum, $tnum
+if [ $tnum -eq 0 ]
+then
+	echo "$counter is good!"
+	exit 0
+fi
+
 for j in `tail -n $tnum $sfile`
 do
 	ddate=`echo $j | awk -F, '{print $2}'`

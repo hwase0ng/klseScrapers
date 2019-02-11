@@ -5,6 +5,7 @@ Created on Dec 20, 2016
 '''
 import settings as S
 from datetime import datetime
+from pandas import read_csv, DataFrame
 import csv
 import glob
 import mmap
@@ -306,6 +307,42 @@ def loadfromjson(datadir, counter, sdate):
     return None
 
 
+def mergecsv(counter, datadir=S.DATA_DIR):
+    def diff(lcsv, ltmp):
+        li_dif = [i for i in lcsv + ltmp if i not in lcsv]
+        return li_dif
+
+    scode = getStockCode(counter, './scrapers/i3investor/klse.txt')
+    fcsv = os.path.join(datadir, counter + "." + scode + ".csv")
+    ftmp = fcsv + "tmp"
+    if os.path.isfile(ftmp):
+        cols = ['name', 'date', 'open', 'high', 'low', 'close', 'volume']
+        dfcsv = read_csv(fcsv, sep=',', header=None, names=cols)  # converters={"volume": int})
+        dftmp = read_csv(ftmp, sep=',', header=None, names=cols)
+        dcsv = dfcsv['date'].tolist()
+        dtmp = dftmp['date'].tolist()
+        difftmp = diff(dcsv, dtmp)
+        print "%s.%s: %s" % (counter, scode, difftmp)
+        if len(difftmp) > 0:
+            dftmp.set_index(['date'], inplace=True)
+            nlist = []
+            for d in difftmp:
+                df = dftmp.loc[d]
+                dlist = df.tolist()
+                dnew = [counter, d, dlist[1], dlist[2], dlist[3], dlist[4], dlist[5]]
+                # dnew = "%s,%s,%s,%s,%s,%s,%s" % (counter, d, dlist[1], dlist[2], dlist[3], dlist[4], dlist[5])
+                print dnew
+                nlist.append(dnew)
+            # print nlist
+            dfcsv = dfcsv.append(DataFrame(nlist, columns=cols), ignore_index=True)
+            dfcsv.sort_values(['date'], inplace=True)
+            dfcsv.drop_duplicates(['date'], keep='last', inplace=True)
+            dfcsv['volume'] = dfcsv['volume'].astype(int)
+            dfcsv.to_csv(fcsv, header=None, columns=cols, float_format='%.4f', index=False)
+    else:
+        print "File not found:%s" % (ftmp)
+
+
 if __name__ == '__main__':
     '''
     print wc_line_count("nosuchfile.test")
@@ -316,5 +353,6 @@ if __name__ == '__main__':
     print execshell("C:/git/klseScrapers/scripts/lastdate.sh -c danco -d Z:/data")
     cmd = "ls -l /z/data/json/*.json | tail -1 | awk '{print $NF}' | awk -F'[_.]' '{print $2}'"
     print execshell(cmd)
-    '''
     print jsonLastDate("DANCO", "/z/data/")
+    '''
+    mergecsv('AASIA', 'Z:/data/')
