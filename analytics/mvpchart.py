@@ -1553,6 +1553,14 @@ def jsonPlotSynopsis(axes, lastTrxn, pnlist):
         def mergedata(firstval, lastval, xypn):
             xp, xn, yp, yn = xypn[0], xypn[1], xypn[2], xypn[3]
             merged = [[mdateconvert(lastTrxn[-5])], [firstval]]
+            if xp is None:
+                xp = []
+            if yp is None:
+                yp = []
+            if xn is None:
+                xn = []
+            if yn is None:
+                yn = []
             n = 0
             for p in range(len(xp)):
                 if n < len(xn):
