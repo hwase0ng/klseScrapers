@@ -42,7 +42,7 @@ do
    ;;
   o)
    OPT=$OPTARG
-   if [ $OPT -eq 1 ]
+   if [ $OPT -eq 1 -o $OPT -eq 5 ]
    then
     STEPS=1
    fi
@@ -63,7 +63,7 @@ do
   *)
    #usage
    echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
-   echo "  opt: 1 - gen JSON, 2 - Signal scanning, 3 - Daily Charting only, 4-signals without plot" 1>&2
+   echo "  opt: 1 - gen JSON, 2 - Signal scanning, 3 - Daily Charting only, 4-signals without plot, 5-gen JSON for selected files" 1>&2
    exit 1
    ;;
  esac
@@ -74,7 +74,7 @@ shift $((OPTIND-1))
 if [ -z "$GROUP" ]
 then
    echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
-   echo "  opt: 1-gen json, 2-scan signals, 3-daily charting only, 4-signals without plot"
+   echo "  opt: 1-gen json, 2-scan signals, 3-daily charting only, 4-signals without plot, 5-gen JSON for selected files"
    exit 1
 fi
 
@@ -83,7 +83,12 @@ do
  counter=`echo ${i} | tr '[:lower:]' '[:upper:]'`
  if [ ${dateopt} -eq 0 ]
  then
-  STARTDT=`head -200 $INDIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
+  STARTDT=`head -250 $INDIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
+ fi
+ if [ ${OPT} -eq 5 ]
+ then
+  ENDDT=`head -400 $INDIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
+  echo "End date is $ENDDT"
  fi
  if ! [ $OPT -eq 3 ]
  then
@@ -94,7 +99,7 @@ do
   #fi
   ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $TMPDIR $INDIR
  fi
- if ! [ $OPT -eq 1 ]
+ if ! [ $OPT -eq 1 -o $OPT -eq 5 ]
  then
   echo Daily Charting $counter, $STARTDT
   ./scripts/charting.sh $counter ${STARTDT}:${ENDDT} $OPT $TMPDIR $INDIR
