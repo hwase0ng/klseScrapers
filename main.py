@@ -159,6 +159,10 @@ def checkI3LastTradingDay(lastdt, i3onSat=""):
                 # only download today's EOD if it is after 6pm local time
                 dates.append(getToday('%Y-%m-%d'))
         return dates
+    elif dt > lastdt and dt == getToday('%Y-%m-%d'):
+        # sometimes i3 updates latest price on the same day
+        dates = [lastdt, dt]
+        return dates
     else:
         if lastdt > dt:
             # post processing mode on the same day
