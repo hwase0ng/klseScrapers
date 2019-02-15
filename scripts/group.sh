@@ -83,7 +83,7 @@ do
  counter=`echo ${i} | tr '[:lower:]' '[:upper:]'`
  if [ ${dateopt} -eq 0 ]
  then
-  STARTDT=`head -250 $INDIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
+  STARTDT=`head -350 $INDIR/mpv/${counter}.csv | tail -1 | awk -F , '{print $2}'`
  fi
  if [ ${OPT} -eq 5 ]
  then
