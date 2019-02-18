@@ -35,7 +35,8 @@ logfile=${prfdir}/$counter/$counter.log
 > $logfile
 if [ $opt -eq 2 ]
 then
- cp ${sigdir}/$counter-signals.csv ${sigdir}/$counter-signals.csv.bak
+ cp ${sigdir}/$counter-signals.csv.2 ${sigdir}/$counter-signals.csv.3
+ cp ${sigdir}/$counter-signals.csv ${sigdir}/$counter-signals.csv.2
  > ${sigdir}/$counter-signals.csv
  rm ${prfdir}/$counter/*.png | tee -a $logfile
  rm ${syndir}/${counter}-*.png | tee -a $logfile
@@ -43,7 +44,8 @@ then
  rm ${tmpmpv}/signals/${counter}-signals.csv | tee -a $logfile
 elif [ $opt -eq 4 ]
 then
- cp ${sigdir}/$counter-signals.csv ${sigdir}/$counter-signals.csv.bak
+ cp ${sigdir}/$counter-signals.csv.2 ${sigdir}/$counter-signals.csv.3
+ cp ${sigdir}/$counter-signals.csv ${sigdir}/$counter-signals.csv.2
  > ${sigdir}/$counter-signals.csv
 fi
 
