@@ -307,12 +307,13 @@ def loadfromjson(datadir, counter, sdate):
     return None
 
 
-def mergecsv(counter, datadir=S.DATA_DIR):
+def mergecsv(counter, datadir=S.DATA_DIR, scode="0000"):
     def diff(lcsv, ltmp):
         li_dif = [i for i in lcsv + ltmp if i not in lcsv]
         return li_dif
 
-    scode = getStockCode(counter, './scrapers/i3investor/klse.txt')
+    if int(scode) == 0:
+        scode = getStockCode(counter, './scrapers/i3investor/klse.txt')
     fcsv = os.path.join(datadir, counter + "." + scode + ".csv")
     ftmp = fcsv + "tmp"
     if os.path.isfile(ftmp):
