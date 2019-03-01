@@ -34,7 +34,12 @@ cd $SRC
 export PYTHONPATH=../..
 ddate=`head -1 $INDATA/$COUNTER.$SCODE.csv | awk -F, '{print $2}'`
 dyear=`echo $ddate | awk -F"-" '{print $1}'`
-if [ "$dyear" -le 2010 ]
+ystart=2010
+if ! [ -z "$2" ]
+then
+ ystart=$2
+fi
+if [ $dyear -le $ystart ]
 then
  echo "$COUNTER is good"
 else

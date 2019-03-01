@@ -13,15 +13,15 @@ do
 	then
 		echo "Skipped: $counter"
 	else
-	    python utils/patchcsv.py $counter
-	    python analytics/mvp.py -g $counter
-	    if ls data/json/$counter.2019-01*.json 1> /dev/null 2>&1
-	    then
+		python utils/patchcsv.py $counter
+		python analytics/mvp.py -g $counter
+		if ls data/json/$counter.2019-01*.json 1> /dev/null 2>&1
+		then
 			echo "re-generating missing JSON file for $counter"
 			jmissing.sh $counter
 		else
 			echo "generating JSON file for $counter"
-	        scripts/group.sh -o 1 -c $counter
+			scripts/group.sh -o 1 -c $counter
 	    fi
-    fi
+	fi
 done

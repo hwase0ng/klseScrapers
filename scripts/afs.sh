@@ -55,7 +55,7 @@ val=0
 val2=0
 signal=""
 signal2=""
-ops="0"
+ops="1"
 
 while getopts ":s:v:o:d:" opt
 do
@@ -109,7 +109,7 @@ shift $((OPTIND-1))
 
 if [ -z "$signal" -o "$val" == "0" ]
 then
-   echo "Usage: awkFindSignals.sh -svod <signal name> <value> [counter|group] [equal] [datadir]" 1>&2
+   echo "Usage: afs.sh -svod <signal name> <value> [counter|group] [equal] [datadir]" 1>&2
    exit 1
 fi
 
