@@ -10,7 +10,7 @@ Options:
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -k,--klse             Update KLSE stock listing
     -K,--KLSE             Update KLSE related stocks
-    -m,--mt4              Write and update metatrader4
+    -m,--mt4=<mt4date>    Write and update metatrader4
     -r,--resume           Resume after crash [default: False]
     -p,--price=<n1,n2>    Update price after stock split/consolidation/warrant exercise
     -h,--help             This page
@@ -27,7 +27,7 @@ from analytics.mvp import mpvUpdateKlseRelated
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, \
     scrapeRecentEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
-    writeLatestPrice, scrapeLatestPrice, connectStocksListing
+    writeLatestPrice, scrapeLatestPrice, connectStocksListing, mt4eod
 from utils.dateutils import getLastDate, getDayBefore, getToday
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
@@ -271,10 +271,27 @@ def postUpdateProcessing():
     # backupjson("data")
     backupKLse(S.DATA_DIR, S.BKUP_DIR, "pst")
     backupKLse(S.DATA_DIR + S.MVP_DIR, S.BKUP_DIR, "mvp")
+    mt4update()
 
-    if len(S.MT4_DIR) == 0 or not mt4update:
+
+def mt4update(lastTradingDate=getToday('%Y-%m-%d')):
+    def latesteod(eodlist):
+        if len(eodlist) > 0:
+            with open(S.DATA_DIR + eodfile, 'wb') as eodf:
+                for eod in eodlist:
+                    eodf.write(str(eod) + '\n')
+        elif os.path.isfile(eodfile):
+            print "Processing from last EOD file ... "
+            return
+        else:
+            print "ERR: Missing EOD file!"
+            return
+
+    if len(S.MT4_DIR) == 0 or not mt4date:
         return
 
+    eodfile = 'latest.eod'
+    latesteod(mt4eod(lastTradingDate))
     csvfiles = getCsvFiles(S.DATA_DIR + 'latest.eod')
 
     with cd(S.DATA_DIR):
@@ -361,9 +378,9 @@ if __name__ == '__main__':
     stocks = getCounters(args['COUNTER'], args['--klse'],
                          args['--portfolio'], args['--watchlist'], False)
     '''
-    global klse, mt4update
+    global klse, mt4date
     klse = "scrapers/i3investor/klse.txt"
-    mt4update = args['--mt4']
+    mt4date = args['--mt4']
     if args['--klse']:
         # Full download using klse.txt
         # To do: a fix schedule to refresh klse.txt
@@ -378,6 +395,8 @@ if __name__ == '__main__':
         pricesplit(sname, slist[sname], float("{:.5f}".format((ratio))))
     elif args['--KLSE']:
         scrapeKlseRelated('scrapers/investingcom/klse.idmap')
+    elif len(mt4date):
+        mt4update(mt4date)
     else:
         if args['COUNTER']:
             stocks = args['COUNTER'][0].upper()

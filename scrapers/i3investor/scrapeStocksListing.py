@@ -243,7 +243,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
                     # 2018-12-21 limit to 300 due to AKNIGHT exceeds Locator.MAXTICKS error
                     mvpChart(shortname, stockCode, 300)
 
-    stocksListing = loadfromi3(S.DATA_DIR + "i3/" + getToday() + ".json")
+    stocksListing = loadfromi3(S.DATA_DIR + "i3/" + lastTradingDate + ".json")
     eodlist = []
 
     print ' Writing latest price from i3 ...'
@@ -270,6 +270,15 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
 
         checkMPV()
 
+    return eodlist
+
+
+def mt4eod(lastTradingDate):
+    stocksListing = loadfromi3(S.DATA_DIR + "i3/" + lastTradingDate + ".json")
+    eodlist = []
+    for key in sorted(stocksListing.iterkeys()):
+        eod, _, _ = unpackStockData(key, lastTradingDate, stocksListing[key])
+        eodlist.append(eod)
     return eodlist
 
 
