@@ -304,7 +304,8 @@ def mt4update(lastTradingDate=getToday('%Y-%m-%d')):
         print "Writing to MT4 ... Done"
 
     with cd(S.MT4_DIR):
-        os.system('mt4.sh')
+        cmd = "mt4.sh " + S.MT4_DIR
+        os.system(cmd)
         print "Post-update Processing ... Done"
 
 
@@ -395,7 +396,7 @@ if __name__ == '__main__':
         pricesplit(sname, slist[sname], float("{:.5f}".format((ratio))))
     elif args['--KLSE']:
         scrapeKlseRelated('scrapers/investingcom/klse.idmap')
-    elif len(mt4date):
+    elif mt4date is not None:
         mt4update(mt4date)
     else:
         if args['COUNTER']:
