@@ -39,7 +39,7 @@ if ! [ -z "$2" ]
 then
  ystart=$2
 fi
-if [ $dyear -le $ystart ]
+if [[ $dyear -le $ystart ]]  
 then
  echo "$COUNTER is good"
 else
