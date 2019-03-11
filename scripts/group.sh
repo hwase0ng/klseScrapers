@@ -63,7 +63,7 @@ do
   *)
    #usage
    echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
-   echo "  opt: 1 - gen JSON, 2 - Signal scanning, 3 - Daily Charting only, 4-signals without plot, 5-gen JSON for selected files" 1>&2
+   echo "  opt: 1 - gen JSON, 2 - Signal scanning, 3 - Daily Charting only, 4-signals without plot, 5-gen JSON for selected files, 6-WFM charting" 1>&2
    exit 1
    ;;
  esac
@@ -74,7 +74,7 @@ shift $((OPTIND-1))
 if [ -z "$GROUP" ]
 then
    echo "Usage: group.sh -cCdgoDs [counter] [Chartdays] [date] [groups] [opt=1234] [Dir] [steps]" 1>&2
-   echo "  opt: 1-gen json, 2-scan signals, 3-daily charting only, 4-signals without plot, 5-gen JSON for selected files"
+   echo "  opt: 1-gen json, 2-scan signals, 3-daily charting only, 4-signals without plot, 5-gen JSON for selected files, 6-WFM charting"
    exit 1
 fi
 

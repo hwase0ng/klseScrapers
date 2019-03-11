@@ -570,9 +570,12 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
     if wfm == 2:
         if S.DBG_ALL:
             print "For setting breakpoint to debug month chart only"
+    lineseq = [['MP', True, 1, 2], ['MP', False, 1, 2]]
+    '''
     lineseq = [['CM', True, 0, 1], ['CM', False, 0, 1],
                ['CP', True, 0, 2], ['CP', False, 0, 2],
                ['MP', True, 1, 2], ['MP', False, 1, 2]]
+    '''
     pmatch, nmatch = {}, {}
     pdiv, ndiv, odiv, mpdates = {}, {}, {}, {}
     for i in lineseq:
@@ -1501,11 +1504,12 @@ def doPlotting(datadir, dbg, dfplot, dojson, showchart,
         else:
             fig, axes = plt.subplots(4, ncols, figsize=figsize, sharex=False, num=plttitle)
             _, pnlist, div = plotSynopsis(dfplot, axes)
-            sdict = collectCompositions(pnlist, lsttxn)
-            sdict['lsttxn'] = lsttxn
-            sdict['pnlist'] = pnlist
-            sdict['div'] = div
+            sdict = None
             if dojson == "1":
+                sdict = collectCompositions(pnlist, lsttxn)
+                sdict['lsttxn'] = lsttxn
+                sdict['pnlist'] = pnlist
+                sdict['div'] = div
                 exportjson(datadir)
                 plt.close()
                 return 0
@@ -1519,7 +1523,7 @@ def doPlotting(datadir, dbg, dfplot, dojson, showchart,
             title = plttitle + " [" + signals + "]"
         else:
             title = plttitle + " [" + counter + "]"
-        fsize = 10 if showchart else 15
+        fsize = 10 if showchart else 9
         fig.canvas.set_window_title(plttitle)
         fig.suptitle(title, fontsize=fsize)
         if dbg:
@@ -1529,9 +1533,9 @@ def doPlotting(datadir, dbg, dfplot, dojson, showchart,
         if showchart:
             plt.show()
         else:
-            if len(signals):
+            if len(signals) or dbg:
                 if len(numslen) > 0:
-                    outname = outname + "-" + lsttxn[0]
+                    outname = outname + "." + lsttxn[0]
                 plt.savefig(outname + "-synopsis.png")
     plt.close()
     return len(signals) > 0

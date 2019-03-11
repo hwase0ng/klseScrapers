@@ -24,6 +24,9 @@ then
 elif [ $opt -eq 2 ]
 then
  params="-p -Dp -S"
+elif [ $opt -eq 6 ]
+then
+ params="-Ds -psw"
 else
  params="-Dp -S"
 fi
@@ -33,7 +36,7 @@ then
 fi
 logfile=${prfdir}/$counter/$counter.log
 > $logfile
-if [ $opt -eq 2 ]
+if [ $opt -eq 2 -o $opt -eq 6 ]
 then
  cp ${sigdir}/$counter-signals.csv.2 ${sigdir}/$counter-signals.csv.3
  cp ${sigdir}/$counter-signals.csv ${sigdir}/$counter-signals.csv.2
@@ -53,7 +56,12 @@ if [ $opt -eq 1 -o $opt -eq 5 ]
 then
 	python analytics/mvpchart.py $counter $params -S $dates -c $chartdays -e ${indir} | tee -a $logfile
 else
-	python analytics/mvpsignals.py $counter $params $dates -d ${indir} | tee -a $logfile
+	if [ $opt -eq 6 ]
+	then
+		python analytics/mvpchart.py $counter $params -S $dates -c $chartdays -e ${indir} | tee -a $logfile
+	else
+		python analytics/mvpsignals.py $counter $params $dates -d ${indir} | tee -a $logfile
+	fi
 fi
 
 if [ $opt -eq 1 -o $opt -eq 5 ]
@@ -63,7 +71,7 @@ then
  tar czvf $indir/json/${counter}.tgz ${counter}.2*.json
  cd -
 else
- if [ $opt -eq 2 ]
+ if [ $opt -eq 2 -o $opt -eq 6 ]
  then
   mv ${tmpmpv}/synopsis/${counter}.2*.png ${prfdir}/$counter/
  fi

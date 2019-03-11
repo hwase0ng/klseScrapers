@@ -2667,6 +2667,7 @@ def extractSignals(counter, sdict, xpn):
                 elif isprev3bottomM():
                     if max(plistM[-3:]) < 10:
                         # 2015-05-15 KESM topP then bottomP
+                        # 2015-06-24 PARAMON
                         # 2015-12-28 DUFU
                         sig, state = sval2, 5
                 elif isprev3topP():
@@ -3420,8 +3421,12 @@ def extractSignals(counter, sdict, xpn):
                                 # 2011-08-09 F&N
                                 sig, state = -sval5, 3
                     elif newlowV:
-                        # 2013-09-02 KLSE
-                        sig, state = sval5, 4
+                        if topV:
+                            # 2012-04-06 DAYANG
+                            sig, state = -sval5, 4
+                        else:
+                            # 2013-09-02 KLSE
+                            sig, state = sval5, 4
                     elif nlistM[-1] == max(nlistM[-3:]):
                         if nlistP[-1] == max(nlistP[-3:]):
                             if nlistM[-1] > 5 and nlistP[-1] > 0:
@@ -3982,8 +3987,12 @@ def extractSignals(counter, sdict, xpn):
                             sig, state = sval3, -100
                         elif nlistP[-1] > 0:
                             if min(nlistM[-3:]) > 5:
-                                # 2013-10-02 KESM
-                                sig, state = sval3, 105
+                                if nlistP[-1] < min(plistP[-3:]):
+                                    # 2013-10-02 KESM
+                                    sig, state = sval3, 105
+                                else:
+                                    # 2013-07-15 GKENT
+                                    sig, state = -sval3, 105
             elif plistP[-1] == min(plistP[-3:]):
                 pass
         elif plistP[-1] == max(plistP[-3:]):
