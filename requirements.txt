@@ -31,13 +31,13 @@ pytest==4.1.1
 python-dateutil==2.7.2
 pytz==2018.4
 regex==2018.2.21
-requests==2.20.0
+requests==2.21.0
 scandir==1.9.0
 scipy==1.2.0
 six==1.11.0
 subprocess32==3.2.7
 times==0.7
 tzlocal==1.5.1
-urllib3==1.22
+urllib3==1.24
 virtualenv==15.1.0
 xlrd==1.1.0
