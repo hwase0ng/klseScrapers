@@ -39,8 +39,11 @@ from mpl_finance import candlestick_ohlc
 from multiprocessing import Process, cpu_count
 from pandas import read_csv, Grouper, concat
 from peakutils import peak
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.preprocessing import PolynomialFeatures
 from utils.dateutils import getDaysBtwnDates, pdTimestamp2strdate, pdDaysOffset,\
-    weekFormatter, getDayOffset, mdateconvert, getBusDaysBtwnDates
+    weekFormatter, getDayOffset, mdateconvert, getBusDaysBtwnDates, datestr2float, float2datestr
 from utils.fileutils import cd, tail2, wc_line_count, grepN, mergefiles,\
     purgeOldFiles, loadfromjson, execshell
 import numpy as np
@@ -472,6 +475,8 @@ def drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y):
                     continue
                 divcount += 1
                 tolerance += matchlist[v][1]
+                if 1 == 1:
+                    break
                 '''
                 # Regular divergence                   Hidden divergence:
                 #   Bias,     Price,       Oscillator      Bias,     Price,       Oscillator
@@ -513,6 +518,8 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
         p1y2, p2y2 = p1y[-2], p2y[-2]
         n1y1, n2y1 = n1y[-1], n2y[-1]
         n1y2, n2y2 = n1y[-2], n2y[-2]
+        if 1 == 1:
+            return 0, p1y1, p1y2, p2y1, p2y2, n1y1, n1y2, n2y1, n2y2
         if p1y1 < p1y2 and p2y1 < p2y2 and n1y1 >= n1y2 and n2y1 >= n2y2:
             # P&M Lower peaks with higher valleys
             divtype = 3
@@ -560,6 +567,33 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
                           n1y1, n1y2, n2y1, n2y2)
         return "", divtype, divcount, tolerance
 
+    def plotpoly(x, y, ax):
+        def x2ordinal():
+            x2 = []
+            for i in x:
+                # x2.append(date2ordinal(i))
+                x2.append(datestr2float(i))
+            return x2
+
+        def ordinal2x():
+            x2 = []
+            for i in x:
+                # x2.append([ordinal2date(i)])
+                x2.append([float2datestr(i)])
+            return x2
+
+        x2 = x
+        x = x2ordinal()
+        diff = x[len(x) - 1] - x[0]
+        coefficients = np.polyfit(x, y, 2)
+        polynomial = np.poly1d(coefficients)
+        x_axis = np.linspace(x[0], x[len(x) - 1] + diff, len(x2) + 1)
+        y_axis = polynomial(x_axis)
+        ax.plot(x_axis, y_axis)
+        for i in range(0, len(x) - 1):
+            ax.plot(x[i], y[i], 'go')
+
+    cmpv = {'C': 0, 'V': 1, 'M': 2, 'P': 3}
     [cmpvXP, cmpvXN, cmpvYP, cmpvYN] = cmpvXYPN
     '''
     cxp, mxp, pxp = cmpvXP[0], cmpvXP[1], cmpvXP[2]
@@ -581,6 +615,7 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
     for i in lineseq:
         peaks = i[1]
         if peaks:
+            clr = 'r'
             k, p1x, p2x, p1y, p2y = i[0], cmpvXP[i[2]], cmpvXP[i[3]], cmpvYP[i[2]], cmpvYP[i[3]]
             if k == 'MP':
                 if p1x is not None and len(p1x):
@@ -588,6 +623,7 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
                 if p2x is not None and len(p2x):
                     mpdates['Pp'] = p2x
         else:
+            clr = 'b'
             k, p1x, p2x, p1y, p2y = i[0], cmpvXN[i[2]], cmpvXN[i[3]], cmpvYN[i[2]], cmpvYN[i[3]]
             if k == 'MP':
                 if p1x is not None and len(p1x):
@@ -597,6 +633,12 @@ def plotlinesV2(wfm, axes, cmpvXYPN):
         if wfm == 2 and k == 'MP':
             if S.DBG_ALL:
                 print "For setting breakpoint to debug month chart only"
+        '''
+        ax = axes[cmpv[k[0]]]
+        plotpoly(p1x, p1y)
+        ax = axes[cmpv[k[1]]]
+        plotpoly(p2x, p2y)
+        '''
         matchdata = drawlinesV2(axes, k, peaks, p1x, p2x, p1y, p2y)
         if len(matchdata):
             [matchlist, matchdt, matchdt2, divtype, divcount, matchtol, matchpos] = matchdata
@@ -720,7 +762,7 @@ def plotSignals(pmaps, counter, datevector, ax0):
 
     def getSymbolColor(sig, state):
         if int(state) == 0:
-            if int(sig) > 0:
+            if int(sig) > 79:
                 symbolclr = "y."
                 fontclr = "green"
             else:
@@ -797,7 +839,8 @@ def plotSignals(pmaps, counter, datevector, ax0):
                         strV = str(sval)
                         symbolclr, fontclr = getSymbolColor(sval, sstate)
                         ax0.plot(dt, ymin, symbolclr, markersize=7)
-                        ax0.text(dt, ymin, strV[0], color=fontclr, fontsize=9)
+                        ch = strV[0] if int(strV) < 70 else strV[1]
+                        ax0.text(dt, ymin, ch, color=fontclr, fontsize=9)
                     for i in range(0, ilen):
                         fontclr = "black" if i in [7, 8, 9] else \
                             "brown" if i in [4, 5, 6] else "magenta" if i > 13 else \
@@ -1752,8 +1795,8 @@ def plotSynopsis(dflist, axes):
             pnList.append(cmpvXYPN)
         except Exception as e:
             # just print error and continue without the required line in chart
-            print 'line divergence exception:', i
             print e
+            print 'line divergence exception:', i
 
     plotdividers(axes, dflist, cmpvHL)
     return hlList, pnList, div

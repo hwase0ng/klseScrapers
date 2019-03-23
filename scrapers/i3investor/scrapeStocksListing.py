@@ -9,8 +9,6 @@ import requests
 from BeautifulSoup import BeautifulSoup
 from utils.dateutils import getToday
 from common import getDataDir
-from analytics.mvp import updateMPV, load_mvp_args
-from analytics.mvpchart import mvpChart, mvpSynopsis
 from utils.fileutils import tail
 from multiprocessing import Process, cpu_count, Queue
 import os
@@ -234,18 +232,25 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
                 return
 
         if 1 == 1:
-            updateMPV(shortname, stockCode, eod)
-        elif updateMPV(shortname, stockCode, eod):
-            load_mvp_args(True)
-            if mvpSynopsis(shortname, stockCode, dojson=1):
-                if 1 == 0:  # 2018-12-21 skip to speed up daily download
-                    load_mvp_args(False)
-                    # 2018-12-21 limit to 300 due to AKNIGHT exceeds Locator.MAXTICKS error
-                    mvpChart(shortname, stockCode, 300)
+            if any("klsemvp" in s for s in pypath):
+                updateMPV(shortname, stockCode, eod)
+        else:
+            if any("klsemvp" in s for s in pypath):
+                if updateMPV(shortname, stockCode, eod):
+                    load_mvp_args(True)
+                    if mvpSynopsis(shortname, stockCode, dojson=1):
+                        if 1 == 0:  # 2018-12-21 skip to speed up daily download
+                            load_mvp_args(False)
+                            # 2018-12-21 limit to 300 due to AKNIGHT exceeds Locator.MAXTICKS error
+                            mvpChart(shortname, stockCode, 300)
 
     stocksListing = loadfromi3(S.DATA_DIR + "i3/" + lastTradingDate + ".json")
     eodlist = []
 
+    pypath = os.environ['PYTHONPATH'].split(os.pathsep)
+    if any("klsemvp" in s for s in pypath):
+        from analytics.mvp import updateMPV, load_mvp_args
+        from analytics.mvpchart import mvpChart, mvpSynopsis
     print ' Writing latest price from i3 ...'
     for key in sorted(stocksListing.iterkeys()):
         eod, shortname, stockCode = unpackStockData(key, lastTradingDate, stocksListing[key])

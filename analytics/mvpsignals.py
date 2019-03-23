@@ -4558,11 +4558,20 @@ def extractSignals(counter, sdict, xpn):
                     if not ssig and not mia:
                         mia = 60
         if not ssig:
-            if posM in [0, 4] or posP in [0, 4] or posV in [0, 4] or \
-                    topM or topP or bottomM or bottomP or bottomV or topV or \
-                    prevtopM or prevtopP or prevbottomM or prevbottomP or prevbottomV or prevtopV:
+            if posV in [0, 4] or bottomV or topV or prevbottomV or prevtopV or \
+                    isprev3topV() or isprev3bottomV():
                 if not mia:
-                    mia = 70
+                    mia = 79
+                else:
+                    mia = 70 + (mia / 10)
+                ssig, sstate = mia, 0
+            elif posM in [0, 4] or posP in [0, 4] or \
+                    topM or topP or bottomM or bottomP or \
+                    prevtopM or prevtopP or prevbottomM or prevbottomP:
+                if not mia:
+                    mia = 89
+                else:
+                    mia = 80 + (mia / 10)
                 ssig, sstate = mia, 0
 
     # return ssig, sstate, psig, pstate, nsig, nstate, p1, negstr, posstr

@@ -5,7 +5,7 @@ Created on Nov 15, 2018
 @author: hwase0ng
 '''
 
-from mvpsignals import scanSignals
+from analytics.mvpsignals import scanSignals
 import pytest
 import settings as S
 from common import loadCfg

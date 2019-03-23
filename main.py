@@ -23,7 +23,6 @@ Created on Apr 16, 2018
 
 import settings as S
 import pandas as pd
-from analytics.mvp import mpvUpdateKlseRelated
 from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, \
     scrapeRecentEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
@@ -357,7 +356,10 @@ def scrapeKlse(procmode, force_update, resume, i3onSat):
 
         list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
         if len(list2):
-            mpvUpdateKlseRelated()
+            pypath = os.environ['PYTHONPATH'].split(os.pathsep)
+            if any("klsemvp" in s for s in pypath):
+                from analytics.mvp import mpvUpdateKlseRelated
+                mpvUpdateKlseRelated()
 
         if S.USEMONGO:
             # do not perform upsert ops due to speed

@@ -5,7 +5,7 @@ Created on Dec 17, 2016
 '''
 import settings as S
 from numpy import busday_count
-from matplotlib.dates import date2num, MonthLocator
+from matplotlib.dates import date2num, num2date, MonthLocator
 from datetime import date, datetime, timedelta
 from utils.fileutils import tail
 from time import time, ctime
@@ -39,6 +39,11 @@ def get_now_epoch():
 def datestr2float(myd, fmt='%Y-%m-%d'):
     td = datetime.strptime(myd, fmt)
     return date2num(td)
+
+
+def float2datestr(myd, dtfmt='%Y-%m-%d'):
+    dt = num2date(myd)
+    return dt.strftime(dtfmt)
 
 
 def generate_dates(start_date, end_date):
@@ -193,6 +198,15 @@ def getDaysBtwnDates(d1, d2):
 def getTime():
     tm = ctime().split()
     return tm[3]
+
+
+def date2ordinal(dt, dtfmt="%Y-%m-%d"):
+    return datetime.strptime(dt, dtfmt).toordinal()
+
+
+def ordinal2date(ordinal, dtfmt="%Y-%m-%d"):
+    dt = datetime.fromordinal(ordinal)
+    return dt.strftime(dtfmt)
 
 
 if __name__ == '__main__':
