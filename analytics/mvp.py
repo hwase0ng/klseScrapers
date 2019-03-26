@@ -7,6 +7,7 @@ Options:
     -d,--debug            Enable debug mode [default: False]
     -l,--list=<clist>     List of counters (dhkmwM) to retrieve from config.json
     -g,--generate         Generate MVP from scratch [default: False]
+    -o,--others           non-KLSE counters
     -h,--help             This page
 
 Created on Oct 14, 2018
@@ -69,7 +70,10 @@ def generateMPV(counter, stkcode, today=getToday('%Y-%m-%d')):
     line, eodpop = "", []
     try:
         fh = open(S.DATA_DIR + S.MVP_DIR + counter + '.csv', "wb")
-        inputfl = S.DATA_DIR + counter + '.' + stkcode + '.csv'
+        if stkcode == 0:
+            inputfl = S.DATA_DIR + counter + '.csv'
+        else:
+            inputfl = S.DATA_DIR + counter + '.' + stkcode + '.csv'
         row_count = wc_line_count(inputfl)
         if row_count < S.MVP_DAYS * 2:
             print "Skipped rows: ", counter, row_count
@@ -278,10 +282,14 @@ if __name__ == '__main__':
         stocks = args['COUNTER'][0].upper()
     else:
         stocks = retrieveCounters(args['--list'])
-    if len(stocks):
-        stocklist = formStocklist(stocks, KLSE)
+    if args['--others']:
+        stocklist = {}
+        stocklist[stocks] = 0
     else:
-        stocklist = loadKlseCounters(KLSE)
+        if len(stocks):
+            stocklist = formStocklist(stocks, KLSE)
+        else:
+            stocklist = loadKlseCounters(KLSE)
     for shortname in sorted(stocklist.iterkeys()):
         if shortname in S.EXCLUDE_LIST:
             print "Excludes: ", shortname
