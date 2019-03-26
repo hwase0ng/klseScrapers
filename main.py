@@ -13,6 +13,8 @@ Options:
     -m,--mt4=<mt4date>    Write and update metatrader4
     -r,--resume           Resume after crash [default: False]
     -p,--price=<n1,n2>    Update price after stock split/consolidation/warrant exercise
+                            e.g. 1 bonus share for every 2 shares: n1=2,n2=3
+                          Output: COUNTER.csv.new
     -h,--help             This page
 
 This app downloads EOD from KLSE, either for all counters or selectively

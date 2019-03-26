@@ -172,13 +172,13 @@ def appendCsv(rtn_code, OUTPUT_FILE):
     ftmp.close()
 
 
-def getDataDir(datadir):
+def getDataDir(datadir, dirname="klseScrapers"):
     if datadir.startswith('/') or datadir.startswith('\\'):
         # Using absolute path; e.g. /d/klse/data
         return datadir
     # Using relative path such as ./data
     cwd = os.getcwd().split(os.sep)
-    ind = cwd.index('klseScrapers')
+    ind = cwd.index(dirname)
     cwdlen = len(cwd)
     if ind == cwdlen - 1:
         return os.path.join(".", datadir)
