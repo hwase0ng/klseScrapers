@@ -17,7 +17,7 @@ MONGODB = 'klsedb'
 MONGOEOD = 'klseeod'
 MT4_DAYS = 2500
 MT4_DIR = ''
-MVP_CHART_DAYS = 500
+MVP_CHART_DAYS = 300  # for volume play, PADINI 2018-07-04 plenM==1 if 300, ARANK 2017-01-06 plenM==2
 MVP_DAYS = 15
 MVP_DIR = 'mpv/'
 SHORTLISTED_FILE = ''

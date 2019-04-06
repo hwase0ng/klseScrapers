@@ -2,7 +2,7 @@
 OPTIND=1
 source /c/git/klseScrapers/scripts/groups.klse
 
-CHARTDAYS=500  # 2013-09-10 KESM newlowM gets blocked if 600
+CHARTDAYS=300  # 2013-09-10 KESM newlowM gets blocked if 600
 INDIR=/z/data
 TMPDIR=data
 GROUP=

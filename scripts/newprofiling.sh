@@ -4,7 +4,7 @@ opt=$3
 chartdays=$4
 if [ -z $chartdays ]
 then
- chartdays=600
+ chartdays=300
 fi
 tmpdir=$5
 if [ -z $tmpdir ]
