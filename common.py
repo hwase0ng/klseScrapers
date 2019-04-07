@@ -53,7 +53,8 @@ def loadSetting(c):
     try:
         # Allows DATA_DIR to be overwritten here
         datadir = c["main"]["DATA_DIR"]
-        if len(datadir) > 0 and datadir.endswith('/'):
+        if len(datadir) > 0 and (datadir.endswith('/') or
+                                 datadir.endswith('\\')):
             S.DATA_DIR = datadir
     except Exception:
         pass
