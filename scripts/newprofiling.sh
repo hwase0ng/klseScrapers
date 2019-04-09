@@ -6,14 +6,13 @@ if [ -z $chartdays ]
 then
  chartdays=300
 fi
-tmpdir=$5
-if [ -z $tmpdir ]
+nasdir=$5
+if [ -z $nasdir ]
 then
- tmpdir=/z/data
+ nasdir=/z/data
 fi
 indir=$6
 mpvdir=$indir/mpv
-tmpmpv=$tmpdir/mpv
 sigdir=${mpvdir}/signals
 syndir=${mpvdir}/synopsis
 prfdir=${mpvdir}/profiling
@@ -43,8 +42,8 @@ then
  > ${sigdir}/$counter-signals.csv
  rm ${prfdir}/$counter/*.png | tee -a $logfile
  rm ${syndir}/${counter}-*.png | tee -a $logfile
- rm ${tmpmpv}/signals/${counter}-signals.csv.* | tee -a $logfile
- rm ${tmpmpv}/signals/${counter}-signals.csv | tee -a $logfile
+#rm ${tmpmpv}/signals/${counter}-signals.csv.* | tee -a $logfile
+#rm ${tmpmpv}/signals/${counter}-signals.csv | tee -a $logfile
 elif [ $opt -eq 4 ]
 then
  cp ${sigdir}/$counter-signals.csv.2 ${sigdir}/$counter-signals.csv.3
@@ -66,14 +65,14 @@ fi
 
 if [ $opt -eq 1 -o $opt -eq 5 ]
 then
- #cp $tmpdir/json/$counter.json $indir/json
- cd $tmpdir/json
- tar czvf $indir/json/${counter}.tgz ${counter}.2*.json
+ #cp $indir/json/$counter.json $indir/json
+ cd $indir/json
+ tar czvf $nasdir/backup/json/${counter}.tgz ${counter}.2*.json
  cd -
 else
  if [ $opt -eq 2 -o $opt -eq 6 ]
  then
-  mv ${tmpmpv}/synopsis/${counter}.2*.png ${prfdir}/$counter/
+  mv ${mpvdir}/synopsis/${counter}.2*.png ${prfdir}/$counter/
  fi
  #cp ${tmpmpv}/signals/$counter-signals.csv ${sigdir}/
  #cat ${tmpmpv}/signals/${counter}-signals.csv.2* > ${sigdir}/${counter}-signals.csv

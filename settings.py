@@ -8,6 +8,7 @@ Created on Dec 26, 2016
 ABS_START = '2010-01-02'
 ABS_END = ''
 DATA_DIR = 'data/'
+DATA_DIR_W = 'data\\'
 BKUP_DIR = ''
 # CHROME_DIR = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe %s'
 CHROME_DIR = ''

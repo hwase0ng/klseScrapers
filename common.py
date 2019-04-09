@@ -56,6 +56,7 @@ def loadSetting(c):
         if len(datadir) > 0 and (datadir.endswith('/') or
                                  datadir.endswith('\\')):
             S.DATA_DIR = datadir
+        S.DATA_DIR_W = c["main"]["DATA_DIR_W"]
     except Exception:
         pass
     S.I3_UID = c["i3"]["UID"]

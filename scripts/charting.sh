@@ -1,13 +1,13 @@
 counter=`echo ${1} | tr '[:lower:]' '[:upper:]'`
 dates=$2
 OPT=$3
-tmpdir=$4
-indir=$5/mpv
+nasdir=$4
+indir=$5
 chartdays=150
 steps=`expr $chartdays - 10`
 
-mpvdir=${tmpdir}/mpv
-prfdir=${indir}/profiling
+mpvdir=${indir}/mpv
+prfdir=${mpvdir}/profiling
 
 if [ $OPT -gt 1 ]
 then

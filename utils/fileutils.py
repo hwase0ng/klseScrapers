@@ -282,7 +282,7 @@ def loadDashOptions():
 
 
 def jsonLastDate(counter, datadir=S.DATA_DIR):
-    jdir = os.path.join(datadir, "json", '')
+    jdir = datadir + "json/"
     jname = jdir + counter + "*.json"
     jname = jname.replace('\\', '/')
     cmd = "ls -l %s | tail -1 | awk '{print $NF}' | awk -F'[_.]' '{print $2}'" % jname
@@ -294,7 +294,7 @@ def loadfromjson(datadir, counter, sdate):
     import json
     if sdate == 0:
         sdate = jsonLastDate(counter, datadir + "/")
-    jsondir = os.path.join(datadir, "json", '')
+    jsondir = datadir + "json/"
     jname = jsondir + counter + "." + sdate + ".json"
     sdict = None
     try:

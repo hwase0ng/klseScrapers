@@ -5,7 +5,7 @@ then
 fi
 cd $SRCDIR
 counter=`echo $1 | tr '[:lower:]' '[:upper:]'`
-sfile="/z/data/mpv/${counter}.csv"
+sfile="data/mpv/${counter}.csv"
 sdate=`ls -l data/json/${counter}.201[89]*.json | tail -1 | awk '{print $NF}' | awk -F[/.] '{print $4}'`
 if [ -z "$sdate" ]
 then

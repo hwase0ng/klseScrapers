@@ -5,7 +5,7 @@ then
 fi
 counter=`echo $1 | tr '[:lower:]' '[:upper:]'`
 echo $counter
-sfile="/z/data/mpv/${counter}.csv"
+sfile="data/mpv/${counter}.csv"
 for j in `tail -n +200 $sfile`
 do
 	ddate=`echo $j | awk -F, '{print $2}'`

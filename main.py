@@ -47,7 +47,8 @@ import csv
 
 
 def pricesplit(sname, scode, ratio):
-    infile = S.DATA_DIR + sname + "." + scode + ".csv"
+    # infile = S.DATA_DIR + sname + "." + scode + ".csv"
+    infile = os.path.join(S.DATA_DIR, sname + "." + scode + ".csv")
     outfile = infile + ".new"
     df = pd.read_csv(infile, sep=',', header=None,
                      names=['name', 'date', 'open', 'high', 'low', 'close', 'volume'])

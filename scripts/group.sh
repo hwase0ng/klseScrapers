@@ -3,8 +3,8 @@ OPTIND=1
 source /c/git/klseScrapers/scripts/groups.klse
 
 CHARTDAYS=300  # 2013-09-10 KESM newlowM gets blocked if 600
-INDIR=/z/data
-TMPDIR=data
+INDIR=/e/eod/klse/data
+NASDIR=/z/data
 GROUP=
 ENDDT=`date +%Y-%m-%d`
 OPT=1
@@ -97,11 +97,11 @@ do
   #then
   # genmpv $counter
   #fi
-  ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $TMPDIR $INDIR
+  ./scripts/newprofiling.sh $counter "${STARTDT}:${ENDDT}:${STEPS}" $OPT $CHARTDAYS $NASDIR $INDIR
  fi
  if ! [ $OPT -eq 1 -o $OPT -eq 5 ]
  then
   echo Daily Charting $counter, $STARTDT
-  ./scripts/charting.sh $counter ${STARTDT}:${ENDDT} $OPT $TMPDIR $INDIR
+  ./scripts/charting.sh $counter ${STARTDT}:${ENDDT} $OPT $NASDIR $INDIR
  fi
 done
