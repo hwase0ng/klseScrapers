@@ -283,7 +283,7 @@ def loadDashOptions():
 
 def jsonLastDate(counter, datadir=S.DATA_DIR):
     jdir = datadir + "json/"
-    jname = jdir + counter + "*.json"
+    jname = jdir + counter + ".*.json"
     jname = jname.replace('\\', '/')
     cmd = "ls -l %s | tail -1 | awk '{print $NF}' | awk -F'[_.]' '{print $2}'" % jname
     lastdate = execshell(cmd)
