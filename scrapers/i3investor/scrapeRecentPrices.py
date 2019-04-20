@@ -1,4 +1,11 @@
 '''
+Usage: main [options] [COUNTER] ...
+
+Arguments:
+    COUNTER           Optional counters
+Options:
+    -d,--date         Check processing mode
+
 Created on Apr 13, 2018
 
 @author: hwase0ng
@@ -6,8 +13,10 @@ Created on Apr 13, 2018
 
 import settings as S
 import requests
-from utils.dateutils import change2KlseDateFmt
 from BeautifulSoup import BeautifulSoup
+from common import loadCfg
+from docopt import docopt
+from utils.dateutils import change2KlseDateFmt
 
 I3PRICEURL = 'https://klse.i3investor.com/servlets/stk/rec/'
 
@@ -48,7 +57,7 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
     return dt, price_open, prange[1], prange[0], price_close, volume
 
 
-def scrapeRecentEOD(soup, start, checkLastTrading=False):
+def scrapeRecentEOD(soup, lastdt, checkLastTrading=False):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
         return None
@@ -66,8 +75,9 @@ def scrapeRecentEOD(soup, start, checkLastTrading=False):
             if checkLastTrading:
                 # a quick hack for now
                 return dt, price_open, price_close, volume
-            if dt > start and int(volume.replace(',', '')) > 0:
+            if dt == lastdt and int(volume.replace(',', '')) > 0:
                 i3eod[dt] = [price_open, price_high, price_low, price_close, volume]
+                break
             else:
                 continue
             # print type(dt), type(price_open), type(price_high), type(price_low), type(price_close), type(volume)
@@ -85,9 +95,14 @@ def unpackEOD(popen, phigh, plow, pclose, pvol):
 
 
 if __name__ == '__main__':
+    args = docopt(__doc__)
+    cfg = loadCfg(S.DATA_DIR)
     S.DBG_ALL = False
-    START_DATE = "2018-03-28"
-    i3 = scrapeRecentEOD(connectRecentPrices("6998"), START_DATE)
+    if args['--date']:
+        lastdate = args['--date']
+    else:
+        lastdate = "2019-04-18"
+    i3 = scrapeRecentEOD(connectRecentPrices("6998"), lastdate)
     if i3 is not None:
         for key in sorted(i3.iterkeys()):
             print key + ',' + ','.join(map(str, unpackEOD(*(i3[key]))))

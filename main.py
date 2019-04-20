@@ -155,6 +155,9 @@ def checkI3LastTradingDay(lastdt, i3onSat=""):
                 # dates.append(getYesterday('%Y-%m-%d'))
                 dates.append(i3onSat)
         else:
+            if i3onSat:
+                dates = [lastdt]
+                dates.append(i3onSat)
             now = datetime.now()
             # Use i3 latest price
             if now.hour >= 17:
@@ -348,14 +351,17 @@ def scrapeKlse(procmode, force_update, resume, i3onSat):
             useI3latest = False
 
         if useI3latest:
-            print "Scraping from i3 ..."
+            print "Scraping from i3 latest ..."
             preUpdateProcessing()
             list1 = writeLatestPrice(dates[1], True, resume)
         else:
-            print "Scraping from investing.com ..."
+            print "Scraping from i3 recent ..."
             # I3 only keeps 1 month of EOD, while investing.com cannot do more than 5 months
             # Have enhanced investing.com code to break down downloads by every 3 months
-            list1 = scrapeI3(loadKlseCounters(klse))
+            if 1 == 0:
+                list1 = scrapeI3(loadKlseCounters(klse))
+            else:
+                list1 = writeLatestPrice(dates[1], True, resume, dates[1])
 
         list2 = scrapeKlseRelated('scrapers/investingcom/klse.idmap')
         if len(list2):

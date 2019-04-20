@@ -8,10 +8,12 @@ import settings as S
 import requests
 from BeautifulSoup import BeautifulSoup
 from utils.dateutils import getToday
-from common import getDataDir
+from common import getDataDir, loadKlseCounters
 from utils.fileutils import tail
 from multiprocessing import Process, cpu_count, Queue
 import os
+from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices,\
+    scrapeRecentEOD
 
 I3STOCKSURL = 'https://klse.i3investor.com/jsp/stocks.jsp?g=S&m=int&s='
 
@@ -149,7 +151,7 @@ def scrapeInitials(initial, q=None):
     q.put(eod)
 
 
-def i3ScrapeStocks(initials="", concurrency=False):
+def i3ScrapeLatest(initials="", concurrency=False):
     print 'Scraping latest price from i3 ...'
     if len(initials) == 0:
         initials = '0ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -180,6 +182,28 @@ def i3ScrapeStocks(initials="", concurrency=False):
     return stocksListing
 
 
+def i3ScrapeRecent(lastdate):
+    print 'Scraping recent price from i3 ... %s' % (lastdate)
+    stocksListing = {}
+    klse = "scrapers/i3investor/klse.txt"
+    stocklist = loadKlseCounters(klse)
+    for shortname in sorted(stocklist.iterkeys()):
+        if shortname in S.EXCLUDE_LIST:
+            print "INF:Exclude: %s" % (shortname)
+            continue
+        stock_code = stocklist[shortname]
+        if len(stock_code) > 0:
+            # dict: {'2019-04-18': [u'0.94', u'0.94', u'0.92', u'0.92', u'68,700']}
+            eoddict = scrapeRecentEOD(connectRecentPrices(stock_code), lastdate)
+            if eoddict is None:
+                pass
+            elif len(eoddict):
+                stocksListing[shortname + '.' + stock_code] = eoddict[lastdate]
+        else:
+            print "INF:Skip: %s" % (shortname)
+    return stocksListing
+
+
 def unpackStockData(key, lastTradingDate, skey):
     # key = L&G;.iew/3174
     # IOError: [Errno 2] No such file or directory: u'.../data/L&G.iew/3174.csv'
@@ -196,7 +220,7 @@ def unpackStockData(key, lastTradingDate, skey):
     return eod, shortname, stockCode
 
 
-def loadfromi3(i3file, initials=""):
+def loadfromi3(i3file, initials="", recent=""):
     def exportjson():
         import json
         with open(i3file, 'w') as fp:
@@ -213,12 +237,15 @@ def loadfromi3(i3file, initials=""):
         slisting = importjson()
         print "Loaded from json:", i3file
     except Exception:
-        slisting = i3ScrapeStocks(initials)
+        if len(recent):
+            slisting = i3ScrapeRecent(recent)
+        else:
+            slisting = i3ScrapeLatest(initials)
         exportjson()
     return slisting
 
 
-def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resume=False):
+def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resume=False, recentDate=""):
 
     def checkMPV():
         if resume:
@@ -244,7 +271,7 @@ def writeLatestPrice(lastTradingDate=getToday('%Y-%m-%d'), writeEOD=False, resum
                             # 2018-12-21 limit to 300 due to AKNIGHT exceeds Locator.MAXTICKS error
                             mvpChart(shortname, stockCode, 300)
 
-    stocksListing = loadfromi3(S.DATA_DIR + "i3/" + lastTradingDate + ".json")
+    stocksListing = loadfromi3(S.DATA_DIR + "i3/" + lastTradingDate + ".json", recent=recentDate)
     eodlist = []
 
     pypath = os.environ['PYTHONPATH'].split(os.pathsep)
@@ -294,8 +321,8 @@ if __name__ == '__main__':
     writeLatestPrice(getDataDir(S.DATA_DIR) + 'i3/', False)
 
     from timeit import timeit
-    print(timeit('i3ScrapeStocks()', number=2, setup="from __main__ import i3ScrapeStocks"))
+    print(timeit('i3ScrapeLatest()', number=2, setup="from __main__ import i3ScrapeLatest"))
     '''
-    # slisting = i3ScrapeStocks("0", concurrency=True)
+    # slisting = i3ScrapeLatest("0", concurrency=True)
     slisting = loadfromi3(S.DATA_DIR + "i3/" + getToday() + ".json", "0")
     print slisting
