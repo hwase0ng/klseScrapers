@@ -11,7 +11,7 @@ Created on Mar 7, 2020
 @author: hwase
 '''
 from BeautifulSoup import BeautifulSoup
-from common import formStocklist, loadCfg
+from common import formStocklist, loadCfg, printable
 from utils.dateutils import getToday
 from docopt import docopt
 import requests
@@ -56,7 +56,7 @@ def unpackTD(anndt, name, dt, notice, shares, price, direct, indirect, total, vi
     if S.DBG_INSIDER:
         print ("DBG:{0},{1},{2},{3},{4},{5},{6},{7},{8}").format(
             anndt, name, dt, notice, shares, price, direct, indirect, total)
-    return anndt, name.replace(u'\u2019', ''), dt, notice, shares, \
+    return anndt, name, dt, notice, shares, \
         price, direct, indirect, total
     '''
         float(price.replace('-', '0.00').replace(',', '')), \
@@ -85,7 +85,8 @@ def scrapeInsider(counter, scode, soup, lastdt, showLatest=False):
             for x in td:
                 print repr(x)
         # u'\u2019' is the last char in DATO' which can't be encoded to ascii
-        insider = [x.text.replace(u'\u2019', '').strip().encode("ascii") for x in td]
+        # insider = [x.text.replace(u'\u2019', '').strip().encode("ascii") for x in td]
+        insider = [printable(x).strip().encode("ascii") for x in td]
         if len(insider) == 10:
             anndt, name, dt, notice, shares, price, direct, indirect, total = unpackTD(*insider)
             view = "https:/" + td[9].find('a').get('href').encode("ascii")

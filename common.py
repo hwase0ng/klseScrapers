@@ -5,6 +5,7 @@ Created on Apr 27, 2018
 '''
 from utils.dateutils import getToday, getDayOffset, generate_dates
 from utils.fileutils import wc_line_count
+from curses.ascii import isprint
 import csv
 import json
 import sys
@@ -413,6 +414,10 @@ def matchdates(l1, l2, approx=31):
         matchval = 0 if j < 0 else j - len(list2)
         matchdict[i - len(list1)] = [matchval, matchtolerance, val]
     return swapP, matchdict
+
+
+def printable(str):
+    return ''.join(char for char in str if isprint(char))
 
 
 if __name__ == '__main__':
