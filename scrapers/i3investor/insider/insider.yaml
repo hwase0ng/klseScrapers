@@ -14,29 +14,44 @@
    technology:
      - aemulus
      - jaycorp
+     - jhm
+     - kgb
      - mi
      - notion
      - opensys
      - salute
    dividends:
-     - apm
      - aji
+     - bursa
+     - carlsbg
      - dlady
+     - hapseng
      - liihen
+     - magni
      - takaful
      - padini
      - petronm
      - tongher
+   icap:
+     - apm
+     - icap
+     - wellcal
+     - warisan
+     - wprts
 ---
  bengkang:
    email: bengkang.tan@gmail.com
    dividends:
      - bat
      - dpih
-     - hexza
      - fpi
+     - hexza
+     - jaycorp
+     - magni
    growth:
+     - carimin
      - cck
+     - kkb
      - mtag
      - notion
      - opensys
