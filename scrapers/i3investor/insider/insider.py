@@ -439,22 +439,22 @@ def process(stocks="", tradingDate=getToday('%d-%b-%Y')):
                     print ("  " + trackinglist + " : ")
                     for counter in items[trackinglist]:
                         dirlist, shdlist = crawlInsider(counter, tradingDate)
-                        sendmail(dirlist, trackinglist, addr, "directors", "Insider tradings:Director")
-                        sendmail(shdlist, trackinglist, addr, "shareholders", "Insider tradings:Shareholder")
+                        sendmail(counter, dirlist, trackinglist, addr, "directors", "Insider tradings:Director")
+                        sendmail(counter, shdlist, trackinglist, addr, "shareholders", "Insider tradings:Shareholder")
                         # qr = crawlQR(counter)
                         # sendmail(formatQR(counter, *qr), trackinglist, addr, "QR", "Quarterly Result")
                         if counter in latestQR:
                             qr = latestQR[counter]
-                            sendmail(formatLatestQR(counter, *qr), trackinglist, addr, "Latest QR", "Quarterly Result")
+                            sendmail(counter, formatLatestQR(counter, *qr), trackinglist, addr, "Latest QR", "Quarterly Result")
                         if counter in latestAR:
                             ar = latestAR[counter]
-                            sendmail(formatLatestAR(counter, *ar), trackinglist, addr, "Latest AR", "Annual Report")
+                            sendmail(counter, formatLatestAR(counter, *ar), trackinglist, addr, "Latest AR", "Annual Report")
                     print
 
 
-def sendmail(item, tracking, addr, htext, mtext):
+def sendmail(counter, item, tracking, addr, htext, mtext):
     if item is None:
-        print "Item is None"
+        print counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + mtext
         return
     if len(item) > 0:
         item.insert(0, "Tracking list: " + tracking.upper())
