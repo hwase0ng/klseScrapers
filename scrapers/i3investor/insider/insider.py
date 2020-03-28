@@ -454,7 +454,7 @@ def process(stocks="", tradingDate=getToday('%d-%b-%Y')):
 
 def sendmail(counter, item, tracking, addr, htext, mtext):
     if item is None:
-        print counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + mtext
+        print "\t\tERR:" + counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + mtext
         return
     if len(item) > 0:
         item.insert(0, "Tracking list: " + tracking.upper())
