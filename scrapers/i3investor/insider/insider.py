@@ -14,7 +14,6 @@ from BeautifulSoup import BeautifulSoup
 from common import formStocklist, loadCfg, printable
 from utils.dateutils import getToday, change2KlseDateFmt
 from docopt import docopt
-import csv
 import requests
 import settings as S
 import yagmail
@@ -91,35 +90,32 @@ def scrapeInsider(counter, scode, soup, lastdt, showLatest=False):
                 print repr(x)
         # u'\u2019' is the last char in DATO' which can't be encoded to ascii
         # insider = [x.text.replace(u'\u2019', '').strip().encode("ascii") for x in td]
-        insider = [printable(x).strip().encode("ascii") for x in td]
+        insider = [printable(x.text.replace(u'\u2019', '').encode("ascii")).strip() for x in td]
         if len(insider) == 10:
             anndt, name, dt, notice, shares, price, direct, indirect, total = unpackInsiderTD(*insider)
-            view = "https:/" + td[9].find('a').get('href').encode("ascii")
+            view = I3_URL + td[9].find('a').get('href').encode("ascii")
             if S.DBG_ALL or S.DBG_INSIDER:
                 # print("%s, %s, %s, %s, %s, %s, %.2f, %.2f, %.2f, %.2f, %s" %
                 print("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" %
                       (counter, anndt, name, dt, notice, shares, price, direct, indirect, total, view))
-            tdstr = " > " + counter + ", " + name + ", " + dt + ", " + notice + ", " \
-            + shares + ", " + price + ", " + view
+            # tdstr = counter + ", " + name + ", " + dt + ", " + notice + ", " + shares + ", " + price + ", " + view
             if dt != lastdt:
                 if showLatest:
                     if S.DBG_ALL or S.DBG_INSIDER:
                         print("%s, %s, %s, %s, %s, %s, %f, %f, %f, %f, %s" %
                               (counter, anndt, name, dt, notice, shares, price, direct, indirect, total, view))
-                    insiders.append(tdstr)
-                '''
+                    # insiders.append(tdstr)
+                    insiders.append(formatInsider(counter, name, dt, notice, shares, price, view))
                 count += 1
                 if count > 9:
                     break
-                '''
                 continue
             else:
-                insiders.append(tdstr)
+                insiders.append(formatInsider(counter, name, dt, notice, shares, price, view))
     return insiders
 
 
 def crawlInsider(counter, tradingDate):
-    counter = counter.upper()
     slist = formStocklist(counter, klse)
     dirUrl = I3_INSIDER_DIRECTOR_URL + slist[counter] + ".jsp"
     shdUrl = I3_INSIDER_SHAREHOLDER_URL + slist[counter] + ".jsp"
@@ -156,7 +152,8 @@ def scrapeQR(counter, scode, soup):
     qrlist = []
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
-        qr = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
+        # qr = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
+        qr = [printable(x.text.replace('&nbsp;', '').encode("ascii")).strip() for x in td]
         if S.DBG_QR:
             print("DBG:")
             for x in qr:
@@ -207,7 +204,7 @@ def getQoQLinks(jsplink):
     divs = soupQR.find("div", {"id": "container"})
     div = divs.find("div", {"id": "content"})
     tables = div.findAll('table')
-    pdflinks = []
+    pdflinks = {}
     found = False
     for table in tables:
         for tr in table.findAll('tr'):
@@ -223,7 +220,8 @@ def getQoQLinks(jsplink):
                                     continue
                                 if "staticfile" in pdflink:
                                     found = True
-                                    pdflinks.append(I3_URL + pdflink)
+                                    fname = link.getText().replace('&nbsp;', '')
+                                    pdflinks[I3_URL + pdflink] = fname
                                 else:
                                     if found:
                                         break
@@ -255,6 +253,7 @@ def scrapeLatestQR(soup, tradingDate):
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
         latestQR = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
+        # latestQR = [printable(x.text.encode("ascii").replace('&nbsp;', '')).strip() for x in td]
         if S.DBG_QR:
             print("DBG:")
             for x in latestQR:
@@ -304,7 +303,7 @@ def getYoYLinks(jsplink):
     divs = soupQR.find("div", {"id": "container"})
     div = divs.find("div", {"id": "content"})
     tables = div.findAll('table')
-    pdflinks = []
+    pdflinks = {}
     found = False
     for table in tables:
         for tr in table.findAll('tr'):
@@ -316,7 +315,8 @@ def getYoYLinks(jsplink):
                         continue
                     if "staticfile" in pdflink:
                         found = True
-                        pdflinks.append(I3_URL + pdflink)
+                        fname = link.getText().replace('&nbsp;', '')
+                        pdflinks[I3_URL + pdflink] = fname
                     else:
                         if found:
                             break
@@ -342,6 +342,7 @@ def scrapeLatestAR(soup, tradingDate):
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
         latestAR = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
+        # latestAR = [printable(x.text.encode("ascii").replace('&nbsp;', '')).strip() for x in td]
         if S.DBG_QR:
             print("DBG:")
             for x in latestAR:
@@ -376,17 +377,49 @@ def crawlLatestAR(tradingDate=getToday("%d-%b-%Y")):
     return latestAR
 
 
+def formatInsider(counter, name, dt, notice, shares, price, view):
+    tdstr = "<tr>"
+    tdstr += "<td>{}</td>\n".format(counter)
+    tdstr += "<td>{}</td>\n".format(name)
+    tdstr += "<td>{}</td>\n".format(dt)
+    tdstr += "<td>{}</td>\n".format(notice)
+    tdstr += "<td>{}</td>\n".format(shares)
+    tdstr += "<td>{}</td>\n".format(price)
+    link = '<a href="{}">{}</a>'.format(view, "link")
+    tdstr += ('<td>{}</td>\n'.format(link))
+    tdstr += "</tr>"
+    return tdstr
+
+
 def formatLatestQR(counter, announcementDate, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy, jsplink):
     if S.DBG_ALL or S.DBG_QR:
         print("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" %
               (counter, announcementDate, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy))
         for link in jsplink:
             print('\t' + link)
-    tdstr = " > " + counter + ", announced:" + announcementDate + ", QR:" + qd + ", Q" + qn \
-    + ", rev:" + rev + ", pbt:" + pbt + ", np:" + np + ", div:" + div + ", roe:" + roe \
-    + ", eps:" + eps + ", dps:" + dps + ", qoq:" + qoq + ", yoy:" + yoy + ", link="
-    for pdflink in jsplink:
-        tdstr += '\n\tlink=' + pdflink
+    tdstr = "<tr>"
+    tdstr += "<td>{}</td>\n".format(counter)
+    tdstr += "<td>{}</td>\n".format(announcementDate)
+    tdstr += "<td>{}</td>\n".format(qd)
+    tdstr += "<td>{}</td>\n".format(qn)
+    tdstr += "<td>{}</td>\n".format(rev)
+    tdstr += "<td>{}</td>\n".format(pbt)
+    tdstr += "<td>{}</td>\n".format(np)
+    tdstr += "<td>{}</td>\n".format(div)
+    tdstr += "<td>{}</td>\n".format(roe)
+    tdstr += "<td>{}</td>\n".format(eps)
+    tdstr += "<td>{}</td>\n".format(dps)
+    tdstr += "<td>{}</td>\n".format(qoq)
+    tdstr += "<td>{}</td>\n".format(yoy)
+    tdstr += "<td>"
+    for link in jsplink:
+        pdfname = jsplink[link].strip()
+        link = link.strip()
+        pdflink = '<li><a href="{}">{}</a></li>'.format(link, pdfname)
+        tdstr += ('{}\n'.format(pdflink))
+        # tdstr += '\n\tlink=' + pdflink
+    tdstr += "</td>"
+    tdstr += "</tr>"
     return tdstr
 
 
@@ -394,10 +427,21 @@ def formatLatestAR(counter, fy, anndate, announcementDate, latestann, view):
     if S.DBG_ALL or S.DBG_QR:
         print("%s, %s, %s, %s, %s" %
               (counter, fy, anndate, announcementDate, latestann))
-    tdstr = " > " + counter + ", FY:" + fy + ", anniversary:" + anndate + ", announced:" \
-    + announcementDate + ", latestAnniversary:" + latestann
-    for pdflink in view:
-        tdstr += '\n\tlink=' + pdflink
+    tdstr = "<tr>"
+    tdstr += "<td>{}</td>\n".format(counter)
+    tdstr += "<td>{}</td>\n".format(fy)
+    tdstr += "<td>{}</td>\n".format(anndate)
+    tdstr += "<td>{}</td>\n".format(announcementDate)
+    tdstr += "<td>{}</td>\n".format(latestann)
+    tdstr += "<td>"
+    for link in view:
+        pdfname = view[link].strip()
+        link = link.strip()
+        pdflink = '<li><a href="{}">{}</a></li>'.format(link, pdfname)
+        tdstr += ('{}\n'.format(pdflink))
+        # tdstr += '\n\tlink=' + pdflink
+    tdstr += "</td>"
+    tdstr += "</tr>"
     return tdstr
 
 
@@ -411,6 +455,7 @@ def process(stocks="", tradingDate=getToday('%d-%b-%Y')):
         else:
             stocks = [stocks]
         for counter in stocks:
+            counter = counter.upper()
             dirlist, shdlist = crawlInsider(counter, tradingDate)
             if len(dirlist) > 0:
                 print ("{header}{lst}".format(header="\tdirectors:", lst=dirlist))
@@ -437,29 +482,113 @@ def process(stocks="", tradingDate=getToday('%d-%b-%Y')):
                     if trackinglist == "email":
                         continue
                     print ("  " + trackinglist + " : ")
+                    dirlist, shdlist, qrlist, arlist = [], [], [], []
                     for counter in items[trackinglist]:
-                        dirlist, shdlist = crawlInsider(counter, tradingDate)
-                        sendmail(counter, dirlist, trackinglist, addr, "directors", "Insider tradings:Director")
-                        sendmail(counter, shdlist, trackinglist, addr, "shareholders", "Insider tradings:Shareholder")
-                        # qr = crawlQR(counter)
-                        # sendmail(formatQR(counter, *qr), trackinglist, addr, "QR", "Quarterly Result")
+                        counter = counter.upper()
+                        di, shd = crawlInsider(counter, tradingDate)
+                        if di is not None and len(di) > 0:
+                            for item in di:
+                                dirlist.append(item)
+                        if shd is not None and len(shd) > 0:
+                            for item in shd:
+                                shdlist.append(item)
                         if counter in latestQR:
                             qr = latestQR[counter]
-                            sendmail(counter, formatLatestQR(counter, *qr), trackinglist, addr, "Latest QR", "Quarterly Result")
+                            qrlist.append(formatLatestQR(counter, *qr))
                         if counter in latestAR:
                             ar = latestAR[counter]
-                            sendmail(counter, formatLatestAR(counter, *ar), trackinglist, addr, "Latest AR", "Annual Report")
+                            arlist.append(formatLatestAR(counter, *ar))
+                    sendmail(counter, dirlist, trackinglist, addr, "directors", "Insider tradings:Director")
+                    sendmail(counter, shdlist, trackinglist, addr, "shareholders", "Insider tradings:Shareholder")
+                    # qr = crawlQR(counter)
+                    # sendmail(formatQR(counter, *qr), trackinglist, addr, "QR", "Quarterly Result")
+                    sendmail(counter, qrlist, trackinglist, addr, "Latest QR", "Insider: Quarterly Result")
+                    sendmail(counter, arlist, trackinglist, addr, "Latest AR", "Insider: Annual Report")
                     print
 
 
-def sendmail(counter, item, tracking, addr, htext, mtext):
+def formatTable(htext, item, tracking):
+    tableStyle = "<style> \
+                    table { \
+                      width:100%; \
+                    } \
+                    table, th, td { \
+                      border: 1px solid black; \
+                      border-collapse: collapse; \
+                    } \
+                    th, td { \
+                      padding: 15px; \
+                      text-align: left; \
+                    } \
+                    table#t01 tr:nth-child(even) { \
+                      background-color: #eee; \
+                    } \
+                    table#t01 tr:nth-child(odd) { \
+                     background-color: #fff; \
+                    } \
+                    table#t01 th { \
+                      background-color: black; \
+                      color: white; \
+                    } \
+                 </style>"
+
+    if htext == "Latest AR":
+        htext = '<table id="t01" style=\"width:100%\">\n'
+        htext += "<tr>\n"
+        htext += "<th>Stock</th>\n"
+        htext += "<th>Finance year</th>\n"
+        htext += "<th>Audited Anniverary Date</th>\n"
+        htext += "<th>AR Anniverary Date</th>\n"
+        htext += "<th>Latest Anniverary Date</th>\n"
+        htext += "<th>PDF</th>\n"
+        htext += "</tr>\n"
+        item.insert(0, htext)
+    elif htext == "Latest QR":
+        htext = '<table id="t01" style=\"width:100%\">\n'
+        htext += "<tr>\n"
+        htext += "<th>Stock</th>\n"
+        htext += "<th>Announcement Date</th>\n"
+        htext += "<th>Quarter</th>\n"
+        htext += "<th>Q#</th>\n"
+        htext += "<th>Revenue</th>\n"
+        htext += "<th>PBT</th>\n"
+        htext += "<th>NP</th>\n"
+        htext += "<th>DIV</th>\n"
+        htext += "<th>ROE</th>\n"
+        htext += "<th>EPS</th>\n"
+        htext += "<th>DPS</th>\n"
+        htext += "<th>QoQ</th>\n"
+        htext += "<th>YoY</th>\n"
+        htext += "<th>PDF</th>\n"
+        htext += "</tr>\n"
+        item.insert(0, htext)
+    else:
+        htext = '<table id="t01" style=\"width:100%\">\n'
+        htext += "<tr>\n"
+        htext += "<th>Stock</th>\n"
+        htext += "<th>Name</th>\n"
+        htext += "<th>Date</th>\n"
+        htext += "<th>Notice</th>\n"
+        htext += "<th>No. of Shares</th>\n"
+        htext += "<th>Price</th>\n"
+        htext += "<th>View</th>\n"
+        htext += "</tr>\n"
+        item.insert(0, htext)
+    item.insert(0, tableStyle)
+    item.insert(0, "")
+    header = "<h2>Tracking List: {}</h2>".format(tracking.upper())
+    item.insert(0, header)
+    item.append("</table>")
+
+
+def sendmail(counter, item, tracking, addr, htext, emailTitle):
     if item is None:
-        print "\t\tERR:" + counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + mtext
+        print "\t\tERR:" + counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + emailTitle
         return
     if len(item) > 0:
-        item.insert(0, "Tracking list: " + tracking.upper())
-        print ("{header}{lst}".format(header="\t:" + htext, lst=item))
-        yagmail.SMTP("insider4trader@gmail.com").send(addr, mtext, item)
+        print ("{header}{lst}".format(header="\t" + htext, lst=item))
+        formatTable(htext, item, tracking)
+        yagmail.SMTP("insider4trader@gmail.com").send(addr, emailTitle, item)
 
 
 if __name__ == '__main__':

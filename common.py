@@ -416,8 +416,8 @@ def matchdates(l1, l2, approx=31):
     return swapP, matchdict
 
 
-def printable(str):
-    return ''.join(char for char in str if isprint(char))
+def printable(pstr):
+    return ''.join(char for char in pstr if isprint(char))
 
 
 if __name__ == '__main__':
