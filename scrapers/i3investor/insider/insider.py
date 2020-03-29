@@ -588,7 +588,7 @@ def sendmail(counter, item, tracking, addr, htext, emailTitle):
     if len(item) > 0:
         print ("{header}{lst}".format(header="\t" + htext, lst=item))
         formatTable(htext, item, tracking)
-        yagmail.SMTP("insider4trader@gmail.com").send(addr, emailTitle, item)
+        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").send(addr, emailTitle, item)
 
 
 if __name__ == '__main__':
