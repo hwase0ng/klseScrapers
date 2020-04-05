@@ -1,13 +1,15 @@
-'''
+"""
 Created on Apr 27, 2018
 
 @author: hwase0ng
-'''
+"""
+from BeautifulSoup import BeautifulSoup
 from utils.dateutils import getToday, getDayOffset, generate_dates
 from utils.fileutils import wc_line_count
 from curses.ascii import isprint
 import csv
 import json
+import requests
 import sys
 import settings as S
 import socket
@@ -418,6 +420,19 @@ def matchdates(l1, l2, approx=31):
 
 def printable(pstr):
     return ''.join(char for char in pstr if isprint(char))
+
+
+def connect_url(url):
+    global soup
+    try:
+        page = requests.get(url, headers=S.HEADERS)
+        assert(page.status_code == 200)
+        html = page.content
+        soup = BeautifulSoup(html)
+    except Exception as e:
+        print(e)
+        soup = ''
+    return soup
 
 
 if __name__ == '__main__':

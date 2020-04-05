@@ -24,7 +24,7 @@ MVP_DIR = 'mpv/'
 SHORTLISTED_FILE = ''
 I3_UID = ''
 I3_PWD = ''
-I3_KLSE_URL = ''
+I3_KLSE_URL = "https://klse.i3investor.com"
 I3_PORTFOLIO_URL = ''
 I3_HOLDINGS = ''
 I3_DIVIDEND = ''
@@ -35,6 +35,7 @@ HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36"
 }
+KLSE_LIST = "scrapers/i3investor/klse.txt"
 
 responseTable = " \
 @import \"compass/css3\"; \
