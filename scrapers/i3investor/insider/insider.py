@@ -62,6 +62,12 @@ def unpackInsiderTD(anndt, name, dt, notice, shares, price, direct, indirect, to
             anndt, name, dt, notice, shares, price, direct, indirect, total)
     return anndt, name, dt, notice, shares, \
         price, direct, indirect, total
+    '''
+        float(price.replace('-', '0.00').replace(',', '')), \
+        float(direct.replace('-', '0.00').replace(',', '')), \
+        float(indirect.replace('-', '0.00').replace(',', '')), \
+        float(total.replace('-', '0.00').replace(',', ''))
+    '''
 
 
 def scrapeInsider(counter, scode, soup, lastdt, showLatest=False):
@@ -215,7 +221,7 @@ def getQoQLinks(jsplink):
                                 if "staticfile" in pdflink:
                                     found = True
                                     fname = link.getText().replace('&nbsp;', '')
-                                    pdflinks[I3_URL + pdflink] = fname.strip()
+                                    pdflinks[I3_URL + pdflink] = fname
                                 else:
                                     if found:
                                         break
@@ -310,7 +316,7 @@ def getYoYLinks(jsplink):
                     if "staticfile" in pdflink:
                         found = True
                         fname = link.getText().replace('&nbsp;', '')
-                        pdflinks[I3_URL + pdflink] = fname.strip()
+                        pdflinks[I3_URL + pdflink] = fname
                     else:
                         if found:
                             break
@@ -439,90 +445,6 @@ def formatLatestAR(counter, fy, anndate, announcementDate, latestann, view):
     return tdstr
 
 
-def formatTable(htext, item, tracking):
-    tableStyle = "<style> \
-                    table { \
-                      width:100%; \
-                    } \
-                    table, th, td { \
-                      border: 1px solid black; \
-                      border-collapse: collapse; \
-                    } \
-                    th, td { \
-                      padding: 15px; \
-                      text-align: left; \
-                    } \
-                    table#t01 tr:nth-child(even) { \
-                      background-color: #eee; \
-                    } \
-                    table#t01 tr:nth-child(odd) { \
-                     background-color: #fff; \
-                    } \
-                    table#t01 th { \
-                      background-color: black; \
-                      color: white; \
-                    } \
-                 </style>"
-
-    if htext == "Latest AR":
-        htext = '<table class="responseTable" style=\"width:100%\">\n'
-        htext += "<tr>\n"
-        htext += "<th>Stock</th>\n"
-        htext += "<th>Finance year</th>\n"
-        htext += "<th>Audited Anniverary Date</th>\n"
-        htext += "<th>AR Anniverary Date</th>\n"
-        htext += "<th>Latest Anniverary Date</th>\n"
-        htext += "<th>PDF</th>\n"
-        htext += "</tr>\n"
-        item.insert(0, htext)
-    elif htext == "Latest QR":
-        htext = '<table class="responseTable" style=\"width:100%\">\n'
-        htext += "<tr>\n"
-        htext += "<th>Stock</th>\n"
-        htext += "<th>Announcement Date</th>\n"
-        htext += "<th>Quarter</th>\n"
-        htext += "<th>Q#</th>\n"
-        htext += "<th>Revenue</th>\n"
-        htext += "<th>PBT</th>\n"
-        htext += "<th>NP</th>\n"
-        htext += "<th>DIV</th>\n"
-        htext += "<th>ROE</th>\n"
-        htext += "<th>EPS</th>\n"
-        htext += "<th>DPS</th>\n"
-        htext += "<th>QoQ</th>\n"
-        htext += "<th>YoY</th>\n"
-        htext += "<th>PDF</th>\n"
-        htext += "</tr>\n"
-        item.insert(0, htext)
-    else:
-        htext = '<table class="responseTable" style=\"width:100%\">\n'
-        htext += "<tr>\n"
-        htext += "<th>Stock</th>\n"
-        htext += "<th>Name</th>\n"
-        htext += "<th>Date</th>\n"
-        htext += "<th>Notice</th>\n"
-        htext += "<th>No. of Shares</th>\n"
-        htext += "<th>Price</th>\n"
-        htext += "<th>View</th>\n"
-        htext += "</tr>\n"
-        item.insert(0, htext)
-    # item.insert(0, tableStyle)
-    item.insert(0, "")
-    header = "<h2>Tracking List: {}</h2>".format(tracking.upper())
-    item.insert(0, header)
-    item.append("</table>")
-
-
-def sendmail(counter, item, tracking, addr, htext, emailTitle):
-    if item is None:
-        print "\t\tERR:" + counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + emailTitle
-        return
-    if len(item) > 0:
-        print ("{header}{lst}".format(header="\t" + htext, lst=item))
-        formatTable(htext, item, tracking)
-        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").send(addr, emailTitle, item)
-
-
 def process(stocks="", tradingDate=getToday('%d-%b-%Y')):
     print("Trading date: " + tradingDate)
     latestAR = crawlLatestAR(tradingDate)
@@ -583,6 +505,90 @@ def process(stocks="", tradingDate=getToday('%d-%b-%Y')):
                     sendmail(counter, qrlist, trackinglist, addr, "Latest QR", "Insider: Quarterly Result")
                     sendmail(counter, arlist, trackinglist, addr, "Latest AR", "Insider: Annual Report")
                     print
+
+
+def formatTable(htext, item, tracking):
+    tableStyle = "<style> \
+                    table { \
+                      width:100%; \
+                    } \
+                    table, th, td { \
+                      border: 1px solid black; \
+                      border-collapse: collapse; \
+                    } \
+                    th, td { \
+                      padding: 15px; \
+                      text-align: left; \
+                    } \
+                    table#t01 tr:nth-child(even) { \
+                      background-color: #eee; \
+                    } \
+                    table#t01 tr:nth-child(odd) { \
+                     background-color: #fff; \
+                    } \
+                    table#t01 th { \
+                      background-color: black; \
+                      color: white; \
+                    } \
+                 </style>"
+
+    if htext == "Latest AR":
+        htext = '<table id="t01" style=\"width:100%\">\n'
+        htext += "<tr>\n"
+        htext += "<th>Stock</th>\n"
+        htext += "<th>Finance year</th>\n"
+        htext += "<th>Audited Anniverary Date</th>\n"
+        htext += "<th>AR Anniverary Date</th>\n"
+        htext += "<th>Latest Anniverary Date</th>\n"
+        htext += "<th>PDF</th>\n"
+        htext += "</tr>\n"
+        item.insert(0, htext)
+    elif htext == "Latest QR":
+        htext = '<table id="t01" style=\"width:100%\">\n'
+        htext += "<tr>\n"
+        htext += "<th>Stock</th>\n"
+        htext += "<th>Announcement Date</th>\n"
+        htext += "<th>Quarter</th>\n"
+        htext += "<th>Q#</th>\n"
+        htext += "<th>Revenue</th>\n"
+        htext += "<th>PBT</th>\n"
+        htext += "<th>NP</th>\n"
+        htext += "<th>DIV</th>\n"
+        htext += "<th>ROE</th>\n"
+        htext += "<th>EPS</th>\n"
+        htext += "<th>DPS</th>\n"
+        htext += "<th>QoQ</th>\n"
+        htext += "<th>YoY</th>\n"
+        htext += "<th>PDF</th>\n"
+        htext += "</tr>\n"
+        item.insert(0, htext)
+    else:
+        htext = '<table id="t01" style=\"width:100%\">\n'
+        htext += "<tr>\n"
+        htext += "<th>Stock</th>\n"
+        htext += "<th>Name</th>\n"
+        htext += "<th>Date</th>\n"
+        htext += "<th>Notice</th>\n"
+        htext += "<th>No. of Shares</th>\n"
+        htext += "<th>Price</th>\n"
+        htext += "<th>View</th>\n"
+        htext += "</tr>\n"
+        item.insert(0, htext)
+    item.insert(0, tableStyle)
+    item.insert(0, "")
+    header = "<h2>Tracking List: {}</h2>".format(tracking.upper())
+    item.insert(0, header)
+    item.append("</table>")
+
+
+def sendmail(counter, item, tracking, addr, htext, emailTitle):
+    if item is None:
+        print "\t\tERR:" + counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + emailTitle
+        return
+    if len(item) > 0:
+        print ("{header}{lst}".format(header="\t" + htext, lst=item))
+        formatTable(htext, item, tracking)
+        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").send(addr, emailTitle, item)
 
 
 if __name__ == '__main__':
