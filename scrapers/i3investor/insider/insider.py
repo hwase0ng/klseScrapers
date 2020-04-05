@@ -77,7 +77,7 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
             for name, items in doc.items():
                 # print (name + " : " + str(items))
                 addr = items["email"]
-                print (name + ": " + addr)
+                print (name + ": " + ", ".join(addr))
                 for tracking_list in items.iterkeys():
                     if tracking_list == "email":
                         continue
@@ -113,7 +113,7 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                             getToday("%d-%b-%Y"), tracking_list
                         )
                         yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx"). \
-                            send("roysten.tan@gmail.com", subject, list_result)
+                            send(addr, subject, list_result)
                     # qr = crawlQR(counter)
                     # sendmail(formatQR(counter, *qr), trackinglist, addr, "QR", "Quarterly Result")
                     # send_mail(qr_list, tracking_list, addr, "Latest QR", "Insider: Quarterly Result")

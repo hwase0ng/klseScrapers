@@ -1,6 +1,6 @@
 ---
  roy:
-   email: roysten.tan@gmail.com
+   email: [roysten.tan@gmail.com]
    holdings:
      - bat
      - cypark
@@ -41,7 +41,7 @@
      - wprts
 ---
  bengkang:
-   email: bengkang.tan@gmail.com
+   email: [bengkang.tan@gmail.com, roysten.tan@gmail.com]
    dividends:
      - bat
      - dpih
