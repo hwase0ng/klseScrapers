@@ -6,12 +6,14 @@ Arguments:
 Options:
     -d,--date=<trading_date>    Use provided trading date to search
     -s,--skip=<name>            skip email to name
+    -t,--test=<test_name>       run test on selected function
 
 Created on Mar 7, 2020
 
 @author: hwaseong
 """
 from common import loadCfg
+from scrapers.i3investor.insider.formatLatest import format_ar_qr, format_insider, format_table, format_company
 from scrapers.i3investor.insider.latest import crawl_latest
 from scrapers.i3investor.insider.latestAnnualReports import *
 from scrapers.i3investor.insider.latestQuarterlyReports import *
@@ -19,13 +21,14 @@ from scrapers.i3investor.insider.stk import crawl_insider
 from utils.dateutils import getToday
 from docopt import docopt
 import settings as S
+import styles as T
 import yagmail
 import yaml
 
 
-def process_latest(trading_date=getToday('%d-%b-%Y')):
-    latestDIR, latestSHD, latestCOM = crawl_latest(trading_date)
-    return latestDIR, latestSHD, latestCOM
+def process_latest(trading_date=getToday('%d-%b-%Y'), formatted_output=False):
+    dir_list, shd_list, com_list = crawl_latest(trading_date, formatted_output)
+    return dir_list, shd_list, com_list
 
 
 def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
@@ -38,9 +41,22 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
             stocks = stock_list.split(",")
         else:
             stocks = [stock_list]
+        dir_list, shd_list, qr_list, ar_list = [], [], [], []
         for stock in stocks:
             stock = stock.upper()
-            dir_list, shd_list = crawl_insider(stock, trading_date)
+            di, shd = crawl_insider(stock, trading_date)
+            if di is not None and len(di) > 0:
+                for item in di:
+                    dir_list.append(item)
+            if shd is not None and len(shd) > 0:
+                for item in shd:
+                    shd_list.append(item)
+            if stock in latestQR:
+                qr = latestQR[stock]
+                qr_list.append(format_latest_qr(stock, *qr))
+            if stock in latestAR:
+                ar = latestAR[stock]
+                ar_list.append(format_latest_ar(stock, *ar))
             if len(dir_list) > 0:
                 print ("{header}{lst}".format(header="\tdirectors:", lst=dir_list))
             if len(shd_list) > 0:
@@ -62,117 +78,80 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                 # print (name + " : " + str(items))
                 addr = items["email"]
                 print (name + ": " + addr)
-                for trackinglist in items.iterkeys():
-                    if trackinglist == "email":
+                for tracking_list in items.iterkeys():
+                    if tracking_list == "email":
                         continue
-                    print ("  " + trackinglist + " : ")
-                    dir_list, shd_list, qrlist, arlist = [], [], [], []
-                    for stock in items[trackinglist]:
+                    print ("\t" + tracking_list + " : ")
+                    dir_list, shd_list, com_list, qr_list, ar_list = [], [], [], [], []
+                    dir_title = "Latest Directors Transactions"
+                    shd_title = "Latest Substantial Shareholders Transactions"
+                    com_title = "Latest Company Transactions"
+                    for stock in items[tracking_list]:
                         stock = stock.upper()
-                        di, shd = crawl_insider(stock, trading_date)
-                        if di is not None and len(di) > 0:
-                            for item in di:
+                        res = match_selection(stock, latestDIR, dir_title)
+                        if len(res) > 0:
+                            for item in res:
                                 dir_list.append(item)
-                        if shd is not None and len(shd) > 0:
+                        shd = match_selection(stock, latestSHD, shd_title)
+                        if len(shd) > 0:
                             for item in shd:
                                 shd_list.append(item)
-                        if stock in latestQR:
-                            qr = latestQR[stock]
-                            qrlist.append(format_latest_qr(stock, *qr))
-                        if stock in latestAR:
-                            ar = latestAR[stock]
-                            arlist.append(format_latest_ar(stock, *ar))
-                    send_mail(stock, dir_list, trackinglist, addr, "directors", "Insider tradings:Director")
-                    send_mail(stock, shd_list, trackinglist, addr, "shareholders", "Insider tradings:Shareholder")
+                        com = match_selection(stock, latestCOM, com_title)
+                        if len(com) > 0:
+                            for item in com:
+                                com_list.append(item)
+                    if len(dir_list) > 0:
+                        format_table(dir_title, dir_list)
+                    if len(shd_list) > 0:
+                        format_table(shd_title, shd_list)
+                    if len(com_list) > 0:
+                        format_table(com_title, com_list)
+                    list_result = dir_list + shd_list + com_list
+                    if len(list_result) > 0:
+                        list_result.insert(0, T.browserref)
+                        subject = "INSIDER UPDATE on {} for portfolio: {}".format(
+                            getToday("%d-%b-%Y"), tracking_list
+                        )
+                        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx"). \
+                            send("roysten.tan@gmail.com", subject, list_result)
                     # qr = crawlQR(counter)
                     # sendmail(formatQR(counter, *qr), trackinglist, addr, "QR", "Quarterly Result")
-                    send_mail(stock, qrlist, trackinglist, addr, "Latest QR", "Insider: Quarterly Result")
-                    send_mail(stock, arlist, trackinglist, addr, "Latest AR", "Insider: Annual Report")
-                    print
+                    # send_mail(qr_list, tracking_list, addr, "Latest QR", "Insider: Quarterly Result")
+                    # send_mail(ar_list, tracking_list, addr, "Latest AR", "Insider: Annual Report")
 
 
-def format_table(htext, item, tracking):
-    tableStyle = "<style> \
-                    table { \
-                      width:100%; \
-                    } \
-                    table, th, td { \
-                      border: 1px solid black; \
-                      border-collapse: collapse; \
-                    } \
-                    th, td { \
-                      padding: 15px; \
-                      text-align: left; \
-                    } \
-                    table#t01 tr:nth-child(even) { \
-                      background-color: #eee; \
-                    } \
-                    table#t01 tr:nth-child(odd) { \
-                     background-color: #fff; \
-                    } \
-                    table#t01 th { \
-                      background-color: black; \
-                      color: white; \
-                    } \
-                 </style>"
-
-    if htext == "Latest AR":
-        htext = '<table id="t01" style=\"width:100%\">\n'
-        htext += "<tr>\n"
-        htext += "<th>Stock</th>\n"
-        htext += "<th>Finance year</th>\n"
-        htext += "<th>Audited Anniverary Date</th>\n"
-        htext += "<th>AR Anniverary Date</th>\n"
-        htext += "<th>Latest Anniverary Date</th>\n"
-        htext += "<th>PDF</th>\n"
-        htext += "</tr>\n"
-        item.insert(0, htext)
-    elif htext == "Latest QR":
-        htext = '<table id="t01" style=\"width:100%\">\n'
-        htext += "<tr>\n"
-        htext += "<th>Stock</th>\n"
-        htext += "<th>Announcement Date</th>\n"
-        htext += "<th>Quarter</th>\n"
-        htext += "<th>Q#</th>\n"
-        htext += "<th>Revenue</th>\n"
-        htext += "<th>PBT</th>\n"
-        htext += "<th>NP</th>\n"
-        htext += "<th>DIV</th>\n"
-        htext += "<th>ROE</th>\n"
-        htext += "<th>EPS</th>\n"
-        htext += "<th>DPS</th>\n"
-        htext += "<th>QoQ</th>\n"
-        htext += "<th>YoY</th>\n"
-        htext += "<th>PDF</th>\n"
-        htext += "</tr>\n"
-        item.insert(0, htext)
-    else:
-        htext = '<table id="t01" style=\"width:100%\">\n'
-        htext += "<tr>\n"
-        htext += "<th>Stock</th>\n"
-        htext += "<th>Name</th>\n"
-        htext += "<th>Date</th>\n"
-        htext += "<th>Notice</th>\n"
-        htext += "<th>No. of Shares</th>\n"
-        htext += "<th>Price</th>\n"
-        htext += "<th>View</th>\n"
-        htext += "</tr>\n"
-        item.insert(0, htext)
-    item.insert(0, tableStyle)
-    item.insert(0, "")
-    header = "<h2>{}</h2>".format(tracking.upper())
-    item.insert(0, header)
-    item.append("</table>")
-
-
-def send_mail(counter, item, tracking, addr, htext, emailTitle):
+def send_mail(item, tracking, addr, htext, emailTitle):
     if item is None:
-        print "\t\tERR:" + counter + ": Item is None," + tracking + "," + addr + "," + htext + "," + emailTitle
+        print "\t\tERR:" + ": Item is None," + tracking + "," + addr + "," + htext + "," + emailTitle
         return
     if len(item) > 0:
         print ("{header}{lst}".format(header="\t" + htext, lst=item))
-        format_table(htext, item, tracking)
+        # format_ar_qr(htext, item, tracking)
         yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").send(addr, emailTitle, item)
+
+
+def match_selection(counter, latest_list, list_title):
+    if len(latest_list) == 0:
+        return ""
+    director = "Directors" in list_title
+    company = "Company" in list_title
+    insiders = []
+    for list_item in latest_list:
+        if counter == list_item[0]:
+            if company:
+                [stock, announce_date, from_date, to_date,
+                 chg_type, shares, min_price, max_price, total, view] = list_item
+                insiders.append(format_company(True, stock, announce_date,from_date, to_date,
+                                               chg_type, shares, min_price, max_price, total, view))
+            else:
+                if director:
+                    [stock, announce_date, name, chg_date, chg_type, shares, price, view] = list_item
+                else:
+                    price = ""
+                    [stock, announce_date, name, chg_date, chg_type, shares, view] = list_item
+                insiders.append(format_insider(True, director, stock, announce_date, name, chg_date,
+                                               chg_type, shares, price, view))
+    return insiders
 
 
 if __name__ == '__main__':
@@ -183,12 +162,21 @@ if __name__ == '__main__':
     counters = ""
     if args['COUNTER']:
         counters = args['COUNTER'][0].upper()
-    latestDIR, latestSHD, latestCOM = process_latest(trading_date)
-    yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").send("roysten.tan@gmail.com", "INSIDER",
-                                                                               latestDIR + latestSHD + latestCOM)
-    # if trading_date is not None:
-    #     process(counters, trading_date)
-    # else:
-    #     process(counters)
+    if args['--test'] == "latest":
+        html_output = True
+        latestDIR, latestSHD, latestCOM = process_latest(trading_date, html_output)
+        result = latestDIR + latestSHD + latestCOM
+        if html_output:
+            result.insert(0, T.browserref)
+            yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").\
+                send("roysten.tan@gmail.com", "INSIDER UPDATE: " + getToday("%d-%b-%Y"), result)
+        else:
+            for i in result:
+                print i
+    else:
+        if trading_date is not None:
+            process(counters, trading_date)
+        else:
+            process(counters)
 
     print ('\n...end processing')
