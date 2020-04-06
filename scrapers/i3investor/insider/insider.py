@@ -13,7 +13,7 @@ Created on Mar 7, 2020
 @author: hwaseong
 """
 from common import loadCfg
-from scrapers.i3investor.insider.formatLatest import format_ar_qr, format_insider, format_table, format_company
+from scrapers.i3investor.insider.formatLatest import *
 from scrapers.i3investor.insider.latest import crawl_latest
 from scrapers.i3investor.insider.latestAnnualReports import *
 from scrapers.i3investor.insider.latestQuarterlyReports import *
@@ -32,7 +32,7 @@ def process_latest(trading_date=getToday('%d-%b-%Y'), formatted_output=False):
 
 
 def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
-    latestDIR, latestSHD, latestCOM = process_latest(trading_date)
+    latest_dir, latest_shd, latest_com = process_latest(trading_date)
     print("Trading date: " + trading_date)
     latestAR = crawl_latest_ar(trading_date)
     latestQR = crawl_latest_qr(trading_date)
@@ -88,18 +88,24 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                     com_title = "Latest Company Transactions"
                     for stock in items[tracking_list]:
                         stock = stock.upper()
-                        res = match_selection(stock, latestDIR, dir_title)
+                        res = match_selection(stock, latest_dir, dir_title)
                         if len(res) > 0:
                             for item in res:
                                 dir_list.append(item)
-                        shd = match_selection(stock, latestSHD, shd_title)
+                        shd = match_selection(stock, latest_shd, shd_title)
                         if len(shd) > 0:
                             for item in shd:
                                 shd_list.append(item)
-                        com = match_selection(stock, latestCOM, com_title)
+                        com = match_selection(stock, latest_com, com_title)
                         if len(com) > 0:
                             for item in com:
                                 com_list.append(item)
+                        if stock in latestQR:
+                            qr = latestQR[stock]
+                            qr_list.append(format_latest_qr(stock, *qr))
+                        if stock in latestAR:
+                            ar = latestAR[stock]
+                            ar_list.append(format_latest_ar(stock, *ar))
                     if len(dir_list) > 0:
                         format_table(dir_title, dir_list)
                     if len(shd_list) > 0:
@@ -118,6 +124,22 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                     # sendmail(formatQR(counter, *qr), trackinglist, addr, "QR", "Quarterly Result")
                     # send_mail(qr_list, tracking_list, addr, "Latest QR", "Insider: Quarterly Result")
                     # send_mail(ar_list, tracking_list, addr, "Latest AR", "Insider: Annual Report")
+                    if len(qr_list) > 0:
+                        qr_title = "Quarterly Results"
+                        format_ar_qr(qr_title, qr_list)
+                        subject = "INSIDER UPDATE on {}, Quarterly Result for portfolio: {}".format(
+                            getToday("%d-%b-%Y"), tracking_list
+                        )
+                        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx"). \
+                            send(addr, subject, qr_list)
+                    if len(ar_list) > 0:
+                        ar_title = "Annual Reports"
+                        format_ar_qr(ar_title, ar_list)
+                        subject = "INSIDER UPDATE on {}, Annual Reports for portfolio: {}".format(
+                            getToday("%d-%b-%Y"), tracking_list
+                        )
+                        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx"). \
+                            send(addr, subject, ar_list)
 
 
 def send_mail(item, tracking, addr, htext, emailTitle):

@@ -44,20 +44,20 @@ def scrape_latest_ar(soup, trading_date):
                 else:
                     print ("INFO: Duplicated announcement: " + stock + ":" + latestann + ":" + announcementDate)
             else:
-                anndt = change2KlseDateFmt(announcementDate, "%d-%b-%Y")
-                trddt = change2KlseDateFmt(trading_date, "%d-%b-%Y")
+                ann_dt = change2KlseDateFmt(announcementDate, "%d-%b-%Y")
+                trd_dt = change2KlseDateFmt(trading_date, "%d-%b-%Y")
                 if S.DBG_QR:
-                    print("DBG:dates:{0}:{1}".format(anndt, trddt))
-                if anndt < trddt:
+                    print("DBG:dates:{0}:{1}".format(ann_dt, trd_dt))
+                if ann_dt < trd_dt:
                     break
     return ar_list
 
 
-def unpack_latest_ar(stock, fy, anndate, announce_date, latestann, view):
+def unpack_latest_ar(stock, fy, ann_date, announce_date, latest_ann, view):
     if S.DBG_QR:
         print "DBG:{0},{1},{2},{3},{4}".format(
-            stock, fy, anndate, announce_date, latestann)
-    return [stock, fy, anndate, announce_date, latestann]
+            stock, fy, ann_date, announce_date, latest_ann)
+    return [stock, fy, ann_date, announce_date, latest_ann]
 
 
 def get_yoy_links(jsp_link):
@@ -92,25 +92,3 @@ def get_yoy_links(jsp_link):
         if found:
             break
     return pdf_links
-
-
-def format_latest_ar(counter, fy, anndate, announcementDate, latestann, view):
-    if S.DBG_ALL or S.DBG_QR:
-        print("%s, %s, %s, %s, %s" %
-              (counter, fy, anndate, announcementDate, latestann))
-    tdstr = "<tr>"
-    tdstr += "<td>{}</td>\n".format(counter)
-    tdstr += "<td>{}</td>\n".format(fy)
-    tdstr += "<td>{}</td>\n".format(anndate)
-    tdstr += "<td>{}</td>\n".format(announcementDate)
-    tdstr += "<td>{}</td>\n".format(latestann)
-    tdstr += "<td>"
-    for link in view:
-        pdf_name = view[link].strip()
-        link = link.strip()
-        pdf_link = '<li><a href="{}">{}</a></li>'.format(link, pdf_name)
-        tdstr += ('{}\n'.format(pdf_link))
-        # td_str += '\n\tlink=' + pdf_link
-    tdstr += "</td>"
-    tdstr += "</tr>"
-    return tdstr

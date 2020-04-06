@@ -1,6 +1,6 @@
 ---
  roy:
-   email: [roysten.tan@gmail.com]
+   email: [hwaseong.tan@gmail.com]
    holdings:
      - bat
      - cypark
@@ -21,7 +21,7 @@
      - notion
      - opensys
      - salute
-   dividends:
+   dividends_2:
      - aji
      - bursa
      - carlsbg
@@ -41,7 +41,7 @@
      - wprts
 ---
  bengkang:
-   email: [bengkang.tan@gmail.com, roysten.tan@gmail.com]
+   email: [bengkang.tan@gmail.com, hwaseong.tan@gmail.com]
    dividends:
      - bat
      - dpih

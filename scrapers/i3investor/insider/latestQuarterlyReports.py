@@ -23,14 +23,14 @@ def unpack_qr(fy, announce_date, qd, qn,
     return [qd, qn, rev, pbt, np, div, roe, eps, dps, annEY, annDY, qoq, yoy]
 
 
-def scrape_qr(counter, scode, soup):
+def scrape_qr(counter, stk_code, soup):
     if soup is None or len(soup) <= 0:
         print ('QR ERR: no result for <' + counter + '>')
         return None
     table = soup.find('table', {'class': 'nc'})
     if table is None:
         if S.DBG_ALL:
-            print ('INFO: No QR data is available for <' + counter + "." + scode + '>')
+            print ('INFO: No QR data is available for <' + counter + "." + stk_code + '>')
         return None
     qr_list = []
     for tr in table.findAll('tr'):
@@ -157,42 +157,10 @@ def scrape_latest_qr(soup, trading_date):
                 else:
                     print ("INFO: Duplicated announcement: " + stock + ":" + qd + ":Q" + qn)
             else:
-                anndt = change2KlseDateFmt(announcementDate, "%d-%b-%Y")
-                trddt = change2KlseDateFmt(trading_date, "%d-%b-%Y")
+                ann_dt = change2KlseDateFmt(announcementDate, "%d-%b-%Y")
+                trd_dt = change2KlseDateFmt(trading_date, "%d-%b-%Y")
                 if S.DBG_QR:
-                    print("DBG:dates:{0}:{1}".format(anndt, trddt))
-                if anndt < trddt:
+                    print("DBG:dates:{0}:{1}".format(ann_dt, trd_dt))
+                if ann_dt < trd_dt:
                     break
     return qrlist
-
-
-def format_latest_qr(counter, announcement_date, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy, jsp_link):
-    if S.DBG_ALL or S.DBG_QR:
-        print("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" %
-              (counter, announcement_date, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy))
-        for link in jsp_link:
-            print('\t' + link)
-    td_str = "<tr>"
-    td_str += "<td>{}</td>\n".format(counter)
-    td_str += "<td>{}</td>\n".format(announcement_date)
-    td_str += "<td>{}</td>\n".format(qd)
-    td_str += "<td>{}</td>\n".format(qn)
-    td_str += "<td>{}</td>\n".format(rev)
-    td_str += "<td>{}</td>\n".format(pbt)
-    td_str += "<td>{}</td>\n".format(np)
-    td_str += "<td>{}</td>\n".format(div)
-    td_str += "<td>{}</td>\n".format(roe)
-    td_str += "<td>{}</td>\n".format(eps)
-    td_str += "<td>{}</td>\n".format(dps)
-    td_str += "<td>{}</td>\n".format(qoq)
-    td_str += "<td>{}</td>\n".format(yoy)
-    td_str += "<td>"
-    for link in jsp_link:
-        pdf_name = jsp_link[link].strip()
-        link = link.strip()
-        pdf_link = '<li><a href="{}">{}</a></li>'.format(link, pdf_name)
-        td_str += ('{}\n'.format(pdf_link))
-        # td_str += '\n\tlink=' + pdf_link
-    td_str += "</td>"
-    td_str += "</tr>"
-    return td_str
