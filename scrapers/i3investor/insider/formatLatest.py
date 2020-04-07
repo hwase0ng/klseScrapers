@@ -60,9 +60,9 @@ def format_company(formatted_output, counter, announce_date, from_date, to_date,
 
 
 def format_table(table_title, insider_list):
+    table_heading = '<table id="t01" style=\"width:100%\">'
+    table_heading += "<tr>"
     if "Company" in table_title:
-        table_heading = '<table id="t01" style=\"width:100%\">'
-        table_heading += "<tr>"
         table_heading += "<th>Stock</th>"
         table_heading += "<th>Ann.Date</th>"
         table_heading += "<th>From</th>"
@@ -73,10 +73,7 @@ def format_table(table_title, insider_list):
         table_heading += "<th>Max Price</th>"
         table_heading += "<th>Total</th>"
         table_heading += "<th>View</th>"
-        table_heading += "</tr>"
     else:
-        table_heading = '<table id="t01" style=\"width:100%\">'
-        table_heading += "<tr>"
         table_heading += "<th>Stock</th>"
         table_heading += "<th>Ann.Date</th>"
         table_heading += "<th>Name</th>"
@@ -86,8 +83,9 @@ def format_table(table_title, insider_list):
         if "Directors" in table_title:
             table_heading += "<th>Price</th>"
         table_heading += "<th>View</th>"
-        table_heading += "</tr>"
+    table_heading += "</tr>"
     insider_list.insert(0, table_heading)
+    insider_list.insert(0, T.browserref)
     insider_list.insert(0, "<h2>{}</h2>".format(table_title))
     insider_list.insert(0, "<body>")
     insider_list.insert(0, "<html>")
@@ -97,20 +95,17 @@ def format_table(table_title, insider_list):
     insider_list.append("</html>")
 
 
-def format_ar_qr(title, item):
+def format_ar_qr_table(title, item):
+    table_heading = '<table id="t01" style=\"width:100%\">'
+    table_heading += "<tr>"
     if title == "Annual Results":
-        table_heading = '<table id="t01" style=\"width:100%\">'
-        table_heading += "<tr>"
         table_heading += "<th>Stock</th>"
         table_heading += "<th>Finance year</th>"
         table_heading += "<th>Audited Anniversary Date</th>"
         table_heading += "<th>AR Anniversary Date</th>"
         table_heading += "<th>Latest Anniversary Date</th>"
         table_heading += "<th>PDF</th>"
-        table_heading += "</tr>"
     else:
-        table_heading = '<table id="t01" style=\"width:100%\">'
-        table_heading += "<tr>"
         table_heading += "<th>Stock</th>"
         table_heading += "<th>Announcement Date</th>"
         table_heading += "<th>Quarter</th>"
@@ -125,9 +120,9 @@ def format_ar_qr(title, item):
         table_heading += "<th>QoQ</th>"
         table_heading += "<th>YoY</th>"
         table_heading += "<th>PDF</th>"
-        table_heading += "</tr>"
+    table_heading += "</tr>"
     item.insert(0, table_heading)
-    item.insert(0, T.t01)
+    item.insert(0, T.browserref)
     item.insert(0, "<h2>{}</h2>".format(title))
     item.insert(0, "<body>")
     item.insert(0, "<html>")
@@ -142,17 +137,17 @@ def format_latest_ar(counter, fy, anndate, announcementDate, latestann, view):
         print("%s, %s, %s, %s, %s" %
               (counter, fy, anndate, announcementDate, latestann))
     tdstr = "<tr>"
-    tdstr += "<td>{}</td>\n".format(counter)
-    tdstr += "<td>{}</td>\n".format(fy)
-    tdstr += "<td>{}</td>\n".format(anndate)
-    tdstr += "<td>{}</td>\n".format(announcementDate)
-    tdstr += "<td>{}</td>\n".format(latestann)
+    tdstr += "<td>{}</td>".format(counter)
+    tdstr += "<td>{}</td>".format(fy)
+    tdstr += "<td>{}</td>".format(anndate)
+    tdstr += "<td>{}</td>".format(announcementDate)
+    tdstr += "<td>{}</td>".format(latestann)
     tdstr += "<td>"
     for link in view:
         pdf_name = view[link].strip()
         link = link.strip()
         pdf_link = '<li><a href="{}">{}</a></li>'.format(link, pdf_name)
-        tdstr += ('{}\n'.format(pdf_link))
+        tdstr += ('{}'.format(pdf_link))
         # td_str += '\n\tlink=' + pdf_link
     tdstr += "</td>"
     tdstr += "</tr>"
@@ -166,25 +161,25 @@ def format_latest_qr(counter, announcement_date, qd, qn, rev, pbt, np, div, roe,
         for link in jsp_link:
             print('\t' + link)
     td_str = "<tr>"
-    td_str += "<td>{}</td>\n".format(counter)
-    td_str += "<td>{}</td>\n".format(announcement_date)
-    td_str += "<td>{}</td>\n".format(qd)
-    td_str += "<td>{}</td>\n".format(qn)
-    td_str += "<td>{}</td>\n".format(rev)
-    td_str += "<td>{}</td>\n".format(pbt)
-    td_str += "<td>{}</td>\n".format(np)
-    td_str += "<td>{}</td>\n".format(div)
-    td_str += "<td>{}</td>\n".format(roe)
-    td_str += "<td>{}</td>\n".format(eps)
-    td_str += "<td>{}</td>\n".format(dps)
-    td_str += "<td>{}</td>\n".format(qoq)
-    td_str += "<td>{}</td>\n".format(yoy)
+    td_str += "<td>{}</td>".format(counter)
+    td_str += "<td>{}</td>".format(announcement_date)
+    td_str += "<td>{}</td>".format(qd)
+    td_str += "<td>{}</td>".format(qn)
+    td_str += "<td>{}</td>".format(rev)
+    td_str += "<td>{}</td>".format(pbt)
+    td_str += "<td>{}</td>".format(np)
+    td_str += "<td>{}</td>".format(div)
+    td_str += "<td>{}</td>".format(roe)
+    td_str += "<td>{}</td>".format(eps)
+    td_str += "<td>{}</td>".format(dps)
+    td_str += "<td>{}</td>".format(qoq)
+    td_str += "<td>{}</td>".format(yoy)
     td_str += "<td>"
     for link in jsp_link:
         pdf_name = jsp_link[link].strip()
         link = link.strip()
         pdf_link = '<li><a href="{}">{}</a></li>'.format(link, pdf_name)
-        td_str += ('{}\n'.format(pdf_link))
+        td_str += ('{}'.format(pdf_link))
         # td_str += '\n\tlink=' + pdf_link
     td_str += "</td>"
     td_str += "</tr>"

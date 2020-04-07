@@ -29,7 +29,7 @@ def scrape_latest_ar(soup, trading_date):
             for x in latestAR:
                 print repr(x)
         if len(latestAR) > 0:
-            [stock, fy, anndate, announcementDate, latestann] = unpack_latest_ar(*latestAR)
+            [stock, fy, ann_date, announcementDate, latest_ann] = unpack_latest_ar(*latestAR)
             if announcementDate == trading_date:
                 if stock not in ar_list:
                     links = tr.findAll('a')
@@ -40,9 +40,9 @@ def scrape_latest_ar(soup, trading_date):
                             jsp_link = get_yoy_links(jsp_link)
                             if len(jsp_link) > 0:
                                 break
-                    ar_list[stock] = [fy, anndate, announcementDate, latestann, jsp_link]
+                    ar_list[stock] = [fy, ann_date, announcementDate, latest_ann, jsp_link]
                 else:
-                    print ("INFO: Duplicated announcement: " + stock + ":" + latestann + ":" + announcementDate)
+                    print ("INFO: Duplicated announcement: " + stock + ":" + latest_ann + ":" + announcementDate)
             else:
                 ann_dt = change2KlseDateFmt(announcementDate, "%d-%b-%Y")
                 trd_dt = change2KlseDateFmt(trading_date, "%d-%b-%Y")
@@ -80,8 +80,8 @@ def get_yoy_links(jsp_link):
                         continue
                     if "staticfile" in pdf_link:
                         found = True
-                        fname = link.getText().replace('&nbsp;', '')
-                        pdf_links[S.I3_KLSE_URL + pdf_link] = fname.strip()
+                        f_name = link.getText().replace('&nbsp;', '')
+                        pdf_links[S.I3_KLSE_URL + pdf_link] = f_name.strip()
                     else:
                         if found:
                             break

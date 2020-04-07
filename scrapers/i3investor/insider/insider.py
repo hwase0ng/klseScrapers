@@ -78,10 +78,13 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                 # print (name + " : " + str(items))
                 addr = items["email"]
                 print (name + ": " + ", ".join(addr))
+                if name == skip_name:
+                    print ("\tSkipped")
+                    break
                 for tracking_list in items.iterkeys():
                     if tracking_list == "email":
                         continue
-                    print ("\t" + tracking_list + " : ")
+                    print ("\t" + tracking_list)
                     dir_list, shd_list, com_list, qr_list, ar_list = [], [], [], [], []
                     dir_title = "Latest Directors Transactions"
                     shd_title = "Latest Substantial Shareholders Transactions"
@@ -114,13 +117,13 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         format_table(com_title, com_list)
                     if len(qr_list) > 0:
                         qr_title = "Quarterly Results"
-                        format_ar_qr(qr_title, qr_list)
+                        format_ar_qr_table(qr_title, qr_list)
                     if len(ar_list) > 0:
                         ar_title = "Annual Reports"
-                        format_ar_qr(ar_title, ar_list)
-                    list_result = dir_list + shd_list + com_list + qr_list + ar_list
+                        format_ar_qr_table(ar_title, ar_list)
+                    list_result = qr_list + ar_list + dir_list + shd_list + com_list
                     if len(list_result) > 0:
-                        list_result.insert(0, T.browserref)
+                        list_result.insert(0, T.t01)
                         subject = "INSIDER UPDATE on {} for portfolio: {}".format(
                             getToday("%d-%b-%Y"), tracking_list.upper()
                         )
@@ -155,6 +158,8 @@ if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = loadCfg(S.DATA_DIR)
 
+    global skip_name
+    skip_name = args['--skip']
     trading_date = args['--date']
     counters = ""
     if args['COUNTER']:

@@ -132,7 +132,7 @@ def scrape_latest_qr(soup, trading_date):
         if S.DBG_ALL:
             print ('INFO: No Latest QR data is available')
         return None
-    qrlist = {}
+    qr_list = {}
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
         latestQR = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
@@ -144,7 +144,7 @@ def scrape_latest_qr(soup, trading_date):
         if len(latestQR) > 0:
             [stock, announcementDate, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy] = unpack_latest_qr(*latestQR)
             if announcementDate == trading_date:
-                if stock not in qrlist:
+                if stock not in qr_list:
                     links = tr.findAll('a')
                     jsp_link = ""
                     for link in links:
@@ -153,7 +153,7 @@ def scrape_latest_qr(soup, trading_date):
                             jsp_link = get_qoq_links(jsp_link)
                             if len(jsp_link) > 0:
                                 break
-                    qrlist[stock] = [announcementDate, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy, jsp_link]
+                    qr_list[stock] = [announcementDate, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy, jsp_link]
                 else:
                     print ("INFO: Duplicated announcement: " + stock + ":" + qd + ":Q" + qn)
             else:
@@ -163,4 +163,4 @@ def scrape_latest_qr(soup, trading_date):
                     print("DBG:dates:{0}:{1}".format(ann_dt, trd_dt))
                 if ann_dt < trd_dt:
                     break
-    return qrlist
+    return qr_list
