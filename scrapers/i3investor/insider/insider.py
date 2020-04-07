@@ -112,44 +112,19 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         format_table(shd_title, shd_list)
                     if len(com_list) > 0:
                         format_table(com_title, com_list)
-                    list_result = dir_list + shd_list + com_list
-                    if len(list_result) > 0:
-                        list_result.insert(0, T.browserref)
-                        subject = "INSIDER UPDATE on {} for portfolio: {}".format(
-                            getToday("%d-%b-%Y"), tracking_list
-                        )
-                        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx"). \
-                            send(addr, subject, list_result)
-                    # qr = crawlQR(counter)
-                    # sendmail(formatQR(counter, *qr), trackinglist, addr, "QR", "Quarterly Result")
-                    # send_mail(qr_list, tracking_list, addr, "Latest QR", "Insider: Quarterly Result")
-                    # send_mail(ar_list, tracking_list, addr, "Latest AR", "Insider: Annual Report")
                     if len(qr_list) > 0:
                         qr_title = "Quarterly Results"
                         format_ar_qr(qr_title, qr_list)
-                        subject = "INSIDER UPDATE on {}, Quarterly Result for portfolio: {}".format(
-                            getToday("%d-%b-%Y"), tracking_list
-                        )
-                        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx"). \
-                            send(addr, subject, qr_list)
                     if len(ar_list) > 0:
                         ar_title = "Annual Reports"
                         format_ar_qr(ar_title, ar_list)
-                        subject = "INSIDER UPDATE on {}, Annual Reports for portfolio: {}".format(
-                            getToday("%d-%b-%Y"), tracking_list
+                    list_result = dir_list + shd_list + com_list + qr_list + ar_list
+                    if len(list_result) > 0:
+                        list_result.insert(0, T.browserref)
+                        subject = "INSIDER UPDATE on {} for portfolio: {}".format(
+                            getToday("%d-%b-%Y"), tracking_list.upper()
                         )
-                        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx"). \
-                            send(addr, subject, ar_list)
-
-
-def send_mail(item, tracking, addr, htext, emailTitle):
-    if item is None:
-        print "\t\tERR:" + ": Item is None," + tracking + "," + addr + "," + htext + "," + emailTitle
-        return
-    if len(item) > 0:
-        print ("{header}{lst}".format(header="\t" + htext, lst=item))
-        # format_ar_qr(htext, item, tracking)
-        yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").send(addr, emailTitle, item)
+                        yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD).send(addr, subject, list_result)
 
 
 def match_selection(counter, latest_list, list_title):
@@ -190,7 +165,7 @@ if __name__ == '__main__':
         result = latestDIR + latestSHD + latestCOM
         if html_output:
             result.insert(0, T.browserref)
-            yagmail.SMTP("insider4trader@gmail.com", password="vwxaotmoawdfwxzx").\
+            yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD). \
                 send("roysten.tan@gmail.com", "INSIDER UPDATE: " + getToday("%d-%b-%Y"), result)
         else:
             for i in result:
