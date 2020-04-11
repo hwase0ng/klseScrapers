@@ -13,6 +13,7 @@ Created on Mar 7, 2020
 @author: hwaseong
 """
 from common import loadCfg
+from scrapers.i3investor.insider.add_listing import crawl_listing
 from scrapers.i3investor.insider.entitlements import crawl_entitlement
 from scrapers.i3investor.insider.format_insiders import *
 from scrapers.i3investor.insider.latest import crawl_latest
@@ -27,14 +28,10 @@ import yagmail
 import yaml
 
 
-def process_latest(trading_date=getToday('%d-%b-%Y'), formatted_output=False):
-    dir_list, shd_list, com_list = crawl_latest(trading_date, formatted_output)
-    div_list, bonus_list = crawl_entitlement(trading_date, formatted_output)
-    return dir_list, shd_list, com_list, div_list, bonus_list
-
-
 def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
-    latest_dir, latest_shd, latest_com, latest_div, latest_bonus = process_latest(trading_date)
+    latest_dir, latest_shd, latest_com = crawl_latest(trading_date)
+    latest_div, latest_bonus = crawl_entitlement(trading_date)
+    latest_listing = crawl_listing(trading_date)
     print("Trading date: " + trading_date)
     latestAR = crawl_latest_ar(trading_date)
     latestQR = crawl_latest_qr(trading_date)
@@ -88,26 +85,30 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         continue
                     print ("\t" + tracking_list)
                     dir_list, shd_list, com_list, qr_list, ar_list = [], [], [], [], []
-                    div_list, bns_list = [], []
+                    div_list, bns_list, listing_list = [], [], []
                     dir_title = "Latest Directors Transactions"
                     shd_title = "Latest Substantial Shareholders Transactions"
                     com_title = "Latest Company Transactions"
+                    qr_title = "Quarterly Results"
+                    ar_title = "Annual Reports"
+                    div_title = "Latest Dividend"
+                    bns_title = "Latest Bonus, Share Split & Consolidation"
+                    listing_title = "Latest Listing"
                     for stock in items[tracking_list]:
                         stock = stock.upper()
                         '''
-                        res = match_selection(stock, latest_dir, dir_title)
-                        if len(res) > 0:
-                            for item in res:
-                                dir_list.append(item)
-                        shd = match_selection(stock, latest_shd, shd_title)
-                        if len(shd) > 0:
-                            for item in shd:
-                                shd_list.append(item)
-                        com = match_selection(stock, latest_com, com_title)
-                        if len(com) > 0:
-                            for item in com:
-                                com_list.append(item)
-                        '''
+                        # res = match_selection(stock, latest_dir, dir_title)
+                        # if len(res) > 0:
+                        #     for item in res:
+                        #         dir_list.append(item)
+                        # shd = match_selection(stock, latest_shd, shd_title)
+                        # if len(shd) > 0:
+                        #     for item in shd:
+                        #         shd_list.append(item)
+                        # com = match_selection(stock, latest_com, com_title)
+                        # if len(com) > 0:
+                        #     for item in com:
+                        #         com_list.append(item)
                         if stock in latest_dir:
                             dr = latest_dir[stock]
                             for item in dr:
@@ -120,6 +121,13 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                             com = latest_com[stock]
                             for item in com:
                                 com_list.append(format_company(True, *item))
+                        '''
+                        f = format_decorator(format_director)
+                        dir_list = f(stock, latest_dir)
+                        f = format_decorator(format_shareholder)
+                        shd_list = f(stock, latest_shd)
+                        f = format_decorator(format_company)
+                        com_list = f(stock, latest_com)
                         if stock in latestQR:
                             qr = latestQR[stock]
                             qr_list.append(format_latest_qr(stock, *qr))
@@ -132,31 +140,39 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         if stock in latest_bonus:
                             bns = latest_bonus[stock]
                             bns_list.append(format_dividend(stock, *bns))
-                    if len(dir_list) > 0:
-                        format_table_insiders(dir_title, dir_list)
-                    if len(shd_list) > 0:
-                        format_table_insiders(shd_title, shd_list)
-                    if len(com_list) > 0:
-                        format_table_insiders(com_title, com_list)
-                    if len(qr_list) > 0:
-                        qr_title = "Quarterly Results"
-                        format_ar_qr_table(qr_title, qr_list)
-                    if len(ar_list) > 0:
-                        ar_title = "Annual Reports"
-                        format_ar_qr_table(ar_title, ar_list)
-                    if len(div_list) > 0:
-                        div_title = "Latest Dividend"
-                        format_table_entitlement(div_title, div_list)
-                    if len(div_list) > 0:
-                        bns_title = "Latest Bonus, Share Split & Consolidation"
-                        format_table_entitlement(bns_title, bns_list)
-                    list_result = div_list + bns_list + qr_list + ar_list + dir_list + shd_list + com_list
+                        if stock in latest_listing:
+                            listing = latest_listing[stock]
+                            listing_list.append(format_listing(stock, *listing))
+                    format_table_insiders(dir_title, dir_list)
+                    format_table_insiders(shd_title, shd_list)
+                    format_table_insiders(com_title, com_list)
+                    format_ar_qr_table(qr_title, qr_list)
+                    format_ar_qr_table(ar_title, ar_list)
+                    format_table_entitlement(div_title, div_list)
+                    format_table_entitlement(bns_title, bns_list)
+                    format_table_entitlement(listing_title, listing_list)
+                    list_result = \
+                        div_list + bns_list + qr_list + ar_list + dir_list + \
+                        shd_list + com_list
                     if len(list_result) > 0:
                         list_result.insert(0, T.t01)
                         subject = "INSIDER UPDATE on {} for portfolio: {}".format(
                             getToday("%d-%b-%Y"), tracking_list.upper()
                         )
                         yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD).send(addr, subject, list_result)
+
+
+# python decorator as high order function
+def format_decorator(func):
+    def wrapper(stock, latest_list):
+        new_list = []
+        if stock in latest_list:
+            dr = latest_list[stock]
+            for item in dr:
+                new_list.append(func(True, *item))
+        return new_list
+
+    return wrapper
 
 
 def match_selection(counter, latest_list, list_title):
@@ -193,12 +209,11 @@ if __name__ == '__main__':
     counters = ""
     if args['COUNTER']:
         counters = args['COUNTER'][0].upper()
-    if args['--test'] == "latest":
+    if args['--test']:
         html_output = True
-        latestDIR, latestSHD, latestCOM, latestDIV, latestBonus = process_latest(insider_date, html_output)
-        result = latestDIR + latestSHD + latestCOM + latestDIV + latestBonus
+        result = crawl_listing(insider_date, html_output)
         if html_output:
-            result.insert(0, T.browserref)
+            result.insert(0, T.t01)
             yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD). \
                 send("roysten.tan@gmail.com", "INSIDER UPDATE: " + getToday("%d-%b-%Y"), result)
         else:

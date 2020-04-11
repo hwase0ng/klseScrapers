@@ -68,6 +68,8 @@ def format_company(formatted_output, counter, announce_date, from_date, to_date,
 
 
 def format_table_insiders(table_title, insider_list):
+    if len(insider_list) <= 0:
+        return
     table_heading = '<table id="t01" style=\"width:100%\">'
     table_heading += "<tr>"
     if "Company" in table_title:
@@ -96,6 +98,8 @@ def format_table_insiders(table_title, insider_list):
 
 
 def format_ar_qr_table(title, financial_list):
+    if len(financial_list) <= 0:
+        return
     table_heading = '<table id="t01" style=\"width:100%\">'
     table_heading += "<tr>"
     if title == "Annual Results":
@@ -124,26 +128,26 @@ def format_ar_qr_table(title, financial_list):
     format_table(title, financial_list, table_heading)
 
 
-def format_latest_ar(counter, fy, ann_date, announce_date, latestann, view):
+def format_latest_ar(counter, fy, ann_date, announce_date, latest_ann, view):
     if S.DBG_ALL or S.DBG_QR:
         print("%s, %s, %s, %s, %s" %
-              (counter, fy, ann_date, announce_date, latestann))
-    tdstr = "<tr>"
-    tdstr += "<td>{}</td>".format(counter)
-    tdstr += "<td>{}</td>".format(fy)
-    tdstr += "<td>{}</td>".format(ann_date)
-    tdstr += "<td>{}</td>".format(announce_date)
-    tdstr += "<td>{}</td>".format(latestann)
-    tdstr += "<td>"
+              (counter, fy, ann_date, announce_date, latest_ann))
+    td_str = "<tr>"
+    td_str += "<td>{}</td>".format(counter)
+    td_str += "<td>{}</td>".format(fy)
+    td_str += "<td>{}</td>".format(ann_date)
+    td_str += "<td>{}</td>".format(announce_date)
+    td_str += "<td>{}</td>".format(latest_ann)
+    td_str += "<td>"
     for link in view:
         pdf_name = view[link].strip()
         link = link.strip()
         pdf_link = '<li><a href="{}">{}</a></li>'.format(link, pdf_name)
-        tdstr += ('{}'.format(pdf_link))
+        td_str += ('{}'.format(pdf_link))
         # td_str += '\n\tlink=' + pdf_link
-    tdstr += "</td>"
-    tdstr += "</tr>"
-    return tdstr
+    td_str += "</td>"
+    td_str += "</tr>"
+    return td_str
 
 
 def format_latest_qr(counter, announcement_date, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy, jsp_link):
@@ -211,6 +215,8 @@ def format_dividend(formatted_output, others,
 
 
 def format_table_entitlement(table_title, entitle_list):
+    if len(entitle_list) <= 0:
+        return entitle_list
     table_heading = '<table id="t01" style=\"width:100%\">'
     table_heading += "<tr>"
     table_heading += "<th>Ann.Date</th>"
@@ -227,6 +233,40 @@ def format_table_entitlement(table_title, entitle_list):
     table_heading += "<th>View</th>"
     table_heading += "</tr>"
     format_table(table_title, entitle_list, table_heading)
+
+
+def format_listing(formatted_output,
+                   stock, announce_date, listing_date, list_type, units, price, view):
+    if formatted_output:
+        td_str = "<tr>"
+        td_str += "<td>{}</td>".format(stock)
+        td_str += "<td>{}</td>".format(announce_date)
+        td_str += "<td>{}</td>".format(listing_date)
+        td_str += "<td>{}</td>".format(list_type)
+        td_str += "<td>{}</td>".format(units)
+        td_str += "<td>{}</td>".format(price)
+        link = '<a href="{}">{}</a>'.format(view, "link")
+        td_str += ('<td>{}</td>'.format(link))
+        td_str += "</tr>"
+    else:
+        td_str = [stock, announce_date, listing_date, list_type, units, price, view]
+    return td_str
+
+
+def format_table_listing(table_title, listing_list):
+    if len(listing_list) <= 0:
+        return
+    table_heading = '<table id="t01" style=\"width:100%\">'
+    table_heading += "<tr>"
+    table_heading += "<th>Stock</th>"
+    table_heading += "<th>Ann.Date</th>"
+    table_heading += "<th>Date</th>"
+    table_heading += "<th>Type</th>"
+    table_heading += "<th>Units</th>"
+    table_heading += "<th>Price</th>"
+    table_heading += "<th>View</th>"
+    table_heading += "</tr>"
+    format_table(table_title, listing_list, table_heading)
 
 
 def format_table(table_title, table_list, table_head):

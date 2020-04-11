@@ -13,7 +13,11 @@ def crawl_latest(trading_date=getToday("%d-%b-%Y"), formatted_output=True):
     url = I3_INSIDER_DIRECTOR_URL
     latest_dir = scrape_latest(connect_url(url), url, trading_date, formatted_output)
     if formatted_output and len(latest_dir) > 0:
-        format_table_insiders("Latest Directors Transactions", latest_dir)
+        new_list = []
+        for key in latest_dir:
+            new_list.append(latest_dir[key])
+        format_table_insiders("Latest Directors Transactions", new_list)
+        # return new_list
 
     url = I3_INSIDER_SHAREHOLDER_URL
     latest_shd = scrape_latest(connect_url(url), url, trading_date, formatted_output)

@@ -6,8 +6,7 @@ I3_LATEST_AR_URL = S.I3_KLSE_URL + '/financial/annual/latest.jsp'
 
 
 def crawl_latest_ar(trading_date=getToday("%d-%b-%Y")):
-    latestAR = scrape_latest_ar(connect_url(I3_LATEST_AR_URL), trading_date)
-    return latestAR
+    return scrape_latest_ar(connect_url(I3_LATEST_AR_URL), trading_date)
 
 
 def scrape_latest_ar(soup, trading_date):
