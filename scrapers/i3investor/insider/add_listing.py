@@ -7,8 +7,7 @@ I3_LISTING_URL = S.I3_KLSE_URL + '/additionalListing/latest.jsp'
 
 
 def crawl_listing(trading_date=getToday("%d-%b-%Y"), formatted_output=True):
-    url = I3_LISTING_URL
-    latest_listings = scrape_listing(connect_url(url), url, trading_date, formatted_output)
+    latest_listings = scrape_listing(connect_url(I3_LISTING_URL), trading_date, formatted_output)
     if formatted_output and len(latest_listings) > 0:
         new_list = []
         for key in latest_listings:
@@ -19,14 +18,14 @@ def crawl_listing(trading_date=getToday("%d-%b-%Y"), formatted_output=True):
     return latest_listings
 
 
-def scrape_listing(soup, url, trading_date, formatted_output):
+def scrape_listing(soup, trading_date, formatted_output):
     if soup is None:
-        print ('Insider ERR: no result for <' + url + '>')
+        print ('Insider ERR: no result for <' + I3_LISTING_URL + '>')
         return None
     table = soup.find('table', {'class': 'nc'})
     if table is None:
         if S.DBG_ALL:
-            print ('INFO: No insider data is available for <' + url + '>')
+            print ('INFO: No insider data is available for <' + I3_LISTING_URL + '>')
         return None
     listings = {}
     for tr in table.findAll('tr'):
@@ -49,11 +48,8 @@ def scrape_listing(soup, url, trading_date, formatted_output):
             if S.DBG_QR:
                 print("DBG:dates:{0}:{1}".format(ann_date, trd_date))
             if ann_date >= trd_date:
-                if formatted_output:
-                    listings[stock] = format_listing(
-                        formatted_output, stock, announce_date, listing_date, type, units, price, view)
-                else:
-                    listings[stock] = [stock, announce_date, listing_date, type, units, price, view]
+                listings[stock] = format_listing(
+                    formatted_output, stock, announce_date, listing_date, type, units, price, view)
             else:
                 break
     return listings

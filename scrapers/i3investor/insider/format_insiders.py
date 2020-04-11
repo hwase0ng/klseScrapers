@@ -269,6 +269,39 @@ def format_table_listing(table_title, listing_list):
     format_table(table_title, listing_list, table_heading)
 
 
+def format_target(formatted_output,
+                  announce_date, stock, last_price, target, upside_down, call, source):
+    if formatted_output:
+        td_str = "<tr>"
+        td_str += "<td>{}</td>".format(stock)
+        td_str += "<td>{}</td>".format(announce_date)
+        td_str += "<td>{}</td>".format(last_price)
+        td_str += "<td>{}</td>".format(target)
+        td_str += "<td>{}</td>".format(upside_down)
+        td_str += "<td>{}</td>".format(call)
+        td_str += "<td>{}</td>".format(source)
+        td_str += "</tr>"
+    else:
+        td_str = [announce_date, stock, last_price, target, upside_down, call, source]
+    return td_str
+
+
+def format_table_target(table_title, target_list):
+    if len(target_list) <= 0:
+        return
+    table_heading = '<table id="t01" style=\"width:100%\">'
+    table_heading += "<tr>"
+    table_heading += "<th>Ann.Date</th>"
+    table_heading += "<th>Stock</th>"
+    table_heading += "<th>Last Price</th>"
+    table_heading += "<th>Target</th>"
+    table_heading += "<th>Upside/Downside</th>"
+    table_heading += "<th>Price Call</th>"
+    table_heading += "<th>Source</th>"
+    table_heading += "</tr>"
+    format_table(table_title, target_list, table_heading)
+
+
 def format_table(table_title, table_list, table_head):
     table_list.insert(0, table_head)
     table_list.insert(0, T.browserref)

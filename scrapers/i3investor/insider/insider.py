@@ -20,6 +20,7 @@ from scrapers.i3investor.insider.latest import crawl_latest
 from scrapers.i3investor.insider.financial_ar import *
 from scrapers.i3investor.insider.financial_qr import *
 from scrapers.i3investor.insider.insider_old import crawl_insider
+from scrapers.i3investor.insider.price_target import crawl_price_target
 from utils.dateutils import getToday
 from docopt import docopt
 import settings as S
@@ -32,6 +33,7 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
     latest_dir, latest_shd, latest_com = crawl_latest(trading_date)
     latest_div, latest_bonus = crawl_entitlement(trading_date)
     latest_listing = crawl_listing(trading_date)
+    latest_target = crawl_price_target(trading_date)
     print("Trading date: " + trading_date)
     latestAR = crawl_latest_ar(trading_date)
     latestQR = crawl_latest_qr(trading_date)
@@ -85,7 +87,7 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         continue
                     print ("\t" + tracking_list)
                     dir_list, shd_list, com_list, qr_list, ar_list = [], [], [], [], []
-                    div_list, bns_list, listing_list = [], [], []
+                    div_list, bns_list, listing_list, target_list = [], [], [], []
                     dir_title = "Latest Directors Transactions"
                     shd_title = "Latest Substantial Shareholders Transactions"
                     com_title = "Latest Company Transactions"
@@ -94,6 +96,7 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                     div_title = "Latest Dividend"
                     bns_title = "Latest Bonus, Share Split & Consolidation"
                     listing_title = "Latest Listing"
+                    target_title = "Price Target"
                     for stock in items[tracking_list]:
                         stock = stock.upper()
                         '''
@@ -143,6 +146,9 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         if stock in latest_listing:
                             listing = latest_listing[stock]
                             listing_list.append(format_listing(stock, *listing))
+                        if stock in latest_target:
+                            target = latest_target[stock]
+                            target_list.append(format_target(stock, *target))
                     format_table_insiders(dir_title, dir_list)
                     format_table_insiders(shd_title, shd_list)
                     format_table_insiders(com_title, com_list)
@@ -150,7 +156,8 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                     format_ar_qr_table(ar_title, ar_list)
                     format_table_entitlement(div_title, div_list)
                     format_table_entitlement(bns_title, bns_list)
-                    format_table_entitlement(listing_title, listing_list)
+                    format_table_listing(listing_title, listing_list)
+                    format_table_target(target_title, target_list)
                     list_result = \
                         div_list + bns_list + qr_list + ar_list + dir_list + \
                         shd_list + com_list
@@ -211,7 +218,10 @@ if __name__ == '__main__':
         counters = args['COUNTER'][0].upper()
     if args['--test']:
         html_output = True
-        result = crawl_listing(insider_date, html_output)
+        if args['--test'] == "listing":
+            result = crawl_listing(insider_date, html_output)
+        if args['--test'] == "target":
+            result = crawl_price_target(insider_date, html_output)
         if html_output:
             result.insert(0, T.t01)
             yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD). \
