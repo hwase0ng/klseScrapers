@@ -13,11 +13,12 @@ Created on Mar 7, 2020
 @author: hwaseong
 """
 from common import loadCfg
-from scrapers.i3investor.insider.formatLatest import *
+from scrapers.i3investor.insider.entitlements import crawl_entitlement
+from scrapers.i3investor.insider.format_insiders import *
 from scrapers.i3investor.insider.latest import crawl_latest
-from scrapers.i3investor.insider.latestAnnualReports import *
-from scrapers.i3investor.insider.latestQuarterlyReports import *
-from scrapers.i3investor.insider.stk import crawl_insider
+from scrapers.i3investor.insider.financial_ar import *
+from scrapers.i3investor.insider.financial_qr import *
+from scrapers.i3investor.insider.insider_old import crawl_insider
 from utils.dateutils import getToday
 from docopt import docopt
 import settings as S
@@ -28,11 +29,12 @@ import yaml
 
 def process_latest(trading_date=getToday('%d-%b-%Y'), formatted_output=False):
     dir_list, shd_list, com_list = crawl_latest(trading_date, formatted_output)
-    return dir_list, shd_list, com_list
+    div_list, bonus_list = crawl_entitlement(trading_date, formatted_output)
+    return dir_list, shd_list, com_list, div_list, bonus_list
 
 
 def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
-    latest_dir, latest_shd, latest_com = process_latest(trading_date)
+    latest_dir, latest_shd, latest_com, latest_div, latest_bonus = process_latest(trading_date)
     print("Trading date: " + trading_date)
     latestAR = crawl_latest_ar(trading_date)
     latestQR = crawl_latest_qr(trading_date)
@@ -86,11 +88,13 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         continue
                     print ("\t" + tracking_list)
                     dir_list, shd_list, com_list, qr_list, ar_list = [], [], [], [], []
+                    div_list, bns_list = [], []
                     dir_title = "Latest Directors Transactions"
                     shd_title = "Latest Substantial Shareholders Transactions"
                     com_title = "Latest Company Transactions"
                     for stock in items[tracking_list]:
                         stock = stock.upper()
+                        '''
                         res = match_selection(stock, latest_dir, dir_title)
                         if len(res) > 0:
                             for item in res:
@@ -103,25 +107,50 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                         if len(com) > 0:
                             for item in com:
                                 com_list.append(item)
+                        '''
+                        if stock in latest_dir:
+                            dr = latest_dir[stock]
+                            for item in dr:
+                                dir_list.append(format_director(True, *item))
+                        if stock in latest_shd:
+                            shd = latest_shd[stock]
+                            for item in shd:
+                                shd_list.append(format_shareholder(True, *item))
+                        if stock in latest_com:
+                            com = latest_com[stock]
+                            for item in com:
+                                com_list.append(format_company(True, *item))
                         if stock in latestQR:
                             qr = latestQR[stock]
                             qr_list.append(format_latest_qr(stock, *qr))
-                        if stock in latestAR:
+                        if latestAR is not None and stock in latestAR:
                             ar = latestAR[stock]
                             ar_list.append(format_latest_ar(stock, *ar))
+                        if stock in latest_div:
+                            div = latest_div[stock]
+                            div_list.append(format_div(stock, *div))
+                        if stock in latest_bonus:
+                            bns = latest_bonus[stock]
+                            bns_list.append(format_dividend(stock, *bns))
                     if len(dir_list) > 0:
-                        format_table(dir_title, dir_list)
+                        format_table_insiders(dir_title, dir_list)
                     if len(shd_list) > 0:
-                        format_table(shd_title, shd_list)
+                        format_table_insiders(shd_title, shd_list)
                     if len(com_list) > 0:
-                        format_table(com_title, com_list)
+                        format_table_insiders(com_title, com_list)
                     if len(qr_list) > 0:
                         qr_title = "Quarterly Results"
                         format_ar_qr_table(qr_title, qr_list)
                     if len(ar_list) > 0:
                         ar_title = "Annual Reports"
                         format_ar_qr_table(ar_title, ar_list)
-                    list_result = qr_list + ar_list + dir_list + shd_list + com_list
+                    if len(div_list) > 0:
+                        div_title = "Latest Dividend"
+                        format_table_entitlement(div_title, div_list)
+                    if len(div_list) > 0:
+                        bns_title = "Latest Bonus, Share Split & Consolidation"
+                        format_table_entitlement(bns_title, bns_list)
+                    list_result = div_list + bns_list + qr_list + ar_list + dir_list + shd_list + com_list
                     if len(list_result) > 0:
                         list_result.insert(0, T.t01)
                         subject = "INSIDER UPDATE on {} for portfolio: {}".format(
@@ -160,14 +189,14 @@ if __name__ == '__main__':
 
     global skip_name
     skip_name = args['--skip']
-    trading_date = args['--date']
+    insider_date = args['--date']
     counters = ""
     if args['COUNTER']:
         counters = args['COUNTER'][0].upper()
     if args['--test'] == "latest":
         html_output = True
-        latestDIR, latestSHD, latestCOM = process_latest(trading_date, html_output)
-        result = latestDIR + latestSHD + latestCOM
+        latestDIR, latestSHD, latestCOM, latestDIV, latestBonus = process_latest(insider_date, html_output)
+        result = latestDIR + latestSHD + latestCOM + latestDIV + latestBonus
         if html_output:
             result.insert(0, T.browserref)
             yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD). \
@@ -176,8 +205,8 @@ if __name__ == '__main__':
             for i in result:
                 print i
     else:
-        if trading_date is not None:
-            process(counters, trading_date)
+        if insider_date is not None:
+            process(counters, insider_date)
         else:
             process(counters)
 

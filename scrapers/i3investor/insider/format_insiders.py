@@ -2,6 +2,14 @@ import settings as S
 import styles as T
 
 
+def format_director(formatted_output, counter, announce_date, name, dt, notice, shares, price, view):
+    return format_insider(formatted_output, True, counter, announce_date, name, dt, notice, shares, price, view)
+
+
+def format_shareholder(formatted_output, counter, announce_date, name, dt, notice, shares, view):
+    return format_insider(formatted_output, False, counter, announce_date, name, dt, notice, shares, "", view)
+
+
 def format_insider(formatted_output, director, counter, announce_date, name, dt, notice, shares, price, view):
     if formatted_output:
         td_str = "<tr>"
@@ -59,7 +67,7 @@ def format_company(formatted_output, counter, announce_date, from_date, to_date,
     return td_str
 
 
-def format_table(table_title, insider_list):
+def format_table_insiders(table_title, insider_list):
     table_heading = '<table id="t01" style=\"width:100%\">'
     table_heading += "<tr>"
     if "Company" in table_title:
@@ -84,18 +92,10 @@ def format_table(table_title, insider_list):
             table_heading += "<th>Price</th>"
         table_heading += "<th>View</th>"
     table_heading += "</tr>"
-    insider_list.insert(0, table_heading)
-    insider_list.insert(0, T.browserref)
-    insider_list.insert(0, "<h2>{}</h2>".format(table_title))
-    insider_list.insert(0, "<body>")
-    insider_list.insert(0, "<html>")
-    insider_list.insert(0, "<!DOCTYPE html>")
-    insider_list.append("</table>")
-    insider_list.append("</body>")
-    insider_list.append("</html>")
+    format_table(table_title, insider_list, table_heading)
 
 
-def format_ar_qr_table(title, item):
+def format_ar_qr_table(title, financial_list):
     table_heading = '<table id="t01" style=\"width:100%\">'
     table_heading += "<tr>"
     if title == "Annual Results":
@@ -121,26 +121,18 @@ def format_ar_qr_table(title, item):
         table_heading += "<th>YoY</th>"
         table_heading += "<th>PDF</th>"
     table_heading += "</tr>"
-    item.insert(0, table_heading)
-    item.insert(0, T.browserref)
-    item.insert(0, "<h2>{}</h2>".format(title))
-    item.insert(0, "<body>")
-    item.insert(0, "<html>")
-    item.insert(0, "<!DOCTYPE html>")
-    item.append("</table>")
-    item.append("</body>")
-    item.append("</html>")
+    format_table(title, financial_list, table_heading)
 
 
-def format_latest_ar(counter, fy, anndate, announcementDate, latestann, view):
+def format_latest_ar(counter, fy, ann_date, announce_date, latestann, view):
     if S.DBG_ALL or S.DBG_QR:
         print("%s, %s, %s, %s, %s" %
-              (counter, fy, anndate, announcementDate, latestann))
+              (counter, fy, ann_date, announce_date, latestann))
     tdstr = "<tr>"
     tdstr += "<td>{}</td>".format(counter)
     tdstr += "<td>{}</td>".format(fy)
-    tdstr += "<td>{}</td>".format(anndate)
-    tdstr += "<td>{}</td>".format(announcementDate)
+    tdstr += "<td>{}</td>".format(ann_date)
+    tdstr += "<td>{}</td>".format(announce_date)
     tdstr += "<td>{}</td>".format(latestann)
     tdstr += "<td>"
     for link in view:
@@ -184,3 +176,66 @@ def format_latest_qr(counter, announcement_date, qd, qn, rev, pbt, np, div, roe,
     td_str += "</td>"
     td_str += "</tr>"
     return td_str
+
+
+def format_div(formatted_output, others,
+               announce_date, stock, open_price,
+               current_price,dividend_ratio, ex_date, view):
+    return format_dividend(formatted_output, others,
+                           announce_date, stock, "", open_price,
+                           current_price,dividend_ratio, ex_date, view)
+
+
+def format_dividend(formatted_output, others,
+                    announce_date, stock, subject, open_price,
+                    current_price,dividend_ratio, ex_date, view):
+    if formatted_output:
+        td_str = "<tr>"
+        td_str += "<td>{}</td>".format(announce_date)
+        td_str += "<td>{}</td>".format(stock)
+        if others:
+            td_str += "<td>{}</td>".format(subject)
+        td_str += "<td>{}</td>".format(open_price)
+        td_str += "<td>{}</td>".format(current_price)
+        td_str += "<td>{}</td>".format(dividend_ratio)
+        td_str += "<td>{}</td>".format(ex_date)
+        link = '<a href="{}">{}</a>'.format(view, "link")
+        td_str += ('<td>{}</td>'.format(link))
+        td_str += "</tr>"
+    else:
+        if others:
+            td_str = [announce_date, stock, subject, open_price, current_price, dividend_ratio, ex_date, view]
+        else:
+            td_str = [announce_date, stock, open_price, current_price, dividend_ratio, ex_date, view]
+    return td_str
+
+
+def format_table_entitlement(table_title, entitle_list):
+    table_heading = '<table id="t01" style=\"width:100%\">'
+    table_heading += "<tr>"
+    table_heading += "<th>Ann.Date</th>"
+    table_heading += "<th>Stock</th>"
+    if "Dividend" not in table_title:
+        table_heading += "<th>Subject</th>"
+    table_heading += "<th>Opening Price</th>"
+    table_heading += "<th>Current Price</th>"
+    if "Dividend" in table_title:
+        table_heading += "<th>Dividend</th>"
+    else:
+        table_heading += "<th>Ratio</th>"
+    table_heading += "<th>Ex Date</th>"
+    table_heading += "<th>View</th>"
+    table_heading += "</tr>"
+    format_table(table_title, entitle_list, table_heading)
+
+
+def format_table(table_title, table_list, table_head):
+    table_list.insert(0, table_head)
+    table_list.insert(0, T.browserref)
+    table_list.insert(0, "<h2>{}</h2>".format(table_title))
+    table_list.insert(0, "<body>")
+    table_list.insert(0, "<html>")
+    table_list.insert(0, "<!DOCTYPE html>")
+    table_list.append("</table>")
+    table_list.append("</body>")
+    table_list.append("</html>")

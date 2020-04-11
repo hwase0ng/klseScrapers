@@ -1,6 +1,6 @@
 ---
  roy:
-   email: [hwaseong.tan@gmail.com]
+   email: [roysten.tan@gmail.com]
    holdings:
      - bat
      - cypark
@@ -16,12 +16,13 @@
      - jaycorp
      - jhm
      - kgb
+     - kobay
      - krono
      - mi
      - notion
      - opensys
      - salute
-   dividends_2:
+   dividends:
      - aji
      - bursa
      - carlsbg
