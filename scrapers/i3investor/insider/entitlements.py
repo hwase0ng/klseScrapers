@@ -8,7 +8,7 @@ I3_DIVIDEND_URL = I3_ENTITLEMENT_URL + "dividend/latest.jsp"
 I3_ENTITLEMENT_OTHERS_URL = I3_ENTITLEMENT_URL + "others/latest.jsp"
 
 
-def crawl_entitlement(trading_date=getToday("%d-%b-%Y"), formatted_output=True):
+def crawl_entitlement(trading_date=getToday("%d-%b-%Y"), formatted_output=False):
     url = I3_DIVIDEND_URL
     latest_dividends = scrape_entitlement(connect_url(url), url, trading_date, formatted_output)
     if formatted_output and len(latest_dividends) > 0:

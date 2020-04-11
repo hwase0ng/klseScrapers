@@ -9,7 +9,7 @@ I3_INSIDER_SHAREHOLDER_URL = I3_INSIDER_URL + "substantialShareholder/latest.jsp
 I3_INSIDER_COMPANY_URL = I3_INSIDER_URL + "company/latest.jsp"
 
 
-def crawl_latest(trading_date=getToday("%d-%b-%Y"), formatted_output=True):
+def crawl_latest(trading_date=getToday("%d-%b-%Y"), formatted_output=False):
     url = I3_INSIDER_DIRECTOR_URL
     latest_dir = scrape_latest(connect_url(url), url, trading_date, formatted_output)
     if formatted_output and len(latest_dir) > 0:

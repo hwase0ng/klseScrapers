@@ -30,13 +30,13 @@ import yaml
 
 
 def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
+    print("Trading date: " + trading_date)
     latest_dir, latest_shd, latest_com = crawl_latest(trading_date)
     latest_div, latest_bonus = crawl_entitlement(trading_date)
     latest_listing = crawl_listing(trading_date)
     latest_target = crawl_price_target(trading_date)
-    print("Trading date: " + trading_date)
-    latestAR = crawl_latest_ar(trading_date)
-    latestQR = crawl_latest_qr(trading_date)
+    latest_ar = crawl_latest_ar(trading_date)
+    latest_qr = crawl_latest_qr(trading_date)
     if len(stock_list):
         if "," in stock_list:
             stocks = stock_list.split(",")
@@ -52,11 +52,11 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
             if shd is not None and len(shd) > 0:
                 for item in shd:
                     shd_list.append(item)
-            if stock in latestQR:
-                qr = latestQR[stock]
+            if stock in latest_qr:
+                qr = latest_qr[stock]
                 qr_list.append(format_latest_qr(stock, *qr))
-            if stock in latestAR:
-                ar = latestAR[stock]
+            if stock in latest_ar:
+                ar = latest_ar[stock]
                 ar_list.append(format_latest_ar(stock, *ar))
             if len(dir_list) > 0:
                 print ("{header}{lst}".format(header="\tdirectors:", lst=dir_list))
@@ -65,11 +65,11 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
             # qr = crawlQR(counter)
             # if len(qr) > 0:
             #     print ("{header}{lst}".format(header="QR", lst=formatQR(counter, *qr)))
-            if stock in latestQR:
-                qr = latestQR[stock]
+            if stock in latest_qr:
+                qr = latest_qr[stock]
                 print (format_latest_qr(stock, *qr))
-            if stock in latestAR:
-                ar = latestAR[stock]
+            if stock in latest_ar:
+                ar = latest_ar[stock]
                 print (format_latest_ar(stock, *ar))
     else:
         stream = open("scrapers/i3investor/insider/insider.yaml", 'r')
@@ -126,16 +126,16 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                                 com_list.append(format_company(True, *item))
                         '''
                         f = format_decorator(format_director)
-                        dir_list = f(stock, latest_dir)
+                        f(stock, latest_dir, dir_list)
                         f = format_decorator(format_shareholder)
-                        shd_list = f(stock, latest_shd)
+                        f(stock, latest_shd, shd_list)
                         f = format_decorator(format_company)
-                        com_list = f(stock, latest_com)
-                        if stock in latestQR:
-                            qr = latestQR[stock]
+                        f(stock, latest_com, com_list)
+                        if stock in latest_qr:
+                            qr = latest_qr[stock]
                             qr_list.append(format_latest_qr(stock, *qr))
-                        if latestAR is not None and stock in latestAR:
-                            ar = latestAR[stock]
+                        if latest_ar is not None and stock in latest_ar:
+                            ar = latest_ar[stock]
                             ar_list.append(format_latest_ar(stock, *ar))
                         if stock in latest_div:
                             div = latest_div[stock]
@@ -160,7 +160,7 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                     format_table_target(target_title, target_list)
                     list_result = \
                         div_list + bns_list + qr_list + ar_list + dir_list + \
-                        shd_list + com_list
+                        shd_list + com_list + listing_list + target_list
                     if len(list_result) > 0:
                         list_result.insert(0, T.t01)
                         subject = "INSIDER UPDATE on {} for portfolio: {}".format(
@@ -171,13 +171,11 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
 
 # python decorator as high order function
 def format_decorator(func):
-    def wrapper(stock, latest_list):
-        new_list = []
+    def wrapper(stock, latest_list, new_list):
         if stock in latest_list:
             dr = latest_list[stock]
             for item in dr:
                 new_list.append(func(True, *item))
-        return new_list
 
     return wrapper
 
