@@ -72,6 +72,9 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                 ar = latest_ar[stock]
                 print (format_latest_ar(stock, *ar))
     else:
+        deco_dir = format_decorator(format_director)
+        deco_shd = format_decorator(format_shareholder)
+        deco_com = format_decorator(format_company)
         stream = open("scrapers/i3investor/insider/insider.yaml", 'r')
         docs = yaml.load_all(stream, Loader=yaml.FullLoader)
         for doc in docs:
@@ -125,12 +128,9 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
                             for item in com:
                                 com_list.append(format_company(True, *item))
                         '''
-                        f = format_decorator(format_director)
-                        f(stock, latest_dir, dir_list)
-                        f = format_decorator(format_shareholder)
-                        f(stock, latest_shd, shd_list)
-                        f = format_decorator(format_company)
-                        f(stock, latest_com, com_list)
+                        deco_dir(stock, latest_dir, dir_list)
+                        deco_shd(stock, latest_shd, shd_list)
+                        deco_com(stock, latest_com, com_list)
                         if stock in latest_qr:
                             qr = latest_qr[stock]
                             qr_list.append(format_latest_qr(stock, *qr))
