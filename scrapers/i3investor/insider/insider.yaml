@@ -1,4 +1,12 @@
 ---
+ hwaseong:
+   email: [hwaseong.tan@gmail.com]
+   targets:
+     - bursa
+     - carlsbg
+     - dufu
+     - magni
+     - tguan
  roy:
    email: [roysten.tan@gmail.com]
    holdings:
