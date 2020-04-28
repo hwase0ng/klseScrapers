@@ -8,8 +8,6 @@
      - dpih
      - elkdesa
      - icap
-     - ofi
-     - pie
      - tguan
    technology:
      - aemulus
@@ -23,16 +21,22 @@
      - opensys
      - salute
    dividends:
+     - abmb
+     - aeon
+     - aeoncr
      - aji
      - bursa
      - carlsbg
+     - cocolnd
      - dlady
      - hapseng
      - liihen
      - magni
-     - takaful
+     - ofi
      - padini
      - petronm
+     - pie
+     - takaful
      - tongher
    icap:
      - apm
