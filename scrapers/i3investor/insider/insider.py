@@ -1,12 +1,12 @@
 """
-Usage: main [options] [COUNTER] ...
+Usage: main [options]
 
 Arguments:
-    COUNTER                     Optional counters
 Options:
     -d,--date=<trading_date>    Use provided trading date to search
     -s,--skip=<name>            skip email to name
     -t,--test=<test_name>       run test on selected function
+    -y,--yaml=<yaml_file>       Use provided yaml file
 
 Created on Mar 7, 2020
 
@@ -29,7 +29,7 @@ import yagmail
 import yaml
 
 
-def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
+def process(yaml_file, trading_date=getToday('%d-%b-%Y')):
     print("Trading date: " + trading_date)
     latest_dir, latest_shd, latest_com = crawl_latest(trading_date)
     latest_div, latest_bonus = crawl_entitlement(trading_date)
@@ -37,136 +37,101 @@ def process(stock_list="", trading_date=getToday('%d-%b-%Y')):
     latest_target = crawl_price_target(trading_date)
     latest_ar = crawl_latest_ar(trading_date)
     latest_qr = crawl_latest_qr(trading_date)
-    if len(stock_list):
-        if "," in stock_list:
-            stocks = stock_list.split(",")
-        else:
-            stocks = [stock_list]
-        dir_list, shd_list, qr_list, ar_list = [], [], [], []
-        for stock in stocks:
-            stock = stock.upper()
-            di, shd = crawl_insider(stock, trading_date)
-            if di is not None and len(di) > 0:
-                for item in di:
-                    dir_list.append(item)
-            if shd is not None and len(shd) > 0:
-                for item in shd:
-                    shd_list.append(item)
-            if stock in latest_qr:
-                qr = latest_qr[stock]
-                qr_list.append(format_latest_qr(stock, *qr))
-            if stock in latest_ar:
-                ar = latest_ar[stock]
-                ar_list.append(format_latest_ar(stock, *ar))
-            if len(dir_list) > 0:
-                print ("{header}{lst}".format(header="\tdirectors:", lst=dir_list))
-            if len(shd_list) > 0:
-                print ("{header}{lst}".format(header="\tshareholders", lst=shd_list))
-            # qr = crawlQR(counter)
-            # if len(qr) > 0:
-            #     print ("{header}{lst}".format(header="QR", lst=formatQR(counter, *qr)))
-            if stock in latest_qr:
-                qr = latest_qr[stock]
-                print (format_latest_qr(stock, *qr))
-            if stock in latest_ar:
-                ar = latest_ar[stock]
-                print (format_latest_ar(stock, *ar))
-    else:
-        deco_dir = format_decorator(format_director)
-        deco_shd = format_decorator(format_shareholder)
-        deco_com = format_decorator(format_company)
-        stream = open("scrapers/i3investor/insider/insider.yaml", 'r')
-        docs = yaml.load_all(stream, Loader=yaml.FullLoader)
-        for doc in docs:
-            for name, items in doc.items():
-                # print (name + " : " + str(items))
-                addr = items["email"]
-                print (name + ": " + ", ".join(addr))
-                if name == skip_name:
-                    print ("\tSkipped")
-                    break
-                for tracking_list in items.iterkeys():
-                    if tracking_list == "email":
-                        continue
-                    print ("\t" + tracking_list)
-                    dir_list, shd_list, com_list, qr_list, ar_list = [], [], [], [], []
-                    div_list, bns_list, listing_list, target_list = [], [], [], []
-                    dir_title = "Latest Directors Transactions"
-                    shd_title = "Latest Substantial Shareholders Transactions"
-                    com_title = "Latest Company Transactions"
-                    qr_title = "Quarterly Results"
-                    ar_title = "Annual Reports"
-                    div_title = "Latest Dividend"
-                    bns_title = "Latest Bonus, Share Split & Consolidation"
-                    listing_title = "Latest Listing"
-                    target_title = "Price Target"
-                    for stock in items[tracking_list]:
-                        stock = stock.upper()
-                        '''
-                        # res = match_selection(stock, latest_dir, dir_title)
-                        # if len(res) > 0:
-                        #     for item in res:
-                        #         dir_list.append(item)
-                        # shd = match_selection(stock, latest_shd, shd_title)
-                        # if len(shd) > 0:
-                        #     for item in shd:
-                        #         shd_list.append(item)
-                        # com = match_selection(stock, latest_com, com_title)
-                        # if len(com) > 0:
-                        #     for item in com:
-                        #         com_list.append(item)
-                        if stock in latest_dir:
-                            dr = latest_dir[stock]
-                            for item in dr:
-                                dir_list.append(format_director(True, *item))
-                        if stock in latest_shd:
-                            shd = latest_shd[stock]
-                            for item in shd:
-                                shd_list.append(format_shareholder(True, *item))
-                        if stock in latest_com:
-                            com = latest_com[stock]
-                            for item in com:
-                                com_list.append(format_company(True, *item))
-                        '''
-                        deco_dir(stock, latest_dir, dir_list)
-                        deco_shd(stock, latest_shd, shd_list)
-                        deco_com(stock, latest_com, com_list)
-                        if stock in latest_qr:
-                            qr = latest_qr[stock]
-                            qr_list.append(format_latest_qr(stock, *qr))
-                        if latest_ar is not None and stock in latest_ar:
-                            ar = latest_ar[stock]
-                            ar_list.append(format_latest_ar(stock, *ar))
-                        if stock in latest_div:
-                            div = latest_div[stock]
-                            div_list.append(format_div(stock, *div))
-                        if stock in latest_bonus:
-                            bns = latest_bonus[stock]
-                            bns_list.append(format_dividend(stock, *bns))
-                        if stock in latest_listing:
-                            listing = latest_listing[stock]
-                            listing_list.append(format_listing(stock, *listing))
-                        if stock in latest_target:
-                            target = latest_target[stock]
-                            target_list.append(format_target(stock, *target))
-                    format_table_insiders(dir_title, dir_list)
-                    format_table_insiders(shd_title, shd_list)
-                    format_table_insiders(com_title, com_list)
-                    format_ar_qr_table(qr_title, qr_list)
-                    format_ar_qr_table(ar_title, ar_list)
-                    format_table_entitlement(div_title, div_list)
-                    format_table_entitlement(bns_title, bns_list)
-                    format_table_listing(listing_title, listing_list)
-                    format_table_target(target_title, target_list)
-                    list_result = \
-                        div_list + bns_list + qr_list + ar_list + dir_list + \
-                        shd_list + com_list + listing_list + target_list
-                    if len(list_result) > 0:
-                        list_result.insert(0, T.t01)
-                        subject = "INSIDER UPDATE on {} for portfolio: {}".format(
-                            getToday("%d-%b-%Y"), tracking_list.upper()
-                        )
-                        yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD).send(addr, subject, list_result)
+    deco_dir = format_decorator(format_director)
+    deco_shd = format_decorator(format_shareholder)
+    deco_com = format_decorator(format_company)
+    stream = open(yaml_file, 'r')
+    docs = yaml.load_all(stream, Loader=yaml.FullLoader)
+    for doc in docs:
+        for name, items in doc.items():
+            # print (name + " : " + str(items))
+            addr = items["email"]
+            print (name + ": " + ", ".join(addr))
+            if name == skip_name:
+                print ("\tSkipped")
+                break
+            for tracking_list in items.iterkeys():
+                if tracking_list == "email":
+                    continue
+                print ("\t" + tracking_list)
+                dir_list, shd_list, com_list, qr_list, ar_list = [], [], [], [], []
+                div_list, bns_list, listing_list, target_list = [], [], [], []
+                dir_title = "Latest Directors Transactions"
+                shd_title = "Latest Substantial Shareholders Transactions"
+                com_title = "Latest Company Transactions"
+                qr_title = "Quarterly Results"
+                ar_title = "Annual Reports"
+                div_title = "Latest Dividend"
+                bns_title = "Latest Bonus, Share Split & Consolidation"
+                listing_title = "Latest Listing"
+                target_title = "Price Target"
+                for stock in items[tracking_list]:
+                    stock = stock.upper()
+                    '''
+                    # res = match_selection(stock, latest_dir, dir_title)
+                    # if len(res) > 0:
+                    #     for item in res:
+                    #         dir_list.append(item)
+                    # shd = match_selection(stock, latest_shd, shd_title)
+                    # if len(shd) > 0:
+                    #     for item in shd:
+                    #         shd_list.append(item)
+                    # com = match_selection(stock, latest_com, com_title)
+                    # if len(com) > 0:
+                    #     for item in com:
+                    #         com_list.append(item)
+                    if stock in latest_dir:
+                        dr = latest_dir[stock]
+                        for item in dr:
+                            dir_list.append(format_director(True, *item))
+                    if stock in latest_shd:
+                        shd = latest_shd[stock]
+                        for item in shd:
+                            shd_list.append(format_shareholder(True, *item))
+                    if stock in latest_com:
+                        com = latest_com[stock]
+                        for item in com:
+                            com_list.append(format_company(True, *item))
+                    '''
+                    deco_dir(stock, latest_dir, dir_list)
+                    deco_shd(stock, latest_shd, shd_list)
+                    deco_com(stock, latest_com, com_list)
+                    if stock in latest_qr:
+                        qr = latest_qr[stock]
+                        qr_list.append(format_latest_qr(stock, *qr))
+                    if latest_ar is not None and stock in latest_ar:
+                        ar = latest_ar[stock]
+                        ar_list.append(format_latest_ar(stock, *ar))
+                    if stock in latest_div:
+                        div = latest_div[stock]
+                        div_list.append(format_div(stock, *div))
+                    if stock in latest_bonus:
+                        bns = latest_bonus[stock]
+                        bns_list.append(format_dividend(stock, *bns))
+                    if stock in latest_listing:
+                        listing = latest_listing[stock]
+                        listing_list.append(format_listing(stock, *listing))
+                    if stock in latest_target:
+                        target = latest_target[stock]
+                        target_list.append(format_target(stock, *target))
+                format_table_insiders(dir_title, dir_list)
+                format_table_insiders(shd_title, shd_list)
+                format_table_insiders(com_title, com_list)
+                format_qr_table(qr_title, qr_list)
+                format_ar_table(ar_title, ar_list)
+                format_table_entitlement(div_title, div_list)
+                format_table_entitlement(bns_title, bns_list)
+                format_table_listing(listing_title, listing_list)
+                format_table_target(target_title, target_list)
+                list_result = \
+                    div_list + bns_list + qr_list + ar_list + dir_list + \
+                    shd_list + com_list + listing_list + target_list
+                if len(list_result) > 0:
+                    list_result.insert(0, T.t01)
+                    subject = "INSIDER UPDATE on {} for portfolio: {}".format(
+                        getToday("%d-%b-%Y"), tracking_list.upper()
+                    )
+                    yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD).send(addr, subject, list_result)
 
 
 # python decorator as high order function
@@ -211,9 +176,6 @@ if __name__ == '__main__':
     global skip_name
     skip_name = args['--skip']
     insider_date = args['--date']
-    counters = ""
-    if args['COUNTER']:
-        counters = args['COUNTER'][0].upper()
     if args['--test']:
         html_output = True
         if args['--test'] == "listing":
@@ -228,9 +190,12 @@ if __name__ == '__main__':
             for i in result:
                 print i
     else:
+        yaml_file = "scrapers/i3investor/insider/insider.yaml"
+        if args['--yaml']:
+            yaml_file = args['--yaml']
         if insider_date is not None:
-            process(counters, insider_date)
+            process(yaml_file, insider_date)
         else:
-            process(counters)
+            process(yaml_file)
 
     print ('\n...end processing')

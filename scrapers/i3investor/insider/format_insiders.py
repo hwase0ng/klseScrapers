@@ -97,33 +97,40 @@ def format_table_insiders(table_title, insider_list):
     format_table(table_title, insider_list, table_heading)
 
 
-def format_ar_qr_table(title, financial_list):
+def format_ar_table(title, financial_list):
     if len(financial_list) <= 0:
         return
     table_heading = '<table id="t01" style=\"width:100%\">'
     table_heading += "<tr>"
-    if title == "Annual Results":
-        table_heading += "<th>Stock</th>"
-        table_heading += "<th>Finance year</th>"
-        table_heading += "<th>Audited Anniversary Date</th>"
-        table_heading += "<th>AR Anniversary Date</th>"
-        table_heading += "<th>Latest Anniversary Date</th>"
-        table_heading += "<th>PDF</th>"
-    else:
-        table_heading += "<th>Stock</th>"
-        table_heading += "<th>Announcement Date</th>"
-        table_heading += "<th>Quarter</th>"
-        table_heading += "<th>Q#</th>"
-        table_heading += "<th>Revenue</th>"
-        table_heading += "<th>PBT</th>"
-        table_heading += "<th>NP</th>"
-        table_heading += "<th>DIV</th>"
-        table_heading += "<th>ROE</th>"
-        table_heading += "<th>EPS</th>"
-        table_heading += "<th>DPS</th>"
-        table_heading += "<th>QoQ</th>"
-        table_heading += "<th>YoY</th>"
-        table_heading += "<th>PDF</th>"
+    table_heading += "<th>Stock</th>"
+    table_heading += "<th>Finance year</th>"
+    table_heading += "<th>Audited Anniversary Date</th>"
+    table_heading += "<th>AR Anniversary Date</th>"
+    table_heading += "<th>Latest Anniversary Date</th>"
+    table_heading += "<th>PDF</th>"
+    table_heading += "</tr>"
+    format_table(title, financial_list, table_heading)
+
+
+def format_qr_table(title, financial_list):
+    if len(financial_list) <= 0:
+        return
+    table_heading = '<table id="t01" style=\"width:100%\">'
+    table_heading += "<tr>"
+    table_heading += "<th>Stock</th>"
+    table_heading += "<th>Announcement Date</th>"
+    table_heading += "<th>Quarter</th>"
+    table_heading += "<th>Q#</th>"
+    table_heading += "<th>Revenue</th>"
+    table_heading += "<th>PBT</th>"
+    table_heading += "<th>NP</th>"
+    table_heading += "<th>DIV</th>"
+    table_heading += "<th>ROE</th>"
+    table_heading += "<th>EPS</th>"
+    table_heading += "<th>DPS</th>"
+    table_heading += "<th>QoQ</th>"
+    table_heading += "<th>YoY</th>"
+    table_heading += "<th>PDF</th>"
     table_heading += "</tr>"
     format_table(title, financial_list, table_heading)
 

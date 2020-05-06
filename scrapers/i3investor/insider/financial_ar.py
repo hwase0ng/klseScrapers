@@ -21,15 +21,15 @@ def scrape_latest_ar(soup, trading_date):
     ar_list = {}
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
-        latestAR = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
-        # latestAR = [printable(x.text.encode("ascii").replace('&nbsp;', '')).strip() for x in td]
+        latest_ar = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
+        # latest_ar = [printable(x.text.encode("ascii").replace('&nbsp;', '')).strip() for x in td]
         if S.DBG_QR:
             print("DBG:")
-            for x in latestAR:
+            for x in latest_ar:
                 print repr(x)
-        if len(latestAR) > 0:
-            [stock, fy, ann_date, announcementDate, latest_ann] = unpack_latest_ar(*latestAR)
-            if announcementDate == trading_date:
+        if len(latest_ar) > 0:
+            [stock, fy, ann_date, announce_date, latest_ann] = unpack_latest_ar(*latest_ar)
+            if announce_date == trading_date:
                 if stock not in ar_list:
                     links = tr.findAll('a')
                     jsp_link = ""
@@ -39,11 +39,11 @@ def scrape_latest_ar(soup, trading_date):
                             jsp_link = get_yoy_links(jsp_link)
                             if len(jsp_link) > 0:
                                 break
-                    ar_list[stock] = [fy, ann_date, announcementDate, latest_ann, jsp_link]
+                    ar_list[stock] = [fy, ann_date, announce_date, latest_ann, jsp_link]
                 else:
-                    print ("INFO: Duplicated announcement: " + stock + ":" + latest_ann + ":" + announcementDate)
+                    print ("INFO: Duplicated announcement: " + stock + ":" + latest_ann + ":" + announce_date)
             else:
-                ann_dt = change2KlseDateFmt(announcementDate, "%d-%b-%Y")
+                ann_dt = change2KlseDateFmt(announce_date, "%d-%b-%Y")
                 trd_dt = change2KlseDateFmt(trading_date, "%d-%b-%Y")
                 if S.DBG_QR:
                     print("DBG:dates:{0}:{1}".format(ann_dt, trd_dt))
@@ -60,11 +60,11 @@ def unpack_latest_ar(stock, fy, ann_date, announce_date, latest_ann, view):
 
 
 def get_yoy_links(jsp_link):
-    soupQR = connect_url(S.I3_KLSE_URL + jsp_link)
-    if soupQR is None or len(soupQR) <= 0:
+    soup_ar = connect_url(S.I3_KLSE_URL + jsp_link)
+    if soup_ar is None or len(soup_ar) <= 0:
         print ('getYoYLinks ERR: no result')
         return None
-    divs = soupQR.find("div", {"id": "container"})
+    divs = soup_ar.find("div", {"id": "container"})
     div = divs.find("div", {"id": "content"})
     tables = div.findAll('table')
     pdf_links = {}
