@@ -19,7 +19,7 @@ Note: This version is adapted from a source found in Internet which I could no l
 '''
 
 import sys
-from common import formStocklist, loadKlseCounters, appendCsv, getDataDir, retrieveCounters
+from common import formStocklist, loadKlseCounters, appendCsv, getDataDir, retrieveCounters, loadCfg
 from docopt import docopt
 import settings as S
 import utils.dateutils as du
@@ -311,6 +311,7 @@ def loadIdMap(klsemap='klse.idmap', dbg=False):
 
 if __name__ == '__main__':
     args = docopt(__doc__)
+    cfg = loadCfg("../../data/")
     global DBG_ALL
     DBG_ALL = True if args['--debug'] else False
     # OUTPUT_FILE = sys.argv[1]

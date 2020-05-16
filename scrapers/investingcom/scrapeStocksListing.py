@@ -3,6 +3,7 @@ Created on Apr 13, 2018
 
 @author: hwase0ng
 '''
+from string import printable
 
 import settings as S
 import requests
@@ -56,7 +57,7 @@ def scrapeStocksListing(soup):
 
 
 def unpackListing(sname, scode, lname, currid):
-    return sname, scode, lname, currid
+    return sname, scode, lname.replace(u'\xa0', ' '), currid
 
 
 def writeStocksListing(outfile='klse.txt'):
@@ -64,7 +65,7 @@ def writeStocksListing(outfile='klse.txt'):
     if listing is not None:
         fh = open(outfile, "w")
         for data in sorted(listing):
-            stock = ','.join(map(str, unpackListing(*(data))))
+            stock = ','.join(map(str, unpackListing(*data)))
             if S.DBG_ALL:
                 print "writeStocksListing:", stock
             fh.write(stock + '\n')
