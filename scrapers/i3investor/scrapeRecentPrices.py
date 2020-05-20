@@ -22,7 +22,7 @@ I3PRICEURL = 'https://klse.i3investor.com/servlets/stk/rec/'
 
 
 def connectRecentPrices(stkcode):
-    if len(stkcode) != 4 or not stkcode.isdigit():
+    if len(stkcode) < 4:
         print "ERR:Invalid stock code = ", stkcode
         return
 
