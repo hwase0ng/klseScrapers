@@ -57,14 +57,14 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
     return dt, price_open, prange[1], prange[0], price_close, volume
 
 
-def scrapeRecentEOD(soup, lastdt, checkLastTrading=False):
+def scrapeRecentEOD(soup, sname, scode, lastdt, checkLastTrading=False):
     if soup is None or len(soup) <= 0:
         print 'ERR: no result'
         return None
     i3eod = {}
     table = soup.find('table', {'class': 'nc'})
     if table is None:
-        print 'INFO: No recent price is available for this stock.'
+        print("INFO: No recent price is available for " + sname + "," + scode)
         return None
     # for each row, there are many rows including no table
     for tr in table.findAll('tr'):
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         lastdate = args['--date']
     else:
         lastdate = "2019-04-18"
-    i3 = scrapeRecentEOD(connectRecentPrices("6998"), lastdate)
+    i3 = scrapeRecentEOD(connectRecentPrices("6998"), "test", 6998, lastdate)
     if i3 is not None:
         for key in sorted(i3.iterkeys()):
             print key + ',' + ','.join(map(str, unpackEOD(*(i3[key]))))

@@ -82,7 +82,7 @@ def dbUpdateLatest(eodlist=''):
 
 
 def scrapeI3eod(sname, scode, lastdt):
-    eodStock = scrapeRecentEOD(connectRecentPrices(scode), lastdt)
+    eodStock = scrapeRecentEOD(connectRecentPrices(scode), sname, scode, lastdt)
     if eodStock is None or not eodStock:
         print "ERR:No Result for ", sname, scode
         return None
@@ -142,7 +142,7 @@ def scrapeI3(stocklist):
 
 
 def checkI3LastTradingDay(lastdt, i3onSat=""):
-    dt, popen, pclose, vol = scrapeRecentEOD(connectRecentPrices("1295"), lastdt, True)
+    dt, popen, pclose, vol = scrapeRecentEOD(connectRecentPrices("1295"), "PBBANK", 1295, lastdt, True)
     popen2, pclose2, vol2 = scrapeLatestPrice(connectStocksListing("P"), "1295")
     if S.DBG_ALL:
         print dt, popen, pclose, vol, popen2, pclose2, vol2
