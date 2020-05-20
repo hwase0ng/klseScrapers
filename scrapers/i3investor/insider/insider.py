@@ -104,16 +104,16 @@ def process(yaml_file, trading_date=getToday('%d-%b-%Y')):
                         ar_list.append(format_latest_ar(stock, *ar))
                     if stock in latest_div:
                         div = latest_div[stock]
-                        div_list.append(format_div(stock, *div))
+                        div_list.append(format_div(*div))
                     if stock in latest_bonus:
                         bns = latest_bonus[stock]
-                        bns_list.append(format_dividend(stock, *bns))
+                        bns_list.append(format_dividend(*bns))
                     if stock in latest_listing:
                         listing = latest_listing[stock]
-                        listing_list.append(format_listing(stock, *listing))
+                        listing_list.append(format_listing(*listing))
                     if stock in latest_target:
                         target = latest_target[stock]
-                        target_list.append(format_target(stock, *target))
+                        target_list.append(format_target(*target))
                 format_table_insiders(dir_title, dir_list)
                 format_table_insiders(shd_title, shd_list)
                 format_table_insiders(com_title, com_list)

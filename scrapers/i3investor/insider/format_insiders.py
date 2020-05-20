@@ -191,7 +191,7 @@ def format_latest_qr(counter, announcement_date, qd, qn, rev, pbt, np, div, roe,
 
 def format_div(formatted_output, others,
                announce_date, stock, open_price,
-               current_price,dividend_ratio, ex_date, view):
+               current_price, dividend_ratio, ex_date, view):
     return format_dividend(formatted_output, others,
                            announce_date, stock, "", open_price,
                            current_price,dividend_ratio, ex_date, view)
@@ -199,7 +199,7 @@ def format_div(formatted_output, others,
 
 def format_dividend(formatted_output, others,
                     announce_date, stock, subject, open_price,
-                    current_price,dividend_ratio, ex_date, view):
+                    current_price, dividend_ratio, ex_date, view):
     if formatted_output:
         td_str = "<tr>"
         td_str += "<td>{}</td>".format(announce_date)
