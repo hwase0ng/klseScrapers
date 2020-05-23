@@ -64,7 +64,7 @@ def scrapeRecentEOD(soup, sname, scode, lastdt, checkLastTrading=False):
     i3eod = {}
     table = soup.find('table', {'class': 'nc'})
     if table is None:
-        print("INFO: No recent price is available for " + sname + "," + scode)
+        print 'INFO: No recent price is available for {0},{1}'.format(sname, scode)
         return None
     # for each row, there are many rows including no table
     for tr in table.findAll('tr'):

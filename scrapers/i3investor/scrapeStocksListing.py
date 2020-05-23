@@ -194,7 +194,7 @@ def i3ScrapeRecent(lastdate):
         stock_code = stocklist[shortname]
         if len(stock_code) > 0:
             # dict: {'2019-04-18': [u'0.94', u'0.94', u'0.92', u'0.92', u'68,700']}
-            eoddict = scrapeRecentEOD(connectRecentPrices(stock_code), lastdate)
+            eoddict = scrapeRecentEOD(connectRecentPrices(stock_code), shortname, stock_code, lastdate)
             if eoddict is None:
                 pass
             elif len(eoddict):
