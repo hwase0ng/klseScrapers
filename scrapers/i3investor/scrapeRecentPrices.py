@@ -59,7 +59,7 @@ def unpackTD(dt, price_open, price_range, price_close, change, volume):
 
 def scrapeRecentEOD(soup, sname, scode, lastdt, checkLastTrading=False):
     if soup is None or len(soup) <= 0:
-        print 'ERR: no result'
+        print 'ERR: no result for {0},{1}'.format(sname, scode)
         return None
     i3eod = {}
     table = soup.find('table', {'class': 'nc'})
