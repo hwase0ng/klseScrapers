@@ -72,8 +72,20 @@ def getDayOfWeek(pdate):
         print ans.strftime("%A")
 
 
-def getNextDay(pdate):
-    return getDayOffset(pdate, 1)
+def getNextBusinessDay(p_date):
+    return getNextDay(p_date, True)
+
+
+def getNextDay(p_date, business=False):
+    next_day = getDayOffset(p_date, 1)
+    while True:
+        if business:
+            dow = getDayOfWeek(next_day)
+            if dow > 0 and dow < 6:  # only from monday to friday
+                break
+            else:
+                next_day = getDayOffset(next_day, 1)
+    return next_day
 
 
 def getDayBefore(pdate):

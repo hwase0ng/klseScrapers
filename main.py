@@ -29,7 +29,7 @@ from scrapers.i3investor.scrapeRecentPrices import connectRecentPrices, \
     scrapeRecentEOD, unpackEOD
 from scrapers.i3investor.scrapeStocksListing import writeStocksListing,\
     writeLatestPrice, scrapeLatestPrice, connectStocksListing, mt4eod
-from utils.dateutils import getLastDate, getDayBefore, getToday, getNextDay
+from utils.dateutils import getLastDate, getDayBefore, getToday, getNextBusinessDay
 from scrapers.investingcom.scrapeInvestingCom import loadIdMap, InvestingQuote,\
     scrapeKlseRelated
 from common import formStocklist, loadKlseCounters, appendCsv, loadCfg, loadMap,\
@@ -174,7 +174,7 @@ def checkI3LastTradingDay(lastdt, i3onSat=""):
             return [lastdt]
 
     # lastdt < dt, Need to update multiple dates, even for yesterday's EOD alone
-    return ['1', getNextDay(lastdt), '3']
+    return ['1', getNextBusinessDay(lastdt), '3']
 
 
 def checkInvComLastTradingDay(lastdt):

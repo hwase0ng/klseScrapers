@@ -222,10 +222,13 @@ def unpackStockData(key, lastTradingDate, skey):
 
 def loadfromi3(i3file, initials="", recent=""):
     def exportjson():
-        import json
-        with open(i3file, 'w') as fp:
-            json.dump(slisting, fp)
-            print "Exported to json:", i3file
+        if len(slisting) > 0:
+            import json
+            with open(i3file, 'w') as fp:
+                json.dump(slisting, fp)
+                print "Exported to json:", i3file
+        else:
+            print "ERR:Export JSON empty!"
 
     def importjson():
         import json
@@ -235,7 +238,9 @@ def loadfromi3(i3file, initials="", recent=""):
 
     try:
         slisting = importjson()
-        print "Loaded from json:", i3file
+        print "Loaded from json:", i3file, len(slisting)
+        if len(slisting) <= 0:
+            raise Exception
     except Exception:
         if len(recent):
             slisting = i3ScrapeRecent(recent)
