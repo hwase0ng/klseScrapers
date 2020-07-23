@@ -31,7 +31,7 @@ import math
 import time
 from scrapers.investingcom.scrapeStocksListing import writeStocksListing
 from utils.dateutils import getLastDate, getToday, getDaysBtwnDates,\
-    getDayOffset, getNextDay
+    getDayOffset, getNextBusinessDay
 from scrapers.yahoo.yahoo import getYahooCookie, YahooQuote
 
 sys.path.append('../../')
@@ -167,7 +167,7 @@ class InvestingQuote(Quote):
         if last_date == end_date:
             self.csverr = sname + ": Skipped downloaded (" + last_date + ")"
             return None
-        last_date = du.getNextDay(last_date)
+        last_date = du.getNextBusinessDay(last_date)
         if last_date > end_date:
             self.csverr = sname + ": Invalid dates (" + last_date + "," + end_date + ")"
             return None
@@ -247,7 +247,7 @@ def scrapeKlseRelated(klsemap, WRITE_CSV=True, dbg=False):
             startdt = lastdt
             if getDaysBtwnDates(lastdt, enddt) > 22 * 3:  # do 3 months at a time
                 stopdt = getDayOffset(startdt, 22 * 3)
-                lastdt = getNextDay(stopdt)
+                lastdt = getNextBusinessDay(stopdt)
             else:
                 stopdt = enddt
             eod = InvestingQuote(idmap, shortname, startdt, stopdt)
@@ -369,7 +369,7 @@ if __name__ == '__main__':
                     startdt = lastdt
                     if getDaysBtwnDates(lastdt, enddt) > 22 * 3:  # do 3 months at a time
                         stopdt = getDayOffset(startdt, 22 * 3)
-                        lastdt = getNextDay(stopdt)
+                        lastdt = getNextBusinessDay(stopdt)
                     else:
                         stopdt = enddt
                 print "\tstart=%s, stop=%s" % (startdt, stopdt)

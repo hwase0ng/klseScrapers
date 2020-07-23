@@ -85,6 +85,8 @@ def getNextDay(p_date, business=False):
                 break
             else:
                 next_day = getDayOffset(next_day, 1)
+        else:
+            break
     return next_day
 
 
