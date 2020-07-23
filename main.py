@@ -349,6 +349,7 @@ def scrapeKlse(procmode, force_update, resume, i3onSat):
             useI3latest = True
         else:
             useI3latest = False
+            S.DBG_ALL = True
 
         if useI3latest:
             print "Scraping from i3 latest ..."
