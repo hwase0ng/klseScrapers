@@ -1,3 +1,5 @@
+from utils.fileutils import getStockCode
+
 import settings as S
 import styles as T
 
@@ -13,7 +15,7 @@ def format_shareholder(formatted_output, counter, announce_date, name, dt, notic
 def format_insider(formatted_output, director, counter, announce_date, name, dt, notice, shares, price, view):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(counter)
+        td_str += "<td>{}</td>".format(get_chart_link(counter))
         td_str += "<td>{}</td>".format(announce_date)
         td_str += "<td>{}</td>".format(name)
         td_str += "<td>{}</td>".format(dt)
@@ -44,7 +46,7 @@ def format_company(formatted_output, counter, announce_date, from_date, to_date,
                    shares, min_price, max_price, total, view):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(counter)
+        td_str += "<td>{}</td>".format(get_chart_link(counter))
         td_str += "<td>{}</td>".format(announce_date)
         td_str += "<td>{}</td>".format(from_date)
         td_str += "<td>{}</td>".format(to_date)
@@ -140,7 +142,7 @@ def format_latest_ar(counter, fy, ann_date, announce_date, latest_ann, view):
         print("%s, %s, %s, %s, %s" %
               (counter, fy, ann_date, announce_date, latest_ann))
     td_str = "<tr>"
-    td_str += "<td>{}</td>".format(counter)
+    td_str += "<td>{}</td>".format(get_chart_link(counter))
     td_str += "<td>{}</td>".format(fy)
     td_str += "<td>{}</td>".format(ann_date)
     td_str += "<td>{}</td>".format(announce_date)
@@ -164,7 +166,7 @@ def format_latest_qr(counter, announcement_date, qd, qn, rev, pbt, np, div, roe,
         for link in jsp_link:
             print('\t' + link)
     td_str = "<tr>"
-    td_str += "<td>{}</td>".format(counter)
+    td_str += "<td>{}</td>".format(get_chart_link(counter))
     td_str += "<td>{}</td>".format(announcement_date)
     td_str += "<td>{}</td>".format(qd)
     td_str += "<td>{}</td>".format(qn)
@@ -203,7 +205,7 @@ def format_dividend(formatted_output, others,
     if formatted_output:
         td_str = "<tr>"
         td_str += "<td>{}</td>".format(announce_date)
-        td_str += "<td>{}</td>".format(stock)
+        td_str += "<td>{}</td>".format(get_chart_link(stock))
         if others:
             td_str += "<td>{}</td>".format(subject)
         td_str += "<td>{}</td>".format(open_price)
@@ -246,7 +248,7 @@ def format_listing(formatted_output,
                    stock, announce_date, listing_date, list_type, units, price, view):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(stock)
+        td_str += "<td>{}</td>".format(get_chart_link(stock))
         td_str += "<td>{}</td>".format(announce_date)
         td_str += "<td>{}</td>".format(listing_date)
         td_str += "<td>{}</td>".format(list_type)
@@ -280,7 +282,7 @@ def format_target(formatted_output,
                   announce_date, stock, last_price, target, upside_down, call, source):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(stock)
+        td_str += "<td>{}</td>".format(get_chart_link(stock))
         td_str += "<td>{}</td>".format(announce_date)
         td_str += "<td>{}</td>".format(last_price)
         td_str += "<td>{}</td>".format(target)
@@ -319,3 +321,10 @@ def format_table(table_title, table_list, table_head):
     table_list.append("</table>")
     table_list.append("</body>")
     table_list.append("</html>")
+
+
+def get_chart_link(counter):
+    link = "https://klse.i3investor.com/mqtrader/sf/chart/stk/" + \
+           getStockCode(counter, 'scrapers/i3investor/klse.txt')
+    chart_link = '<b><a href="{}">{}</a></b>'.format(link, counter)
+    return chart_link

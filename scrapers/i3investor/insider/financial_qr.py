@@ -1,6 +1,9 @@
 import settings as S
+import requests
+import re
 from common import connect_url, formStocklist, printable
 from utils.dateutils import change2KlseDateFmt, getToday
+from tika import parser
 
 I3_LATEST_QR_URL = S.I3_KLSE_URL + '/financial/quarter/latest.jsp'
 I3_QR_URL = S.I3_KLSE_URL + '/servlets/stk/annqtyres/'
@@ -133,6 +136,7 @@ def scrape_latest_qr(soup, trading_date):
             print ('INFO: No Latest QR data is available')
         return None
     qr_list = {}
+    pdf_list = {}
     for tr in table.findAll('tr'):
         td = tr.findAll('td')
         latestQR = [x.text.strip().replace('&nbsp; ', '').encode("ascii") for x in td]
@@ -154,6 +158,7 @@ def scrape_latest_qr(soup, trading_date):
                             if len(jsp_link) > 0:
                                 break
                     qr_list[stock] = [announcementDate, qd, qn, rev, pbt, np, div, roe, eps, dps, qoq, yoy, jsp_link]
+                    # pdf_list[stock] = review_pdf(jsp_link.keys())
                 else:
                     print ("INFO: Duplicated announcement: " + stock + ":" + qd + ":Q" + qn)
             else:
@@ -164,3 +169,35 @@ def scrape_latest_qr(soup, trading_date):
                 if ann_dt < trd_dt:
                     break
     return qr_list
+
+
+def review_pdf(urls):
+    for url in urls:
+        pdf_obj = requests.get(url, stream=True)
+        raw_xml = parser.from_buffer(pdf_obj.content, xmlContent=True)
+        # raw_xml = parser.from_file(file, xmlContent=True)
+        body = raw_xml['content'].split('<body>')[1].split('</body>')[0]
+        #print(body)
+        body_without_tag = body.replace("<p>", "").replace("</p>", "").replace("<div>", "").replace("</div>","").replace("<p />","")
+        text_pages = body_without_tag.split("""<div class="page">""")[1:]
+        num_pages = len(text_pages)
+        if num_pages==int(raw_xml['metadata']['xmpTPg:NPages']) : #check if it worked correctly
+            print(num_pages)
+        pdf_lines = []
+        for page_num in range(num_pages):
+            if re.search("Review of Performance", text_pages[page_num], re.IGNORECASE):
+                skipHeadings = True
+                lines = text_pages[page_num].split("\n")
+                for line in lines:
+                    if skipHeadings:
+                        if re.search("Review of Performance", line, re.IGNORECASE):
+                            skipHeadings = False
+                        if skipHeadings:
+                            continue
+                    print(line)
+                    pdf_lines.append(line)
+    return pdf_lines
+
+if __name__ == '__main__':
+    pdf = review_pdf("https://cdn1.i3investor.com/my/files/st88k/0205_DPIH/qr/2020-05-31/0205_DPIH_QR_2020-05-31_DPIH_4Q%20Results_20200730_-1859956828.pdf")
+    print(pdf)
