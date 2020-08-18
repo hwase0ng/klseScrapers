@@ -47,7 +47,7 @@ def process(yaml_file, trading_date=getToday('%d-%b-%Y')):
             # print (name + " : " + str(items))
             addr = items["email"]
             print (name + ": " + ", ".join(addr))
-            if name in skip_name:
+            if skip_name is not None and name in skip_name:
                 print ("\tSkipped")
                 break
             for tracking_list in items.iterkeys():
