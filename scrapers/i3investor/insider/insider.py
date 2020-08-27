@@ -12,6 +12,9 @@ Created on Mar 7, 2020
 
 @author: hwaseong
 """
+import time
+from smtplib import SMTPDataError
+
 from common import loadCfg
 from scrapers.i3investor.insider.add_listing import crawl_listing
 from scrapers.i3investor.insider.entitlements import crawl_entitlement
@@ -131,7 +134,18 @@ def process(yaml_file, trading_date=getToday('%d-%b-%Y')):
                     subject = "INSIDER UPDATE on {} for portfolio: {}".format(
                         getToday("%d-%b-%Y"), tracking_list.upper()
                     )
-                    yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD).send(addr, subject, list_result)
+                    retry = 0
+                    while True:
+                        try:
+                            yagmail.SMTP(S.MAIL_SENDER, S.MAIL_PASSWORD).send(addr, subject, list_result)
+                        except Exception, e:
+                            retry += 1
+                            if retry > 10:
+                                print ("Unable to send mail! Exit")
+                                print e
+                                break
+                            print ("SMTP data error...retrying {} time(s)".format(retry))
+                            time.sleep(120)
 
 
 # python decorator as high order function
