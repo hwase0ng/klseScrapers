@@ -15,8 +15,8 @@ def format_shareholder(formatted_output, counter, announce_date, name, dt, notic
 def format_insider(formatted_output, director, counter, announce_date, name, dt, notice, shares, price, view):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(get_chart_link(counter))
-        td_str += "<td>{}</td>".format(announce_date)
+        td_str += "<td>{}</td>".format(get_fa_link(counter))
+        td_str += "<td>{}</td>".format(get_ta_link(counter, announce_date))
         td_str += "<td>{}</td>".format(name)
         td_str += "<td>{}</td>".format(dt)
         td_str += "<td>{}</td>".format(notice)
@@ -46,8 +46,8 @@ def format_company(formatted_output, counter, announce_date, from_date, to_date,
                    shares, min_price, max_price, total, view):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(get_chart_link(counter))
-        td_str += "<td>{}</td>".format(announce_date)
+        td_str += "<td>{}</td>".format(get_fa_link(counter))
+        td_str += "<td>{}</td>".format(get_ta_link(counter, announce_date))
         td_str += "<td>{}</td>".format(from_date)
         td_str += "<td>{}</td>".format(to_date)
         td_str += "<td>{}</td>".format(chg_type)
@@ -142,9 +142,9 @@ def format_latest_ar(counter, fy, ann_date, announce_date, latest_ann, view):
         print("%s, %s, %s, %s, %s" %
               (counter, fy, ann_date, announce_date, latest_ann))
     td_str = "<tr>"
-    td_str += "<td>{}</td>".format(get_chart_link(counter))
+    td_str += "<td>{}</td>".format(get_fa_link(counter))
     td_str += "<td>{}</td>".format(fy)
-    td_str += "<td>{}</td>".format(ann_date)
+    td_str += "<td>{}</td>".format(get_ta_link(counter, ann_date))
     td_str += "<td>{}</td>".format(announce_date)
     td_str += "<td>{}</td>".format(latest_ann)
     td_str += "<td>"
@@ -166,8 +166,8 @@ def format_latest_qr(counter, announcement_date, qd, qn, rev, pbt, np, div, roe,
         for link in jsp_link:
             print('\t' + link)
     td_str = "<tr>"
-    td_str += "<td>{}</td>".format(get_chart_link(counter))
-    td_str += "<td>{}</td>".format(announcement_date)
+    td_str += "<td>{}</td>".format(get_fa_link(counter))
+    td_str += "<td>{}</td>".format(get_ta_link(counter, announcement_date))
     td_str += "<td>{}</td>".format(qd)
     td_str += "<td>{}</td>".format(qn)
     td_str += "<td>{}</td>".format(rev)
@@ -204,8 +204,8 @@ def format_dividend(formatted_output, others,
                     current_price, dividend_ratio, ex_date, view):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(announce_date)
-        td_str += "<td>{}</td>".format(get_chart_link(stock))
+        td_str += "<td>{}</td>".format(get_ta_link(stock, announce_date))
+        td_str += "<td>{}</td>".format(get_fa_link(stock))
         if others:
             td_str += "<td>{}</td>".format(subject)
         td_str += "<td>{}</td>".format(open_price)
@@ -248,8 +248,8 @@ def format_listing(formatted_output,
                    stock, announce_date, listing_date, list_type, units, price, view):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(get_chart_link(stock))
-        td_str += "<td>{}</td>".format(announce_date)
+        td_str += "<td>{}</td>".format(get_fa_link(stock))
+        td_str += "<td>{}</td>".format(get_ta_link(stock, announce_date))
         td_str += "<td>{}</td>".format(listing_date)
         td_str += "<td>{}</td>".format(list_type)
         td_str += "<td>{}</td>".format(units)
@@ -282,8 +282,8 @@ def format_target(formatted_output,
                   announce_date, stock, last_price, target, upside_down, call, source):
     if formatted_output:
         td_str = "<tr>"
-        td_str += "<td>{}</td>".format(get_chart_link(stock))
-        td_str += "<td>{}</td>".format(announce_date)
+        td_str += "<td>{}</td>".format(get_fa_link(stock))
+        td_str += "<td>{}</td>".format(get_ta_link(stock, announce_date))
         td_str += "<td>{}</td>".format(last_price)
         td_str += "<td>{}</td>".format(target)
         td_str += "<td>{}</td>".format(upside_down)
@@ -323,8 +323,15 @@ def format_table(table_title, table_list, table_head):
     table_list.append("</html>")
 
 
-def get_chart_link(counter):
+def get_ta_link(counter, ann_date):
     link = "https://klse.i3investor.com/mqtrader/sf/chart/stk/" + \
+           getStockCode(counter, 'scrapers/i3investor/klse.txt')
+    chart_link = '<b><a href="{}">{}</a></b>'.format(link, ann_date)
+    return chart_link
+
+
+def get_fa_link(counter):
+    link = "https://klse.i3investor.com/mqtrader/sf/fa/financials/" + \
            getStockCode(counter, 'scrapers/i3investor/klse.txt')
     chart_link = '<b><a href="{}">{}</a></b>'.format(link, counter)
     return chart_link

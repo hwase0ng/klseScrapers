@@ -146,6 +146,8 @@ def process(yaml_file, trading_date=getToday('%d-%b-%Y')):
                                 break
                             print ("SMTP data error...retrying {} time(s)".format(retry))
                             time.sleep(120)
+                        finally:
+                            break
 
 
 # python decorator as high order function

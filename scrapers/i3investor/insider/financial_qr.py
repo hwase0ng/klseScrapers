@@ -199,5 +199,6 @@ def review_pdf(urls):
     return pdf_lines
 
 if __name__ == '__main__':
-    pdf = review_pdf("https://cdn1.i3investor.com/my/files/st88k/0205_DPIH/qr/2020-05-31/0205_DPIH_QR_2020-05-31_DPIH_4Q%20Results_20200730_-1859956828.pdf")
+    # pdf = review_pdf("https://cdn1.i3investor.com/my/files/st88k/0205_DPIH/qr/2020-05-31/0205_DPIH_QR_2020-05-31_DPIH_4Q%20Results_20200730_-1859956828.pdf")
+    pdf = review_pdf(["https://cdn1.i3investor.com/my/files/st88k/7034_TGUAN/qr/2020-06-30/7034_TGUAN_QR_2020-06-30_TGIB_Quarterly%20results_Q2%202020_-487840227.pdf"])
     print(pdf)
