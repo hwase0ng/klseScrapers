@@ -139,9 +139,11 @@ def scrapeLatestPrice(soup, checkLastTrading=""):
 
 
 def unpackEOD(popen, phigh, plow, pclose, pvol):
+    # 2020-01-03 added new columns: adj close, dividend and stock split
     return "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), \
         "{:.4f}".format(float(plow)), "{:.4f}".format(float(pclose)), \
-        int(pvol.replace(',', ''))
+        "{:.4f}".format(float(pclose)), \
+        int(pvol.replace(',', '')), 0, 0
 
 
 def scrapeInitials(initial, q=None):
@@ -215,7 +217,7 @@ def unpackStockData(key, lastTradingDate, skey):
     stk = key.split('.')
     shortname = stk[0].replace(';', '')
     stockCode = stk[1]
-    eod = shortname + ',' + lastTradingDate + ',' + ','.join(
+    eod = lastTradingDate + ',' + shortname + ',' + ','.join(
         map(str, unpackEOD(*(skey))))
     return eod, shortname, stockCode
 
@@ -321,6 +323,7 @@ def mt4eod(lastTradingDate):
 
 if __name__ == '__main__':
     S.DBG_ALL = False
+    list1 = writeLatestPrice("2020-12-31", True, True, "2020-12-31")
     '''
     writeStocksListing()
     writeLatestPrice(getDataDir(S.DATA_DIR) + 'i3/', False)
