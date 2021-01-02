@@ -2,29 +2,29 @@
  hwaseong:
    email: [hwaseong.tan@gmail.com]
    targets:
-     - bursa
      - carlsbg
-     - dufu
-     - magni
-     - sunway
-     - tguan
+     - elkdesa
+     - fpi
+     - krono
+     - master
+     - mitra
+     - yinson
  roy:
    email: [roysten.tan@gmail.com]
    holdings:
      - bat
-     - cypark
+     - iqgroup
      - danco
      - dpih
-     - elkdesa
-     - icap
      - tguan
+     - wong
    technology:
      - aemulus
+     - dufu
      - jaycorp
      - jhm
      - kgb
      - kobay
-     - krono
      - mi
      - notion
      - opensys
@@ -45,6 +45,7 @@
      - padini
      - petronm
      - pie
+     - prlexus
      - takaful
      - tongher
    gloves:
