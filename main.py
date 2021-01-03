@@ -400,7 +400,7 @@ if __name__ == '__main__':
         print "Scraping i3 stocks listing ..."
         writeStocksListing(klse)
 
-    if args['--price']:
+    elif args['--price']:
         sname = args['COUNTER'][0].upper()
         slist = formStocklist(sname, klse)
         nums = args['--price'].split(",")

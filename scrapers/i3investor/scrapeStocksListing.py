@@ -48,6 +48,8 @@ def scrapeStocksListing(soup):
         leftTag = tr.findAll('td', {'class': 'left'})
         if leftTag is not None and len(leftTag) > 0:
             stockShortName = leftTag[0].text.replace(';', '')
+            if stockShortName in S.EXCLUDE_LIST:
+                continue
             stockName = leftTag[1].text.replace(';', '')
             stockLink = tr.find('a').get('href')
             # Sample stockLink: /servlets/stk/1234.jsp
