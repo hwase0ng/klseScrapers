@@ -151,7 +151,7 @@ def getLastDate(fn):
         else:
             # using tail2
             t2 = t[0].split(",")
-        lastdt = t2[1]
+        lastdt = t2[0]
         return lastdt
         '''
         nextdt = getNextDay(lastdt)
