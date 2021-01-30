@@ -50,15 +50,15 @@ def pricesplit(sname, scode, ratio):
     # infile = S.DATA_DIR + sname + "." + scode + ".csv"
     infile = os.path.join(S.DATA_DIR, sname + "." + scode + ".csv")
     outfile = infile + ".new"
-    df = pd.read_csv(infile, sep=',', header=None,
-                     names=['name', 'date', 'open', 'high', 'low', 'close', 'volume'])
+    df = pd.read_csv(infile, sep=',', header=True)
+                     # names=['name', 'date', 'open', 'high', 'low', 'close', 'AdjClose', 'volume'])
     df['open'] = df['open'] * ratio
     df['high'] = df['high'] * ratio
     df['low'] = df['low'] * ratio
     df['close'] = df['close'] * ratio
     df['volume'] = pd.to_numeric(df['volume'])
     df['volume'].astype(int)
-    df.to_csv(outfile, sep=',', header=False, index=False, float_format='%.4f')
+    df.to_csv(outfile, sep=',', header=True, index=False, float_format='%.4f')
 
 
 def dbUpdateLatest(eodlist=''):
