@@ -58,7 +58,7 @@ def pricesplit(sname, scode, ratio):
     df['AdjClose'] = df['AdjClose'] * ratio
     df['Volume'] = pd.to_numeric(df['Volume'])
     df['Volume'].astype(int)
-    df.to_csv(outfile, sep=',', header=False, index=False, float_format='%.4f')
+    df.to_csv(outfile, sep=',', header=0, index=False, float_format='%.4f')
 
 
 def dbUpdateLatest(eodlist=''):
