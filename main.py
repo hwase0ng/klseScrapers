@@ -58,7 +58,7 @@ def pricesplit(sname, scode, ratio):
     df['AdjClose'] = df['AdjClose'] * ratio
     df['Volume'] = pd.to_numeric(df['Volume'])
     df['Volume'].astype(int)
-    df.to_csv(outfile, sep=',', header=0, index=False, float_format='%.4f')
+    df.to_csv(outfile, sep=',', header=True, index=False, float_format='%.4f')
 
 
 def dbUpdateLatest(eodlist=''):
@@ -91,7 +91,7 @@ def scrapeI3eod(sname, scode, lastdt):
         if key <= lastdt:
             print "Skip downloaded: ", key, lastdt
             continue
-        i3eod += [sname + ',' + key + ',' +
+        i3eod += [key + ',' + sname + ',' +
                   ','.join(map(str, unpackEOD(*(eodStock[key]))))]
     return i3eod
 

@@ -75,13 +75,14 @@ def scrapeRecentEOD(soup, sname, scode, lastdt, checkLastTrading=False):
             if checkLastTrading:
                 # a quick hack for now
                 return dt, price_open, price_close, volume
-            if dt == lastdt and int(volume.replace(',', '')) > 0:
+            if dt > lastdt and int(volume.replace(',', '')) > 0:
                 i3eod[dt] = [price_open, price_high, price_low, price_close, volume]
+            elif dt == lastdt:
                 break
             else:
                 continue
             # print type(dt), type(price_open), type(price_high), type(price_low), type(price_close), type(volume)
-            if S.DBG_ALL:
+            if 1==1:
                 print dt, price_open, price_high, price_low, price_close, volume
         elif len(eod) > 0:
             print "ERR:", eod
@@ -91,6 +92,7 @@ def scrapeRecentEOD(soup, sname, scode, lastdt, checkLastTrading=False):
 def unpackEOD(popen, phigh, plow, pclose, pvol):
     return "{:.4f}".format(float(popen)), "{:.4f}".format(float(phigh)), \
         "{:.4f}".format(float(plow)), "{:.4f}".format(float(pclose)), \
+        "{:.4f}".format(float(pclose)), \
         int(pvol.replace(',', ''))
 
 
