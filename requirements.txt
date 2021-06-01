@@ -49,7 +49,7 @@ six==1.11.0
 subprocess32==3.2.7
 times==0.7
 tzlocal==1.5.1
-urllib3==1.24.2
+urllib3==1.26.5
 virtualenv==15.1.0
 windows-curses==2.1.0
 wrapt==1.10.11
